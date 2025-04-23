@@ -6,13 +6,26 @@
         <div class="mb-6">
             <h3 class="text-lg font-medium mb-2">选择模板</h3>
             <div class="grid grid-cols-3 gap-4">
-                <div v-for="(template, index) in templates" :key="index" @click="selectTemplate(template.id)"
-                    class="template-item p-2 border rounded-lg cursor-pointer transition-all"
-                    :class="{ 'border-xhs-pink': selectedTemplate === template.id }">
-                    <div class="aspect-[3/4] bg-gray-100 rounded flex items-center justify-center"
-                        :class="template.color">
-                        <span class="text-xs">{{ template.name }}</span>
+                <div v-for="template in templatesInfo" :key="template.id"
+                     @click="selectTemplate(template.id)"
+                     class="template-item flex flex-col items-center p-1 border rounded-lg cursor-pointer transition-all"
+                     :class="{ 'border-xhs-pink border-2': selectedTemplate === template.id, 'border-gray-200': selectedTemplate !== template.id }">
+
+                    <!-- 容器控制大小和裁剪 -->
+                    <div class="preview-container w-full h-28 overflow-hidden flex justify-center items-center mb-1 bg-gray-50">
+                        <!-- 缩放实际组件 -->
+                        <div style="transform: scale(0.25); transform-origin: center center;">
+                            <component
+                                :is="getTemplateComponent(template.id)"
+                                type="cover"
+                                :title="previewTitle"
+                                :content="previewCoverContent"
+                            />
+                        </div>
                     </div>
+
+                    <!-- 模板名称 -->
+                    <span class="text-xs mt-auto">{{ template.name }}</span>
                 </div>
             </div>
         </div>
@@ -73,8 +86,16 @@
 </template>
 
 <script>
+import { ref } from 'vue'; // 如果使用 Composition API
+import Template1 from '../templates/Template1.vue';
+import Template2 from '../templates/Template2.vue';
+import Template3 from '../templates/Template3.vue';
+import Template4 from '../templates/Template4.vue';
+
 export default {
     name: 'CardConfig',
+    // 注册组件（可选，因为 :is 可以直接使用导入的变量）
+    // components: { Template1, Template2, Template3, Template4 },
     props: {
         selectedTemplate: {
             type: String,
@@ -88,11 +109,23 @@ export default {
     data() {
         return {
             content: { ...this.cardContent },
-            templates: [
-                { id: 'template1', name: '模板1', color: 'bg-pink-100' },
-                { id: 'template2', name: '模板2', color: 'bg-blue-100' },
-                { id: 'template3', name: '模板3', color: 'bg-yellow-100' }
-            ]
+            // 用于循环的基础信息
+            templatesInfo: [
+                { id: 'template1', name: '模板1' },
+                { id: 'template2', name: '模板2' },
+                { id: 'template3', name: '模板3' },
+                { id: 'template4', name: '模板4' }
+            ],
+            // ID 到组件的映射
+            templateComponentMap: {
+                template1: Template1,
+                template2: Template2,
+                template3: Template3,
+                template4: Template4
+            },
+            // 预览用的默认数据
+            previewTitle: '标题',
+            previewCoverContent: { subtitle: '副标题' }
         }
     },
     methods: {
@@ -106,29 +139,33 @@ export default {
             this.content.contentCards.push({
                 title: '新卡片标题',
                 content: '在这里输入卡片内容...'
-            })
-            this.updateContent()
+            });
+            this.updateContent();
         },
         removeCard(index) {
             if (this.content.contentCards.length > 1) {
-                this.content.contentCards.splice(index, 1)
-                this.updateContent()
+                this.content.contentCards.splice(index, 1);
+                this.updateContent();
             }
         },
         copyMainText() {
             navigator.clipboard.writeText(this.content.mainText)
                 .then(() => {
-                    alert('主文案已复制到剪贴板！')
+                    alert('主文案已复制到剪贴板！');
                 })
                 .catch(err => {
-                    console.error('无法复制文本: ', err)
-                })
+                    console.error('无法复制文本: ', err);
+                });
+        },
+        // 获取组件对象的方法
+        getTemplateComponent(templateId) {
+            return this.templateComponentMap[templateId] || Template1; // 默认返回 Template1
         }
     },
     watch: {
         cardContent: {
             handler(newVal) {
-                this.content = { ...newVal }
+                this.content = { ...newVal };
             },
             deep: true
         }

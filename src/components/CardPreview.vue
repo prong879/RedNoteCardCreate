@@ -59,10 +59,11 @@ import { exportCardAsImage, exportCardsAsImages, copyTextToClipboard } from '../
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
 import Template3 from '../templates/Template3.vue';
+import Template4 from '../templates/Template4.vue';
 
 export default {
     name: 'CardPreview',
-    components: { Template1, Template2, Template3 }, // 注册模板组件
+    components: { Template1, Template2, Template3, Template4 }, // 注册新模板
     props: {
         template: {
             type: String,
@@ -83,6 +84,8 @@ export default {
                     return Template2;
                 case 'template3':
                     return Template3;
+                case 'template4':
+                    return Template4;
                 default:
                     return Template1; // 默认使用模板1
             }
