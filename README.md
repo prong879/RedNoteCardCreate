@@ -7,10 +7,10 @@
 ### 主要功能
 
 1.  **主题模板加载**：从预设的 `topicTemplates.js` 文件中加载选题内容，每个选题包含封面卡片、多张内容卡片和主文案。
-2.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template4` - 新增9:16比例)。
+2.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template4` - 支持 3:4 和 9:16 比例)。
 3.  **可视化内容编辑**：
     *   实时编辑主题标题、封面副标题、卡片标题和内容。
-    *   支持 **Markdown 语法** (使用 `marked` 库，支持 GFM 风格) 和 **LaTeX 数学公式** (行内 `$formula$` 和块级 `$$formula$$`，使用 `katex` 库渲染)。
+    *   支持 **Markdown 语法** (使用 `markdown-it` 库) 和 **LaTeX 数学公式** (行内 `$formula$` 和块级 `$$formula$$`，使用 `katex` 库渲染)。
     *   动态添加或删除内容卡片。
 4.  **实时预览**：在编辑的同时，右侧面板实时显示选定卡片样式模板下的最终效果。
 5.  **图片导出**：
@@ -25,7 +25,7 @@
 -   **构建工具**：Vite (v4.3.9) - 提供快速的开发和构建体验。
 -   **样式方案**：Tailwind CSS (v3.3.2) - 原子化 CSS 框架，快速构建界面。
 -   **CSS 预处理器**：PostCSS (v8.4.24) - 处理 CSS 兼容性 (autoprefixer)。
--   **Markdown 解析**：Marked (latest) - 高性能 Markdown 解析器。
+-   **Markdown 解析**：markdown-it (latest) - 功能丰富、可扩展的 Markdown 解析器。
 -   **LaTeX 渲染**：KaTeX (latest) - 快速 Web 数学公式渲染库。
 -   **图片生成**：html2canvas (v1.4.1) - 将 DOM 元素渲染成 Canvas，进而导出为图片。
 -   **文件保存**：file-saver (v2.0.5) - 在客户端保存生成的文件。
@@ -127,12 +127,11 @@ npm run build
 │   └── main.js         # 应用入口文件
 ├── .gitignore          # Git 忽略配置
 ├── index.html          # HTML 入口文件
-├── package.json        # 项目依赖与脚本配置
+├── package.json        # 项目依赖与脚本配置 (主要的依赖管理文件)
 ├── postcss.config.js   # PostCSS 配置文件
 ├── README.md           # 项目说明文档 (本文件)
 ├── tailwind.config.js  # Tailwind CSS 配置文件
 ├── vite.config.js      # Vite 配置文件
-├── requirements.txt    # 依赖清单 (供参考)
 └── 解决方案概要.md   # 解决方案设计文档
 ```
 
@@ -209,14 +208,15 @@ export default {
     *   [x] 新增卡片样式模板 (`Template4` - 9:16 宽高比)
     *   [x] 图片导出功能 (`html2canvas`, `file-saver`)
     *   [x] 文案复制功能
-    *   [x] Markdown 与 LaTeX 渲染 (`marked`, `katex`)
+    *   [x] Markdown 与 LaTeX 渲染 (`markdown-it`, `katex`)
+    *   [x] 更新默认卡片尺寸比例为 3:4 (小红书标准)，模板4保持 9:16
 
 -   [ ] **阶段2**：功能完善
+    *   [ ] 在编辑器区域实现实时 Markdown 预览（所见即所得）
     *   [ ] 完善 Markdown 渲染支持 (例如代码高亮 `highlight.js`)
     *   [ ] 提供更多背景样式选项 (如果需要覆盖模板固定样式)
     *   [ ] 实现配置的本地存储 (LocalStorage)，记住上次编辑状态或常用配置。
     *   [ ] 优化导出流程，例如打包为 ZIP 文件。
-    *   [x] 更新卡片尺寸比例为3:4（宽高比），确保在小红书平台良好显示。
 
 -   [ ] **阶段3**：高级功能与体验优化
     *   [ ] 表情符号选择器集成到文本编辑器。
@@ -229,9 +229,10 @@ export default {
 
 （与开发阶段中的未完成项对应）
 
+-   [ ] 编辑器输入md语法，右侧实时支持 Markdown 预览
 -   [ ] 代码高亮支持
 -   [ ] 本地存储历史记录或配置
 -   [ ] 表情符号选择器
 -   [ ] 自定义背景图片
 -   [ ] 拖拽排序
--   [ ] 测试覆盖 
+-   [ ] 测试覆盖
