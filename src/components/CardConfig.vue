@@ -41,10 +41,10 @@
             <h3 class="text-lg font-medium mb-2">封面卡片</h3>
             <!-- 将封面标题和副标题放入框内 -->
             <div class="p-3 border rounded-lg">
-                <input v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2" placeholder="输入封面标题"
-                    @input="updateContent" />
-                <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg"
-                    placeholder="输入副标题" rows="2" @input="updateContent"></textarea>
+                <textarea v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea" placeholder="输入封面标题"
+                    rows="1" @input="adjustTextareaHeight"></textarea>
+                <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
+                    placeholder="输入副标题" rows="2" @input="adjustTextareaHeight"></textarea>
             </div>
         </div>
 
@@ -57,16 +57,16 @@
                     <span class="font-medium">卡片 {{ index + 1 }}</span>
                     <button @click="removeCard(index)"
                             class="text-red-500 text-sm border border-red-500 bg-red-100 px-2 py-0.5 rounded hover:bg-red-200 transition-colors"
-                            v-if="content.contentCards.length > 1">
+                        v-if="content.contentCards.length > 1">
                         删除
                     </button>
                 </div>
 
-                <input v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2" placeholder="卡片标题"
-                    @input="updateContent" />
+                <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea" placeholder="卡片标题"
+                    rows="1" @input="adjustTextareaHeight"></textarea>
 
-                <textarea v-model="card.content" class="w-full px-3 py-2 border rounded-lg"
-                    placeholder="卡片内容 (支持 Markdown 格式)" rows="4" @input="updateContent"></textarea>
+                <textarea v-model="card.content" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
+                    placeholder="卡片内容 (支持 Markdown 格式)" rows="4" @input="adjustTextareaHeight"></textarea>
             </div>
 
             <button @click="addCard"
@@ -78,8 +78,8 @@
         <!-- 主文案配置 -->
         <div class="mb-6">
             <h3 class="text-lg font-medium mb-2">小红书主文案</h3>
-            <textarea v-model="content.mainText" class="w-full px-3 py-2 border rounded-lg" placeholder="输入小红书笔记主文案"
-                rows="6" @input="updateContent"></textarea>
+            <textarea v-model="content.mainText" class="w-full px-3 py-2 border rounded-lg dynamic-textarea" placeholder="输入小红书笔记主文案"
+                rows="6" @input="adjustTextareaHeight"></textarea>
         </div>
 
         <!-- 导出主文案按钮 -->
@@ -148,7 +148,7 @@ export default {
                      const scale = Math.min(1, availableWidth / BASE_CARD_WIDTH);
 
                      scalingDivRefs.value[index].style.transform = `scale(${scale})`;
-                 }
+        }
              });
         };
 
@@ -185,6 +185,13 @@ export default {
             emit('update:content', { ...content.value });
         };
 
+        const adjustTextareaHeight = (event) => {
+            const textarea = event.target;
+            textarea.style.height = 'auto';
+            textarea.style.height = `${textarea.scrollHeight}px`;
+            updateContent();
+        };
+
         const addCard = () => {
             if (!content.value.contentCards) {
                  content.value.contentCards = [];
@@ -200,7 +207,7 @@ export default {
              if (content.value.contentCards && content.value.contentCards.length > 1) {
                  content.value.contentCards.splice(index, 1);
                  updateContent();
-             }
+            }
         };
 
         const copyMainText = () => {
@@ -226,7 +233,16 @@ export default {
             addCard,
             removeCard,
             copyMainText,
+            adjustTextareaHeight
         };
     }
 }
 </script>
+
+<style scoped>
+.dynamic-textarea {
+    resize: none;
+    overflow-y: hidden;
+    min-height: calc(1.5em + 1rem + 2px);
+}
+</style>
