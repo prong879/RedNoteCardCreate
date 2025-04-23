@@ -29,7 +29,7 @@
                  <!--   text-4xl: 字体大小 (Tailwind) -->
                  <!--   font-bold: 字体加粗 (Tailwind) -->
                  <!--   mb-10: 下外边距 2.5rem (40px) (Tailwind) -->
-                 <h1 class="text-4xl font-bold mb-10">{{ title }}</h1>
+                 <h1 class="text-4xl font-bold mb-10 whitespace-pre-line">{{ title }}</h1>
                  <!-- 封面副标题 -->
                  <!-- class="text-xl whitespace-pre-line": -->
                  <!--   text-xl: 字体大小 (Tailwind) -->
@@ -58,7 +58,7 @@
                 <!--   font-bold: 字体加粗 (Tailwind) -->
                 <!--   mb-4: 下外边距 1rem (16px) (Tailwind) -->
                 <!--   text-xhs-black: 使用自定义的小红书黑色 (在全局样式或 Tailwind 配置中定义) -->
-                <h3 class="text-xl font-bold mb-4 text-xhs-black">{{ content.title }}</h3>
+                <h3 class="text-xl font-bold mb-4 text-xhs-black whitespace-pre-line">{{ content.title }}</h3>
                 <!-- Markdown 内容渲染区域 -->
                 <!-- class="markdown-content katex-compatible flex-grow overflow-y-auto": -->
                 <!--   markdown-content: 用于标识 Markdown 内容容器，可能用于全局样式 -->

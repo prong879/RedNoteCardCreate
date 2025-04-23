@@ -41,7 +41,7 @@
             <h3 class="text-lg font-medium mb-2">封面卡片</h3>
             <!-- 将封面标题和副标题放入框内 -->
             <div class="p-3 border rounded-lg">
-                <textarea v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea" placeholder="输入封面标题"
+                <textarea v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题"
                     rows="1" @input="adjustTextareaHeight"></textarea>
                 <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
                     placeholder="输入副标题" rows="2" @input="adjustTextareaHeight"></textarea>
@@ -62,7 +62,7 @@
                     </button>
                 </div>
 
-                <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea" placeholder="卡片标题"
+                <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题"
                     rows="1" @input="adjustTextareaHeight"></textarea>
 
                 <textarea v-model="card.content" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
@@ -240,9 +240,16 @@ export default {
 </script>
 
 <style scoped>
+/* 为动态调整高度的 textarea 添加基础样式 */
 .dynamic-textarea {
-    resize: none;
+    resize: none; /* 禁止用户手动调整大小 */
+    overflow-y: auto; /* 默认允许垂直滚动 */
+    min-height: calc(1.5em + 1rem + 2px); /* 根据行高、内边距和边框计算一个大致的最小高度，防止初始太扁 */
+    /* line-height: 1.5; /* 可以明确设置行高 */
+}
+
+/* 为标题等不需要滚动条的 textarea 隐藏滚动条 */
+.dynamic-textarea.hide-scrollbar {
     overflow-y: hidden;
-    min-height: calc(1.5em + 1rem + 2px);
 }
 </style>
