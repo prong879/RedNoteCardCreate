@@ -14,7 +14,9 @@
                 <div ref="coverCard">
                     <component :is="activeTemplateComponent" type="cover"
                         :title="content.coverCard.title"
-                        :content="content.coverCard" />
+                        :content="content.coverCard"
+                        :headerText="content.headerText || ''"
+                        :footerText="content.footerText || ''"/>
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     封面卡片
@@ -28,7 +30,10 @@
             <!-- 内容卡片 -->
             <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0">
                 <div :ref="`contentCard${index}`">
-                    <component :is="activeTemplateComponent" type="content" :content="card" />
+                    <component :is="activeTemplateComponent" type="content"
+                         :content="card"
+                         :headerText="content.headerText || ''"
+                         :footerText="content.footerText || ''"/>
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     内容卡片 {{ index + 1 }}

@@ -38,18 +38,24 @@
             </div>
 
             <div class="mb-6">
+                <h3 class="text-lg font-medium mb-2">全局页眉/页脚</h3>
+                <div class="p-3 border rounded-lg space-y-2">
+                    <textarea v-model="content.headerText" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页眉 (所有卡片生效)" rows="1"></textarea>
+                    <textarea v-model="content.footerText" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页脚 (所有卡片生效)" rows="1"></textarea>
+                </div>
+            </div>
+
+            <div class="mb-6">
                 <h3 class="text-lg font-medium mb-2">封面卡片</h3>
-                <div class="p-3 border rounded-lg">
-                    <textarea v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题"
-                        rows="1" @input="adjustTextareaHeight"></textarea>
-                    <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
-                        placeholder="输入副标题" rows="2" @input="adjustTextareaHeight"></textarea>
+                <div class="p-3 border rounded-lg space-y-2">
+                    <textarea v-model="content.coverCard.title" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题" rows="1"></textarea>
+                    <textarea v-model="content.coverCard.subtitle" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar" placeholder="输入副标题" rows="2"></textarea>
                 </div>
             </div>
 
             <div class="mb-6">
                 <h3 class="text-lg font-medium mb-2">内容卡片</h3>
-                <div v-for="(card, index) in content.contentCards" :key="index" class="mb-4 p-3 border rounded-lg">
+                <div v-for="(card, index) in content.contentCards" :key="index" class="mb-4 p-3 border rounded-lg space-y-2">
                     <div class="flex justify-between items-center mb-2">
                         <span class="font-medium">卡片 {{ index + 1 }}</span>
                         <button @click="removeCard(index)"
@@ -58,10 +64,8 @@
                             删除
                         </button>
                     </div>
-                    <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题"
-                        rows="1" @input="adjustTextareaHeight"></textarea>
-                    <textarea v-model="card.body" class="w-full px-3 py-2 border rounded-lg"
-                        placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
+                    <textarea v-model="card.title" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
+                    <textarea v-model="card.body" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
                 </div>
                 <button @click="addCard"
                     class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink hover:bg-xhs-pink hover:text-white transition-colors">
@@ -233,6 +237,7 @@ export default {
                 body: '在这里输入卡片内容...'
             });
             updateContent();
+            nextTick(adjustAllTextareaHeights);
         };
 
         const removeCard = (index) => {
@@ -279,10 +284,18 @@ export default {
 <style scoped>
 .dynamic-textarea {
     resize: none;
-    overflow-y: auto;
-    min-height: calc(1.5em + 1rem + 2px);
-}
-.dynamic-textarea.hide-scrollbar {
     overflow-y: hidden;
+}
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.space-y-2 > :not([hidden]) ~ :not([hidden]) {
+    --tw-space-y-reverse: 0;
+    margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
+    margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
 }
 </style>

@@ -101,19 +101,24 @@ export default {
       showTopicSelector.value = false;
     }
     
-    // Load placeholder content (only title, others placeholder)
+    // Load placeholder content
     const loadPlaceholderContent = (topicId) => {
       const meta = topicsMeta.find(t => t.id === topicId);
       const placeholderText = "请在此处输入文案...";
       cardContent.value = {
+        // 在顶层添加页眉页脚占位符
+        headerText: '',
+        footerText: '',
         coverCard: {
-          title: meta?.title || `选题 ${topicId}`, // Keep title
+          title: meta?.title || `选题 ${topicId}`,
           subtitle: placeholderText
+          // 移除这里的 headerText/footerText
         },
         contentCards: [
           {
             title: placeholderText,
             body: placeholderText
+            // 移除这里的 headerText/footerText
           }
         ],
         mainText: placeholderText

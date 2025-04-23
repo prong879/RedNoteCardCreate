@@ -22,21 +22,21 @@
             <!--   text-white: 文字颜色为白色 (Tailwind) -->
             <!--   flex flex-col justify-center items-center: Flexbox 布局，使内容垂直排列、水平居中、垂直居中 -->
             <!--   overflow-hidden: 隐藏超出元素边界的内容 (Tailwind) -->
-            <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-6 text-white flex flex-col justify-center items-center overflow-hidden">
-                 <!-- 封面主标题 -->
-                 <!-- class="text-4xl font-bold mb-10": -->
-                 <!--   text-4xl: 字体大小 (Tailwind) -->
-                 <!--   font-bold: 字体加粗 (Tailwind) -->
-                 <!--   mb-10: 下外边距 2.5rem (40px) (Tailwind) -->
-                 <!--   whitespace-pre-line: 保留换行符和空格序列，合并连续空格 (Tailwind) -->
-                 <!--   text-left: 文本左对齐 (Tailwind) -->
-                 <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left">{{ title }}</h1>
-                 <!-- 封面副标题 -->
-                 <!-- class="text-xl whitespace-pre-line": -->
-                 <!--   text-xl: 字体大小 (Tailwind) -->
-                 <!--   whitespace-pre-line: 保留换行符和空格序列，合并连续空格 (Tailwind) -->
-                 <!--   text-left: 文本左对齐 (Tailwind) -->
-                 <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
+            <div class="frosted-layer absolute inset-3 bg-black/30 backdrop-blur-lg rounded-2xl p-4 text-white flex flex-col justify-between overflow-hidden">
+                 <!-- 页眉区域 -->
+                 <div class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
+
+                 <!-- 主内容区域 (居中容器) -->
+                 <!-- 用一个 div 包裹原内容，并让它占据剩余空间，内部内容可以按需对齐 -->
+                 <div class="main-content flex-grow flex flex-col justify-center items-center text-center">
+                     <!-- 封面主标题 -->
+                     <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left">{{ title }}</h1>
+                     <!-- 封面副标题 -->
+                     <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
+                 </div>
+
+                 <!-- 页脚区域 -->
+                 <div class="footer text-xs opacity-80 text-right mt-2 whitespace-pre-line">{{ footerText }}</div>
             </div>
         </div>
 
@@ -46,24 +46,21 @@
         <div v-else-if="type === 'content'" class="xhs-card cover-card-bg w-80 aspect-[3/4] relative">
              <!-- 内层 div (前景层)，样式改为与封面卡片一致 -->
              <!-- 修改 inset, bg-opacity, backdrop-blur, p, 并添加 text-white -->
-             <div class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-6 flex flex-col overflow-hidden text-white">
-                <!-- 内容卡片的标题 -->
-                <!-- class="text-xl font-bold mb-4 text-xhs-black": -->
-                <!--   text-xl: 字体大小 (Tailwind) -->
-                <!--   font-bold: 字体加粗 (Tailwind) -->
-                <!--   mb-4: 下外边距 1rem (16px) (Tailwind) -->
-                <!--   text-xhs-black: 使用自定义的小红书黑色 (在全局样式或 Tailwind 配置中定义) -->
-                <!-- 修改文字颜色为 text-white -->
-                <h3 class="text-xl font-bold mb-4 whitespace-pre-line text-white">{{ content.title }}</h3>
-                <!-- Markdown 内容渲染区域 -->
-                <!-- class="markdown-content katex-compatible flex-grow overflow-y-auto": -->
-                <!--   markdown-content: 用于标识 Markdown 内容容器，可能用于全局样式 -->
-                <!--   katex-compatible: 用于标识支持 KaTeX 渲染，可能用于 KaTeX 样式调整 -->
-                <!--   flex-grow: 在 Flex 容器中占据剩余空间 (Tailwind) -->
-                <!--   overflow-y-auto: 当内容垂直溢出时显示滚动条 (Tailwind) -->
-                <!-- v-html="renderContent(content.body)": 动态绑定 HTML 内容，其值由 renderContent 方法计算得到 -->
-                <!-- text-white 已在外层 div 添加，此处内容应自动继承 -->
-                <div class="markdown-content katex-compatible flex-grow overflow-y-auto" v-html="renderContent(content.body)"></div>
+             <div class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-4 flex flex-col overflow-hidden text-white">
+                <!-- 页眉区域 -->
+                <div class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
+
+                <!-- 主内容区域 (标题 + 可滚动 Markdown) -->
+                <!-- 让这个区域 flex-grow，内部标题固定，Markdown内容可滚动 -->
+                <div class="main-content flex-grow flex flex-col overflow-hidden">
+                    <!-- 内容卡片的标题 (添加 pt-2 避免太贴近页眉) -->
+                    <h3 class="text-xl font-bold mb-4 whitespace-pre-line text-white pt-2">{{ content.title }}</h3>
+                    <!-- Markdown 内容渲染区域 (保持可滚动) -->
+                    <div class="markdown-content katex-compatible flex-grow overflow-y-auto pr-1" v-html="renderContent(content.body)"></div>
+                </div>
+
+                <!-- 页脚区域 (添加 pt-2 避免太贴近内容) -->
+                <div class="footer text-xs opacity-80 text-right mt-2 pt-2 whitespace-pre-line">{{ footerText }}</div>
              </div>
         </div>
     </div>
@@ -97,6 +94,15 @@ export default {
             // 对象内部结构示例 (由父组件决定具体内容):
             // 对于 cover: { subtitle: '这是副标题' }
             // 对于 content: { title: '内容标题', body: 'Markdown **文本** $E=mc^2$' }
+        },
+        // 新增 props 用于页眉和页脚
+        headerText: {
+            type: String,
+            default: '' // 默认空字符串
+        },
+        footerText: {
+            type: String,
+            default: '' // 默认空字符串
         }
     },
     // 定义组件的方法
