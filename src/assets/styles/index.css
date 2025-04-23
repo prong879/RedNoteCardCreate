@@ -19,19 +19,19 @@ body {
     /* 注释掉固定高度，让 aspect-[3/4] 生效 */
 }
 
-/* 封面卡片样式 */
-.cover-card {
+/* 封面卡片样式 - 由各模板自行定义 */
+/* .cover-card {
     @apply flex flex-col justify-center items-center text-center px-6 py-8;
     background: linear-gradient(135deg, #FF2442 0%, #FF8A98 100%);
     color: white;
-}
+} */
 
-/* 内容卡片样式 */
-.content-card {
+/* 内容卡片样式 - 由各模板自行定义 */
+/* .content-card {
     @apply p-6 flex flex-col;
-}
+} */
 
-/* 标题样式 */
-.card-title {
+/* 标题样式 - 由各模板自行定义 */
+/* .card-title {
     @apply text-2xl font-bold mb-4;
-}
+} */

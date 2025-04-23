@@ -163,7 +163,7 @@ export default {
 <style scoped>
 .card-container {
     position: relative;
-    width: 320px;
+    /* width: 320px; */ /* 移除冗余宽度，由模板内部 w-80 控制 */
 }
 
 /* Markdown 样式现在由各自的模板组件处理 */

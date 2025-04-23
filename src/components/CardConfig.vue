@@ -9,7 +9,7 @@
                 <div v-for="(template, index) in templates" :key="index" @click="selectTemplate(template.id)"
                     class="template-item p-2 border rounded-lg cursor-pointer transition-all"
                     :class="{ 'border-xhs-pink': selectedTemplate === template.id }">
-                    <div class="aspect-[9/16] bg-gray-100 rounded flex items-center justify-center"
+                    <div class="aspect-[3/4] bg-gray-100 rounded flex items-center justify-center"
                         :class="template.color">
                         <span class="text-xs">{{ template.name }}</span>
                     </div>
