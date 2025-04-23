@@ -50,6 +50,18 @@
                 <div class="p-3 border rounded-lg space-y-2">
                     <textarea v-model="content.coverCard.title" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题" rows="1"></textarea>
                     <textarea v-model="content.coverCard.subtitle" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar" placeholder="输入副标题" rows="2"></textarea>
+                    <div class="flex justify-end space-x-2 mt-2">
+                        <button @click="toggleVisibility('coverCard', 'showHeader')"
+                                :class="getButtonClass(content.coverCard.showHeader)"
+                                class="text-xs px-2 py-0.5 rounded transition-colors">
+                            {{ content.coverCard.showHeader ? '隐藏页眉' : '显示页眉' }}
+                        </button>
+                        <button @click="toggleVisibility('coverCard', 'showFooter')"
+                                :class="getButtonClass(content.coverCard.showFooter)"
+                                class="text-xs px-2 py-0.5 rounded transition-colors">
+                            {{ content.coverCard.showFooter ? '隐藏页脚' : '显示页脚' }}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -58,11 +70,23 @@
                 <div v-for="(card, index) in content.contentCards" :key="index" class="mb-4 p-3 border rounded-lg space-y-2">
                     <div class="flex justify-between items-center mb-2">
                         <span class="font-medium">卡片 {{ index + 1 }}</span>
-                        <button @click="removeCard(index)"
-                                class="text-red-500 text-sm border border-red-500 bg-red-100 px-2 py-0.5 rounded hover:bg-red-200 transition-colors"
-                            v-if="content.contentCards.length > 1">
-                            删除
-                        </button>
+                        <div class="flex items-center space-x-2">
+                             <button @click="toggleVisibility('contentCard', 'showHeader', index)"
+                                     :class="getButtonClass(card.showHeader)"
+                                     class="text-xs px-2 py-0.5 rounded transition-colors">
+                                 {{ card.showHeader ? '隐藏页眉' : '显示页眉' }}
+                             </button>
+                             <button @click="toggleVisibility('contentCard', 'showFooter', index)"
+                                     :class="getButtonClass(card.showFooter)"
+                                     class="text-xs px-2 py-0.5 rounded transition-colors">
+                                 {{ card.showFooter ? '隐藏页脚' : '显示页脚' }}
+                             </button>
+                             <button @click="removeCard(index)"
+                                     class="text-red-500 text-sm border border-red-500 bg-red-100 px-2 py-0.5 rounded hover:bg-red-200 transition-colors"
+                                 v-if="content.contentCards.length > 1">
+                                 删除
+                             </button>
+                        </div>
                     </div>
                     <textarea v-model="card.title" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
                     <textarea v-model="card.body" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
@@ -234,7 +258,9 @@ export default {
             }
             content.value.contentCards.push({
                 title: '新卡片标题',
-                body: '在这里输入卡片内容...'
+                body: '在这里输入卡片内容...',
+                showHeader: true,
+                showFooter: true
             });
             updateContent();
             nextTick(adjustAllTextareaHeights);
@@ -263,6 +289,33 @@ export default {
                 });
         };
 
+        const toggleVisibility = (cardType, field, index = null) => {
+            if (cardType === 'coverCard') {
+                if (content.value.coverCard) {
+                    if (typeof content.value.coverCard[field] === 'boolean') {
+                        content.value.coverCard[field] = !content.value.coverCard[field];
+                    } else {
+                         content.value.coverCard[field] = false;
+                    }
+                }
+            } else if (cardType === 'contentCard' && index !== null && content.value.contentCards[index]) {
+                const card = content.value.contentCards[index];
+                 if (typeof card[field] === 'boolean') {
+                     card[field] = !card[field];
+                 } else {
+                     card[field] = false;
+                 }
+            }
+            updateContent();
+        };
+
+        const getButtonClass = (isVisible) => {
+            const visible = typeof isVisible === 'boolean' ? isVisible : true;
+            return visible
+                ? 'border border-gray-400 text-gray-600 bg-gray-100 hover:bg-gray-200'
+                : 'border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200';
+        };
+
         return {
             content,
             cardConfigRoot,
@@ -275,7 +328,9 @@ export default {
             addCard,
             removeCard,
             copyMainText,
-            adjustTextareaHeight
+            adjustTextareaHeight,
+            toggleVisibility,
+            getButtonClass
         };
     },
 }

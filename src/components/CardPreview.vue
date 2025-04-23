@@ -16,7 +16,9 @@
                         :title="content.coverCard.title"
                         :content="content.coverCard"
                         :headerText="content.headerText || ''"
-                        :footerText="content.footerText || ''"/>
+                        :footerText="content.footerText || ''"
+                        :isHeaderVisible="content.coverCard.showHeader !== false"
+                        :isFooterVisible="content.coverCard.showFooter !== false"/>
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     封面卡片
@@ -33,7 +35,9 @@
                     <component :is="activeTemplateComponent" type="content"
                          :content="card"
                          :headerText="content.headerText || ''"
-                         :footerText="content.footerText || ''"/>
+                         :footerText="content.footerText || ''"
+                         :isHeaderVisible="card.showHeader !== false"
+                         :isFooterVisible="card.showFooter !== false"/>
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     内容卡片 {{ index + 1 }}

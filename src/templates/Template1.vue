@@ -22,21 +22,20 @@
             <!--   text-white: 文字颜色为白色 (Tailwind) -->
             <!--   flex flex-col justify-center items-center: Flexbox 布局，使内容垂直排列、水平居中、垂直居中 -->
             <!--   overflow-hidden: 隐藏超出元素边界的内容 (Tailwind) -->
-            <div class="frosted-layer absolute inset-3 bg-black/30 backdrop-blur-lg rounded-2xl p-4 text-white flex flex-col justify-between overflow-hidden">
-                 <!-- 页眉区域 -->
-                 <div class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
+            <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-4 text-white flex flex-col justify-between overflow-hidden">
+                 <!-- 页眉区域 - 条件渲染 -->
+                 <div v-if="isHeaderVisible" class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
 
-                 <!-- 主内容区域 (居中容器) -->
-                 <!-- 用一个 div 包裹原内容，并让它占据剩余空间，内部内容可以按需对齐 -->
-                 <div class="main-content flex-grow flex flex-col justify-center items-center text-center">
+                 <!-- 主内容区域 (根据页眉页脚是否存在调整间距可能需要) -->
+                 <div class="main-content flex-grow flex flex-col justify-center items-center text-center" :class="{'pt-4': !isHeaderVisible, 'pb-4': !isFooterVisible}">
                      <!-- 封面主标题 -->
                      <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left">{{ title }}</h1>
                      <!-- 封面副标题 -->
                      <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
                  </div>
 
-                 <!-- 页脚区域 -->
-                 <div class="footer text-xs opacity-80 text-right mt-2 whitespace-pre-line">{{ footerText }}</div>
+                 <!-- 页脚区域 - 条件渲染 -->
+                 <div v-if="isFooterVisible" class="footer text-xs opacity-80 text-right mt-2 whitespace-pre-line">{{ footerText }}</div>
             </div>
         </div>
 
@@ -46,21 +45,20 @@
         <div v-else-if="type === 'content'" class="xhs-card cover-card-bg w-80 aspect-[3/4] relative">
              <!-- 内层 div (前景层)，样式改为与封面卡片一致 -->
              <!-- 修改 inset, bg-opacity, backdrop-blur, p, 并添加 text-white -->
-             <div class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-4 flex flex-col overflow-hidden text-white">
-                <!-- 页眉区域 -->
-                <div class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
+             <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-4 flex flex-col overflow-hidden text-white">
+                <!-- 页眉区域 - 条件渲染 -->
+                <div v-if="isHeaderVisible" class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
 
-                <!-- 主内容区域 (标题 + 可滚动 Markdown) -->
-                <!-- 让这个区域 flex-grow，内部标题固定，Markdown内容可滚动 -->
-                <div class="main-content flex-grow flex flex-col overflow-hidden">
+                <!-- 主内容区域 (标题 + 不可滚动 Markdown) -->
+                <div class="main-content flex-grow flex flex-col overflow-hidden" :class="{'pt-4': !isHeaderVisible, 'pb-4': !isFooterVisible}">
                     <!-- 内容卡片的标题 (添加 pt-2 避免太贴近页眉) -->
                     <h3 class="text-xl font-bold mb-4 whitespace-pre-line text-white pt-2">{{ content.title }}</h3>
-                    <!-- Markdown 内容渲染区域 (保持可滚动) -->
-                    <div class="markdown-content katex-compatible flex-grow overflow-y-auto pr-1" v-html="renderContent(content.body)"></div>
+                    <!-- Markdown 内容渲染区域 - 修改: overflow-y-hidden 隐藏滚动条 -->
+                    <div class="markdown-content katex-compatible flex-grow overflow-y-hidden pr-1" v-html="renderContent(content.body)"></div>
                 </div>
 
-                <!-- 页脚区域 (添加 pt-2 避免太贴近内容) -->
-                <div class="footer text-xs opacity-80 text-right mt-2 pt-2 whitespace-pre-line">{{ footerText }}</div>
+                <!-- 页脚区域 - 条件渲染 -->
+                <div v-if="isFooterVisible" class="footer text-xs opacity-80 text-right mt-2 pt-2 whitespace-pre-line">{{ footerText }}</div>
              </div>
         </div>
     </div>
@@ -103,6 +101,15 @@ export default {
         footerText: {
             type: String,
             default: '' // 默认空字符串
+        },
+        // 新增：控制页眉页脚可见性的 Props
+        isHeaderVisible: {
+            type: Boolean,
+            default: true
+        },
+        isFooterVisible: {
+            type: Boolean,
+            default: true
         }
     },
     // 定义组件的方法
@@ -168,4 +175,26 @@ export default {
     /* font-family: 'Courier New', Courier, monospace; /* 为代码设置等宽字体 */
     /* color: #333;             /* 设定代码文字颜色 */
 /* } */
+
+/* --- Markdown 列表样式恢复 --- */
+/* 由于 Tailwind base 重置了列表样式，我们需要手动添加回来 */
+.markdown-content :deep(ul) {
+    list-style-type: disc; /* 无序列表使用圆点 */
+    margin-left: 1.5rem;   /* 左边距，用于显示项目符号 */
+    margin-top: 0.5rem;    /* 上边距 */
+    margin-bottom: 0.5rem; /* 下边距 */
+    padding-left: 1rem;    /* 可选：内边距，进一步调整符号位置 */
+}
+
+.markdown-content :deep(ol) {
+    list-style-type: decimal; /* 有序列表使用数字 */
+    margin-left: 1.5rem;     /* 左边距 */
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-left: 1rem;     /* 可选：内边距 */
+}
+
+.markdown-content :deep(li) {
+    margin-bottom: 0.25rem; /* 列表项之间的下边距 */
+}
 </style>

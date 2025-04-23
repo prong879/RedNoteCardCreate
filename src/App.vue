@@ -106,19 +106,20 @@ export default {
       const meta = topicsMeta.find(t => t.id === topicId);
       const placeholderText = "请在此处输入文案...";
       cardContent.value = {
-        // 在顶层添加页眉页脚占位符
-        headerText: '',
+        headerText: '', // 顶层页眉页脚
         footerText: '',
         coverCard: {
           title: meta?.title || `选题 ${topicId}`,
-          subtitle: placeholderText
-          // 移除这里的 headerText/footerText
+          subtitle: placeholderText,
+          showHeader: true, // 添加可见性状态
+          showFooter: true  // 添加可见性状态
         },
         contentCards: [
           {
             title: placeholderText,
-            body: placeholderText
-            // 移除这里的 headerText/footerText
+            body: placeholderText,
+            showHeader: true, // 添加可见性状态
+            showFooter: true  // 添加可见性状态
           }
         ],
         mainText: placeholderText
