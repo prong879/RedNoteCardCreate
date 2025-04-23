@@ -60,8 +60,8 @@
                     </div>
                     <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题"
                         rows="1" @input="adjustTextareaHeight"></textarea>
-                    <textarea v-model="card.body" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
-                        placeholder="卡片内容 (支持 Markdown 格式)" rows="4" @input="adjustTextareaHeight"></textarea>
+                    <textarea v-model="card.body" class="w-full px-3 py-2 border rounded-lg"
+                        placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
                 </div>
                 <button @click="addCard"
                     class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink hover:bg-xhs-pink hover:text-white transition-colors">
@@ -71,8 +71,9 @@
 
             <div class="mb-6">
                 <h3 class="text-lg font-medium mb-2">小红书主文案</h3>
-                <textarea v-model="content.mainText" class="w-full px-3 py-2 border rounded-lg dynamic-textarea" placeholder="输入小红书笔记主文案"
-                    rows="6" @input="adjustTextareaHeight"></textarea>
+                <textarea v-model="content.mainText" class="w-full px-3 py-2 border rounded-lg"
+                    placeholder="输入小红书笔记主文案"
+                    rows="6"></textarea>
             </div>
 
         </div>
@@ -242,7 +243,7 @@ export default {
         };
 
         const copyMainText = () => {
-             const textToCopy = props.cardContent?.mainText || '';
+             const textToCopy = content.value?.mainText || '';
              if (!textToCopy) {
                  alert("主文案为空，无法复制。");
                  return;
