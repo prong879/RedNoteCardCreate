@@ -8,11 +8,12 @@
             </button>
         </div>
 
-        <div class="flex overflow-x-auto pb-4 gap-16">
+        <div class="flex overflow-x-auto pb-4 gap-4">
             <!-- 封面卡片 -->
             <div class="card-container flex-shrink-0">
                 <div ref="coverCard">
-                    <component :is="activeTemplateComponent" type="cover" :title="content.title"
+                    <component :is="activeTemplateComponent" type="cover"
+                        :title="content.coverCard.title"
                         :content="content.coverCard" />
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">

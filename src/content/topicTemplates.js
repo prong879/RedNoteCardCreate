@@ -5,8 +5,8 @@
 
 // 第一期：什么是时间序列数据
 export const topic01 = {
-    title: '30秒搞懂"时间序列数据"⏱️',
     coverCard: {
+        title: '30秒搞懂"时间序列数据"⏱️',
         subtitle: '股价📈 气温☀️ 体重⚖️...\n它们有啥共同点？'
     },
     contentCards: [
@@ -47,8 +47,8 @@ export const topic01 = {
 
 // 第二期：自相关性
 export const topic02 = {
-    title: '时间序列的灵魂 — "自相关性"⚡',
     coverCard: {
+        title: '时间序列的灵魂 — "自相关性"⚡',
         subtitle: '为啥股价涨过一次后\n可能会继续上涨？\n秘密在这里👇'
     },
     contentCards: [
@@ -92,8 +92,8 @@ export const topic02 = {
 
 // 第三期：平稳性
 export const topic03 = {
-    title: '时间序列必懂概念："平稳性"📊',
     coverCard: {
+        title: '时间序列必懂概念："平稳性"📊',
         subtitle: '为什么分析股价前\n要先做"平稳性检验"？\n专业人都懂的秘密👇'
     },
     contentCards: [

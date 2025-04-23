@@ -166,8 +166,8 @@ npm run build
 ```javascript
 // 导出一个新的选题对象
 export const topicXX = {
-  title: '新选题的整体标题', // 显示在封面卡片和用作导出文件名前缀
   coverCard: {
+    title: '新选题的封面标题', 
     subtitle: '封面卡片的副标题内容\n支持换行'
     // 不再需要 bgColor
   },

@@ -18,7 +18,7 @@
                             <component
                                 :is="getTemplateComponent(template.id)"
                                 type="cover"
-                                :title="previewTitle"
+                                :title="previewCoverContent.title"
                                 :content="previewCoverContent"
                             />
                         </div>
@@ -29,18 +29,23 @@
             </div>
         </div>
 
-        <!-- 标题配置 -->
-        <div class="mb-6">
-            <h3 class="text-lg font-medium mb-2">主题标题</h3>
-            <input v-model="content.title" class="w-full px-3 py-2 border rounded-lg" placeholder="输入标题"
+        <!-- 标题配置 (移到下方封面卡片框内) -->
+        <!-- <div class="mb-6">
+            <h3 class="text-lg font-medium mb-2">主题标题 (封面)</h3>
+            <input v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg" placeholder="输入封面标题"
                 @input="updateContent" />
-        </div>
+        </div> -->
 
         <!-- 封面卡片配置 -->
         <div class="mb-6">
             <h3 class="text-lg font-medium mb-2">封面卡片</h3>
-            <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg"
-                placeholder="输入副标题" rows="2" @input="updateContent"></textarea>
+            <!-- 将封面标题和副标题放入框内 -->
+            <div class="p-3 border rounded-lg">
+                <input v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2" placeholder="输入封面标题"
+                    @input="updateContent" />
+                <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg"
+                    placeholder="输入副标题" rows="2" @input="updateContent"></textarea>
+            </div>
         </div>
 
         <!-- 内容卡片配置 -->
@@ -50,8 +55,9 @@
             <div v-for="(card, index) in content.contentCards" :key="index" class="mb-4 p-3 border rounded-lg">
                 <div class="flex justify-between items-center mb-2">
                     <span class="font-medium">卡片 {{ index + 1 }}</span>
-                    <button @click="removeCard(index)" class="text-red-500 text-sm"
-                        v-if="content.contentCards.length > 1">
+                    <button @click="removeCard(index)"
+                            class="text-red-500 text-sm border border-red-500 bg-red-100 px-2 py-0.5 rounded hover:bg-red-200 transition-colors"
+                            v-if="content.contentCards.length > 1">
                         删除
                     </button>
                 </div>
@@ -121,8 +127,7 @@ export default {
             template4: Template4,
             template5: Template5
         };
-        const previewTitle = ref('标题');
-        const previewCoverContent = ref({ subtitle: '副标题' });
+        const previewCoverContent = ref({ title: '标题', subtitle: '副标题' });
 
         const templateItemRefs = ref([]);
         const scalingDivRefs = ref([]);
@@ -212,7 +217,6 @@ export default {
         return {
             content,
             templatesInfo,
-            previewTitle,
             previewCoverContent,
             templateItemRefs,
             scalingDivRefs,

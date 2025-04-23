@@ -12,7 +12,7 @@ body {
 
 /* 小红书风格卡片 */
 .xhs-card {
-    @apply rounded-xl shadow-lg overflow-hidden bg-white;
+    @apply rounded-xl shadow-xl overflow-hidden bg-white;
     /* width: 375px; */
     /* 注释掉固定宽度，让 w-80 生效 */
     /* height: 667px; */
