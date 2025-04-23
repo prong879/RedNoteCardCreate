@@ -1,15 +1,15 @@
 <template>
     <div class="template1">
         <!-- 封面卡片 -->
-        <div v-if="type === 'cover'" class="xhs-card cover-card">
+        <div v-if="type === 'cover'" class="xhs-card cover-card w-80 aspect-[3/4]">
             <h1 class="text-4xl font-bold mb-10">{{ title }}</h1>
             <p class="text-xl whitespace-pre-line">{{ content.subtitle }}</p>
         </div>
 
         <!-- 内容卡片 -->
-        <div v-else-if="type === 'content'" class="xhs-card content-card">
+        <div v-else-if="type === 'content'" class="xhs-card content-card w-80 aspect-[3/4]">
             <h3 class="card-title text-xhs-black">{{ content.title }}</h3>
-            <div class="markdown-content katex-compatible" v-html="renderContent(content.content)"></div>
+            <div class="markdown-content katex-compatible flex-grow overflow-y-auto" v-html="renderContent(content.content)"></div>
         </div>
     </div>
 </template>

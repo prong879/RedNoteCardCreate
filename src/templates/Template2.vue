@@ -2,16 +2,16 @@
     <div class="template2">
         <!-- 封面卡片 -->
         <div v-if="type === 'cover'"
-            class="xhs-card cover-card flex flex-col justify-center items-center text-center p-8 bg-gradient-to-br from-blue-500 to-purple-500">
+            class="xhs-card cover-card flex flex-col justify-center items-center text-center p-8 bg-gradient-to-br from-blue-500 to-purple-500 w-80 aspect-[3/4]">
             <h1 class="text-3xl font-serif font-bold mb-8 tracking-wider">{{ title }}</h1>
             <p class="text-lg font-serif whitespace-pre-line opacity-90">{{ content.subtitle }}</p>
         </div>
 
         <!-- 内容卡片 -->
-        <div v-else-if="type === 'content'" class="xhs-card content-card flex flex-col p-6 bg-white">
+        <div v-else-if="type === 'content'" class="xhs-card content-card flex flex-col p-6 bg-white w-80 aspect-[3/4]">
             <h3 class="text-xl font-serif font-bold mb-4 text-blue-800 border-b-2 border-blue-200 pb-2">{{ content.title
             }}</h3>
-            <div class="markdown-content flex-grow font-serif katex-compatible" v-html="renderContent(content.content)">
+            <div class="markdown-content flex-grow font-serif katex-compatible overflow-y-auto" v-html="renderContent(content.content)">
             </div>
         </div>
     </div>

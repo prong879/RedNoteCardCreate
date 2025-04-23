@@ -8,7 +8,7 @@
             </button>
         </div>
 
-        <div class="flex overflow-x-auto pb-4 gap-4">
+        <div class="flex overflow-x-auto pb-4 gap-16">
             <!-- 封面卡片 -->
             <div class="card-container flex-shrink-0">
                 <div ref="coverCard">
@@ -163,7 +163,7 @@ export default {
 <style scoped>
 .card-container {
     position: relative;
-    width: 375px;
+    width: 320px;
 }
 
 /* Markdown 样式现在由各自的模板组件处理 */

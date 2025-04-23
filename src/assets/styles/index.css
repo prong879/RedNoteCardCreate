@@ -13,8 +13,10 @@ body {
 /* 小红书风格卡片 */
 .xhs-card {
     @apply rounded-xl shadow-lg overflow-hidden bg-white;
-    width: 375px;
-    height: 667px;
+    /* width: 375px; */
+    /* 注释掉固定宽度，让 w-80 生效 */
+    /* height: 667px; */
+    /* 注释掉固定高度，让 aspect-[3/4] 生效 */
 }
 
 /* 封面卡片样式 */
