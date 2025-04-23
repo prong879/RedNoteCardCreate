@@ -11,7 +11,7 @@
         <!--   relative: 设置相对定位，为其子绝对定位元素提供定位上下文 -->
         <div v-if="type === 'cover'" class="xhs-card cover-card-bg w-80 aspect-[3/4] relative">
             <!-- 内层 div (前景层)，实现磨砂玻璃效果 -->
-            <!-- class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-6 text-white flex flex-col justify-center items-center text-center overflow-hidden": -->
+            <!-- class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-6 text-white flex flex-col justify-center items-center overflow-hidden": -->
             <!--   frosted-layer: 自定义或用于标识的类名，表示磨砂层 -->
             <!--   absolute: 绝对定位 -->
             <!--   inset-6: 距离父元素所有边缘 1.5rem (24px) (Tailwind) -->
@@ -21,20 +21,22 @@
             <!--   p-6: 内边距 1.5rem (24px) (Tailwind) -->
             <!--   text-white: 文字颜色为白色 (Tailwind) -->
             <!--   flex flex-col justify-center items-center: Flexbox 布局，使内容垂直排列、水平居中、垂直居中 -->
-            <!--   text-center: 文本居中对齐 (Tailwind) -->
             <!--   overflow-hidden: 隐藏超出元素边界的内容 (Tailwind) -->
-            <div class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-6 text-white flex flex-col justify-center items-center text-center overflow-hidden">
+            <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-6 text-white flex flex-col justify-center items-center overflow-hidden">
                  <!-- 封面主标题 -->
                  <!-- class="text-4xl font-bold mb-10": -->
                  <!--   text-4xl: 字体大小 (Tailwind) -->
                  <!--   font-bold: 字体加粗 (Tailwind) -->
                  <!--   mb-10: 下外边距 2.5rem (40px) (Tailwind) -->
-                 <h1 class="text-4xl font-bold mb-10 whitespace-pre-line">{{ title }}</h1>
+                 <!--   whitespace-pre-line: 保留换行符和空格序列，合并连续空格 (Tailwind) -->
+                 <!--   text-left: 文本左对齐 (Tailwind) -->
+                 <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left">{{ title }}</h1>
                  <!-- 封面副标题 -->
                  <!-- class="text-xl whitespace-pre-line": -->
                  <!--   text-xl: 字体大小 (Tailwind) -->
                  <!--   whitespace-pre-line: 保留换行符和空格序列，合并连续空格 (Tailwind) -->
-                 <p class="text-xl whitespace-pre-line">{{ content.subtitle }}</p>
+                 <!--   text-left: 文本左对齐 (Tailwind) -->
+                 <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
             </div>
         </div>
 
