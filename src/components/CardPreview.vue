@@ -18,7 +18,8 @@
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     封面卡片
-                    <button @click="exportSingleCard($refs.coverCard, '封面卡片')" class="ml-2 text-xhs-pink text-xs">
+                    <button @click="exportSingleCard($refs.coverCard, '封面卡片')"
+                        class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                         导出
                     </button>
                 </div>
@@ -32,7 +33,7 @@
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     内容卡片 {{ index + 1 }}
                     <button @click="exportSingleCard($refs[`contentCard${index}`][0], `内容卡片_${index + 1}`)"
-                        class="ml-2 text-xhs-pink text-xs">
+                        class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                         导出
                     </button>
                 </div>

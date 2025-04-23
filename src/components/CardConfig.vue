@@ -1,97 +1,97 @@
 <template>
-    <div class="card-config">
-        <h2 class="text-xl font-semibold mb-4">卡片配置</h2>
+    <div ref="cardConfigRoot" class="card-config flex flex-col h-full">
+        <div class="flex-grow overflow-y-auto pr-2">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold">卡片配置 <span v-if="topicId" class="text-sm text-gray-500">({{ topicId }})</span></h2>
+                <button
+                  @click="$emit('return-to-topics')"
+                  class="px-4 py-1 border border-xhs-gray text-xhs-gray rounded-lg text-sm hover:border-xhs-pink hover:text-xhs-pink transition-colors bg-white"
+                >
+                  ← 返回选择主题
+                </button>
+            </div>
 
-        <!-- 模板选择 -->
-        <div class="mb-6">
-            <h3 class="text-lg font-medium mb-2">选择模板</h3>
-            <div class="grid grid-cols-3 gap-4 items-start max-h-60 overflow-y-auto pr-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                <div v-for="(template, index) in templatesInfo" :key="template.id"
-                     @click="selectTemplate(template.id)"
-                     :ref="el => { if (el) templateItemRefs[index] = el }"
-                     class="template-item flex flex-col items-center p-1 border rounded-lg cursor-pointer transition-all"
-                     :class="{ 'border-xhs-pink border-2': selectedTemplate === template.id, 'border-gray-200': selectedTemplate !== template.id }">
+            <div class="mb-6">
+                <h3 class="text-lg font-medium mb-2">选择模板</h3>
+                <div class="grid grid-cols-3 gap-4 items-start max-h-60 overflow-y-auto pr-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div v-for="(template, index) in templatesInfo" :key="template.id"
+                         @click="selectTemplate(template.id)"
+                         :ref="el => { if (el) templateItemRefs[index] = el }"
+                         class="template-item flex flex-col items-center p-1 border rounded-lg cursor-pointer transition-all"
+                         :class="{ 'border-xhs-pink border-2': selectedTemplate === template.id, 'border-gray-200': selectedTemplate !== template.id }">
 
-                    <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50', `aspect-[${template.aspectRatio}]`, 'flex', 'justify-center', 'items-center']">
-                        <div :ref="el => { if (el) scalingDivRefs[index] = el }"
-                             style="transform-origin: center center; width: 320px;">
-                            <component
-                                :is="getTemplateComponent(template.id)"
-                                type="cover"
-                                :title="previewCoverContent.title"
-                                :content="previewCoverContent"
-                            />
+                        <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50', `aspect-[${template.aspectRatio}]`, 'flex', 'justify-center', 'items-center']">
+                            <div :ref="el => { if (el) scalingDivRefs[index] = el }"
+                                 style="transform-origin: center center; width: 320px;">
+                                <component
+                                    :is="getTemplateComponent(template.id)"
+                                    type="cover"
+                                    :title="previewCoverContent.title"
+                                    :content="previewCoverContent"
+                                />
+                            </div>
                         </div>
+
+                        <span class="text-xs mt-auto">{{ template.name }}</span>
                     </div>
-
-                    <span class="text-xs mt-auto">{{ template.name }}</span>
                 </div>
             </div>
-        </div>
 
-        <!-- 标题配置 (移到下方封面卡片框内) -->
-        <!-- <div class="mb-6">
-            <h3 class="text-lg font-medium mb-2">主题标题 (封面)</h3>
-            <input v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg" placeholder="输入封面标题"
-                @input="updateContent" />
-        </div> -->
-
-        <!-- 封面卡片配置 -->
-        <div class="mb-6">
-            <h3 class="text-lg font-medium mb-2">封面卡片</h3>
-            <!-- 将封面标题和副标题放入框内 -->
-            <div class="p-3 border rounded-lg">
-                <textarea v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题"
-                    rows="1" @input="adjustTextareaHeight"></textarea>
-                <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
-                    placeholder="输入副标题" rows="2" @input="adjustTextareaHeight"></textarea>
-            </div>
-        </div>
-
-        <!-- 内容卡片配置 -->
-        <div class="mb-6">
-            <h3 class="text-lg font-medium mb-2">内容卡片</h3>
-
-            <div v-for="(card, index) in content.contentCards" :key="index" class="mb-4 p-3 border rounded-lg">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="font-medium">卡片 {{ index + 1 }}</span>
-                    <button @click="removeCard(index)"
-                            class="text-red-500 text-sm border border-red-500 bg-red-100 px-2 py-0.5 rounded hover:bg-red-200 transition-colors"
-                        v-if="content.contentCards.length > 1">
-                        删除
-                    </button>
+            <div class="mb-6">
+                <h3 class="text-lg font-medium mb-2">封面卡片</h3>
+                <div class="p-3 border rounded-lg">
+                    <textarea v-model="content.coverCard.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题"
+                        rows="1" @input="adjustTextareaHeight"></textarea>
+                    <textarea v-model="content.coverCard.subtitle" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
+                        placeholder="输入副标题" rows="2" @input="adjustTextareaHeight"></textarea>
                 </div>
-
-                <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题"
-                    rows="1" @input="adjustTextareaHeight"></textarea>
-
-                <textarea v-model="card.body" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
-                    placeholder="卡片内容 (支持 Markdown 格式)" rows="4" @input="adjustTextareaHeight"></textarea>
             </div>
 
-            <button @click="addCard"
-                class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink hover:bg-xhs-pink hover:text-white transition-colors">
-                添加卡片
+            <div class="mb-6">
+                <h3 class="text-lg font-medium mb-2">内容卡片</h3>
+                <div v-for="(card, index) in content.contentCards" :key="index" class="mb-4 p-3 border rounded-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-medium">卡片 {{ index + 1 }}</span>
+                        <button @click="removeCard(index)"
+                                class="text-red-500 text-sm border border-red-500 bg-red-100 px-2 py-0.5 rounded hover:bg-red-200 transition-colors"
+                            v-if="content.contentCards.length > 1">
+                            删除
+                        </button>
+                    </div>
+                    <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题"
+                        rows="1" @input="adjustTextareaHeight"></textarea>
+                    <textarea v-model="card.body" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
+                        placeholder="卡片内容 (支持 Markdown 格式)" rows="4" @input="adjustTextareaHeight"></textarea>
+                </div>
+                <button @click="addCard"
+                    class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink hover:bg-xhs-pink hover:text-white transition-colors">
+                    添加卡片
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <h3 class="text-lg font-medium mb-2">小红书主文案</h3>
+                <textarea v-model="content.mainText" class="w-full px-3 py-2 border rounded-lg dynamic-textarea" placeholder="输入小红书笔记主文案"
+                    rows="6" @input="adjustTextareaHeight"></textarea>
+            </div>
+
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-gray-200 flex gap-4">
+             <button @click="$emit('save-content')"
+                class="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                生成 JS 文件供下载
+            </button>
+             <button @click="copyMainText"
+                class="flex-1 py-2 bg-xhs-pink text-white rounded-lg hover:bg-opacity-90 transition-colors">
+                复制主文案
             </button>
         </div>
-
-        <!-- 主文案配置 -->
-        <div class="mb-6">
-            <h3 class="text-lg font-medium mb-2">小红书主文案</h3>
-            <textarea v-model="content.mainText" class="w-full px-3 py-2 border rounded-lg dynamic-textarea" placeholder="输入小红书笔记主文案"
-                rows="6" @input="adjustTextareaHeight"></textarea>
-        </div>
-
-        <!-- 导出主文案按钮 -->
-        <button @click="copyMainText"
-            class="w-full py-2 bg-xhs-pink text-white rounded-lg hover:bg-opacity-90 transition-colors">
-            复制主文案
-        </button>
     </div>
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue';
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
 import Template3 from '../templates/Template3.vue';
@@ -107,11 +107,70 @@ export default {
         cardContent: {
             type: Object,
             required: true
+        },
+        topicId: {
+            type: String,
+            default: null
         }
     },
-    emits: ['update:template', 'update:content'],
+    emits: [
+        'update:template',
+        'update:content',
+        'return-to-topics',
+        'save-content'
+    ],
     setup(props, { emit }) {
         const content = ref({});
+        const cardConfigRoot = ref(null);
+
+        const adjustTextareaHeightInternal = (textarea) => {
+            if (textarea) {
+                textarea.style.height = 'auto';
+                textarea.style.height = `${textarea.scrollHeight + 2}px`;
+            }
+        };
+
+        const adjustAllTextareaHeights = () => {
+            if (cardConfigRoot.value) {
+                const textareas = cardConfigRoot.value.querySelectorAll('.dynamic-textarea');
+                textareas.forEach(adjustTextareaHeightInternal);
+            }
+        };
+
+        watch(() => props.cardContent, (newVal) => {
+             try {
+                 content.value = structuredClone(newVal);
+             } catch (e) {
+                 content.value = { ...newVal };
+             }
+             nextTick(adjustAllTextareaHeights);
+         }, { deep: true, immediate: true });
+
+        onMounted(() => {
+             nextTick(() => {
+                  adjustAllTextareaHeights();
+                  if (typeof ResizeObserver !== 'undefined') {
+                      resizeObserver = new ResizeObserver(entries => {
+                          updateScale();
+                      });
+                      templateItemRefs.value.forEach(el => {
+                          if (el) {
+                              resizeObserver.observe(el);
+                          }
+                      });
+                      updateScale();
+                  } else {
+                      console.warn('ResizeObserver is not supported in this browser.');
+                  }
+             });
+        });
+
+        onBeforeUnmount(() => {
+            if (resizeObserver) {
+                resizeObserver.disconnect();
+            }
+        });
+
         const templatesInfo = ref([
             { id: 'template1', name: '模板1', aspectRatio: '3/4' },
             { id: 'template2', name: '模板2', aspectRatio: '3/4' },
@@ -124,15 +183,14 @@ export default {
             template3: Template3,
             template5: Template5
         };
-        const previewCoverContent = ref({ title: '标题', subtitle: '副标题' });
+
+        const previewCoverContent = computed(() => ({
+            title: content.value?.coverCard?.title || '标题',
+            subtitle: content.value?.coverCard?.subtitle || '副标题'
+        }));
 
         const templateItemRefs = ref([]);
         const scalingDivRefs = ref([]);
-
-        watch(() => props.cardContent, (newVal) => {
-            content.value = { ...newVal };
-        }, { deep: true, immediate: true });
-
         let resizeObserver = null;
         const BASE_CARD_WIDTH = 320;
 
@@ -143,32 +201,10 @@ export default {
                      const padding = 8;
                      const availableWidth = Math.max(1, containerWidth - padding);
                      const scale = Math.min(1, availableWidth / BASE_CARD_WIDTH);
-
                      scalingDivRefs.value[index].style.transform = `scale(${scale})`;
-        }
+                 }
              });
         };
-
-        onMounted(() => {
-             nextTick(() => {
-                  resizeObserver = new ResizeObserver(entries => {
-                      updateScale();
-                  });
-
-                  templateItemRefs.value.forEach(el => {
-                      if (el) {
-                          resizeObserver.observe(el);
-                      }
-                  });
-                  updateScale();
-             });
-        });
-
-        onBeforeUnmount(() => {
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-            }
-        });
 
         const getTemplateComponent = (templateId) => {
             return templateComponentMap[templateId] || Template1;
@@ -179,18 +215,16 @@ export default {
         };
 
         const updateContent = () => {
-            emit('update:content', { ...content.value });
+             emit('update:content', { ...content.value });
         };
 
         const adjustTextareaHeight = (event) => {
-            const textarea = event.target;
-            textarea.style.height = 'auto';
-            textarea.style.height = `${textarea.scrollHeight}px`;
+            adjustTextareaHeightInternal(event.target);
             updateContent();
         };
 
         const addCard = () => {
-            if (!content.value.contentCards) {
+            if (!Array.isArray(content.value.contentCards)) {
                  content.value.contentCards = [];
             }
             content.value.contentCards.push({
@@ -201,14 +235,19 @@ export default {
         };
 
         const removeCard = (index) => {
-             if (content.value.contentCards && content.value.contentCards.length > 1) {
+             if (Array.isArray(content.value.contentCards) && content.value.contentCards.length > 1) {
                  content.value.contentCards.splice(index, 1);
                  updateContent();
             }
         };
 
         const copyMainText = () => {
-            navigator.clipboard.writeText(content.value.mainText || '')
+             const textToCopy = props.cardContent?.mainText || '';
+             if (!textToCopy) {
+                 alert("主文案为空，无法复制。");
+                 return;
+             }
+            navigator.clipboard.writeText(textToCopy)
                 .then(() => {
                     alert('主文案已复制到剪贴板！');
                 })
@@ -220,32 +259,28 @@ export default {
 
         return {
             content,
+            cardConfigRoot,
             templatesInfo,
             previewCoverContent,
             templateItemRefs,
             scalingDivRefs,
             getTemplateComponent,
             selectTemplate,
-            updateContent,
             addCard,
             removeCard,
             copyMainText,
             adjustTextareaHeight
         };
-    }
+    },
 }
 </script>
 
 <style scoped>
-/* 为动态调整高度的 textarea 添加基础样式 */
 .dynamic-textarea {
-    resize: none; /* 禁止用户手动调整大小 */
-    overflow-y: auto; /* 默认允许垂直滚动 */
-    min-height: calc(1.5em + 1rem + 2px); /* 根据行高、内边距和边框计算一个大致的最小高度，防止初始太扁 */
-    /* line-height: 1.5; /* 可以明确设置行高 */
+    resize: none;
+    overflow-y: auto;
+    min-height: calc(1.5em + 1rem + 2px);
 }
-
-/* 为标题等不需要滚动条的 textarea 隐藏滚动条 */
 .dynamic-textarea.hide-scrollbar {
     overflow-y: hidden;
 }

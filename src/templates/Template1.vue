@@ -40,25 +40,19 @@
 
         <!-- 内容卡片: 当 type 为 'content' 时显示 -->
         <!-- v-else-if="type === 'content'": 条件渲染指令，仅当 props.type 为 'content' 时渲染此 div -->
-        <!-- class="xhs-card content-card-bg w-80 aspect-[3/4] relative": 与封面卡片类似，但使用 content-card-bg 样式 -->
-        <div v-else-if="type === 'content'" class="xhs-card content-card-bg w-80 aspect-[3/4] relative">
-             <!-- 内层 div (前景层)，实现磨砂玻璃效果 (参数与封面卡片略有不同) -->
-             <!-- class="frosted-layer absolute inset-4 bg-black/10 backdrop-blur-md rounded-2xl p-4 flex flex-col overflow-hidden": -->
-             <!--   inset-4: 距离父元素边缘 1rem (16px) (Tailwind) -->
-             <!--   bg-black/10: 更淡的半透明黑色背景 (10% 不透明度) (Tailwind) -->
-             <!--   backdrop-blur-md: 中等强度的背景模糊 (Tailwind) -->
-             <!--   rounded-2xl: 大圆角 (Tailwind) -->
-             <!--   p-4: 内边距 1rem (16px) (Tailwind) -->
-             <!--   flex flex-col: Flexbox 布局，子元素垂直排列 -->
-             <!--   overflow-hidden: 隐藏溢出内容 -->
-             <div class="frosted-layer absolute inset-4 bg-black/10 backdrop-blur-md rounded-2xl p-4 flex flex-col overflow-hidden">
+        <!-- 修改类名，应用封面卡片的背景 -->
+        <div v-else-if="type === 'content'" class="xhs-card cover-card-bg w-80 aspect-[3/4] relative">
+             <!-- 内层 div (前景层)，样式改为与封面卡片一致 -->
+             <!-- 修改 inset, bg-opacity, backdrop-blur, p, 并添加 text-white -->
+             <div class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-6 flex flex-col overflow-hidden text-white">
                 <!-- 内容卡片的标题 -->
                 <!-- class="text-xl font-bold mb-4 text-xhs-black": -->
                 <!--   text-xl: 字体大小 (Tailwind) -->
                 <!--   font-bold: 字体加粗 (Tailwind) -->
                 <!--   mb-4: 下外边距 1rem (16px) (Tailwind) -->
                 <!--   text-xhs-black: 使用自定义的小红书黑色 (在全局样式或 Tailwind 配置中定义) -->
-                <h3 class="text-xl font-bold mb-4 text-xhs-black whitespace-pre-line">{{ content.title }}</h3>
+                <!-- 修改文字颜色为 text-white -->
+                <h3 class="text-xl font-bold mb-4 whitespace-pre-line text-white">{{ content.title }}</h3>
                 <!-- Markdown 内容渲染区域 -->
                 <!-- class="markdown-content katex-compatible flex-grow overflow-y-auto": -->
                 <!--   markdown-content: 用于标识 Markdown 内容容器，可能用于全局样式 -->
@@ -66,6 +60,7 @@
                 <!--   flex-grow: 在 Flex 容器中占据剩余空间 (Tailwind) -->
                 <!--   overflow-y-auto: 当内容垂直溢出时显示滚动条 (Tailwind) -->
                 <!-- v-html="renderContent(content.body)": 动态绑定 HTML 内容，其值由 renderContent 方法计算得到 -->
+                <!-- text-white 已在外层 div 添加，此处内容应自动继承 -->
                 <div class="markdown-content katex-compatible flex-grow overflow-y-auto" v-html="renderContent(content.body)"></div>
              </div>
         </div>
@@ -117,7 +112,7 @@ export default {
 <style scoped>
 /* 组件的局部样式 (scoped): 这些样式只应用于当前组件内的元素 */
 
-/* 模板1 封面卡片的背景特定样式 */
+/* 模板1 封面卡片的背景特定样式 (现在内容卡片也用这个) */
 .template1 .cover-card-bg {
     /* 设置字体，优先使用苹方字体，如果系统没有则使用无衬线字体 */
     font-family: 'PingFang SC', sans-serif;
@@ -125,13 +120,8 @@ export default {
     background: linear-gradient(135deg, #e36be8 0%, #581cdc 100%);
 }
 
-/* 模板1 内容卡片的背景特定样式 */
-.template1 .content-card-bg {
-    /* 设置字体，与封面卡片保持一致 */
-    font-family: 'PingFang SC', sans-serif;
-    /* 内容卡片的背景色默认继承自全局 .xhs-card 的 bg-white (白色背景) */
-    /* 这里可以添加其他特定于内容卡片背景的样式，如果需要的话 */
-}
+/* 移除不再使用的 content-card-bg 样式 */
+/* .template1 .content-card-bg { ... } */
 
 /* --- KaTeX 公式样式调整 --- */
 /* :deep() 选择器用于穿透 scoped CSS 的限制，修改子组件或 v-html 插入内容的样式 */
