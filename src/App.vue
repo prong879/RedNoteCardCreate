@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
-    <div class="relative py-3 sm:max-w-6xl sm:mx-auto">
-      <div class="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
+  <div class="min-h-screen bg-gray-100 flex flex-col">
+    <div class="relative py-3 sm:max-w-6xl sm:mx-auto w-full">
+      <div class="relative px-4 py-10 sm:p-20">
         <div class="mx-auto">
           <div class="text-center mb-10">
             <h1 class="text-3xl font-bold text-xhs-pink">小红书知识卡片生成器</h1>
@@ -12,17 +12,17 @@
           <TopicSelector v-if="showTopicSelector" @select-topic="loadTopic" />
           
           <div v-else>
-            <!-- 返回按钮 -->
+            <!-- 返回按钮 - 添加 bg-white -->
             <button 
               @click="showTopicSelector = true" 
-              class="mb-6 px-4 py-1 border border-xhs-gray text-xhs-gray rounded-lg text-sm hover:border-xhs-pink hover:text-xhs-pink transition-colors"
+              class="mb-6 px-4 py-1 border border-xhs-gray text-xhs-gray rounded-lg text-sm hover:border-xhs-pink hover:text-xhs-pink transition-colors bg-white"
             >
               ← 返回选择主题
             </button>
             
             <div class="flex flex-col lg:flex-row gap-8">
-              <!-- 左侧：配置面板 -->
-              <div class="lg:w-1/2">
+              <!-- 左侧：配置面板 - 添加背景、圆角、阴影 -->
+              <div class="lg:w-1/2 bg-white rounded-lg shadow-lg p-6">
                 <CardConfig 
                   :selectedTemplate="selectedTemplate"
                   :cardContent="cardContent"
@@ -31,8 +31,8 @@
                 />
               </div>
               
-              <!-- 右侧：预览面板 -->
-              <div class="lg:w-1/2">
+              <!-- 右侧：预览面板 - 添加背景、圆角、阴影 -->
+              <div class="lg:w-1/2 bg-white rounded-lg shadow-lg p-6">
                 <CardPreview 
                   :template="selectedTemplate"
                   :content="cardContent"

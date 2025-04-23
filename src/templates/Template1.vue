@@ -65,8 +65,8 @@
                 <!--   katex-compatible: 用于标识支持 KaTeX 渲染，可能用于 KaTeX 样式调整 -->
                 <!--   flex-grow: 在 Flex 容器中占据剩余空间 (Tailwind) -->
                 <!--   overflow-y-auto: 当内容垂直溢出时显示滚动条 (Tailwind) -->
-                <!-- v-html="renderContent(content.content)": 动态绑定 HTML 内容，其值由 renderContent 方法计算得到 -->
-                <div class="markdown-content katex-compatible flex-grow overflow-y-auto" v-html="renderContent(content.content)"></div>
+                <!-- v-html="renderContent(content.body)": 动态绑定 HTML 内容，其值由 renderContent 方法计算得到 -->
+                <div class="markdown-content katex-compatible flex-grow overflow-y-auto" v-html="renderContent(content.body)"></div>
              </div>
         </div>
     </div>
@@ -99,7 +99,7 @@ export default {
             required: true    // 这个 Prop 是必需的
             // 对象内部结构示例 (由父组件决定具体内容):
             // 对于 cover: { subtitle: '这是副标题' }
-            // 对于 content: { title: '内容标题', content: 'Markdown **文本** $E=mc^2$' }
+            // 对于 content: { title: '内容标题', body: 'Markdown **文本** $E=mc^2$' }
         }
     },
     // 定义组件的方法

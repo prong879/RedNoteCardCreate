@@ -8,7 +8,7 @@
             </button>
         </div>
 
-        <div class="flex overflow-x-auto pb-4 gap-4">
+        <div class="flex overflow-x-auto gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
             <!-- 封面卡片 -->
             <div class="card-container flex-shrink-0">
                 <div ref="coverCard">
@@ -60,12 +60,14 @@ import { exportCardAsImage, exportCardsAsImages, copyTextToClipboard } from '../
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
 import Template3 from '../templates/Template3.vue';
-import Template4 from '../templates/Template4.vue';
+// 移除 Template4 导入
+// import Template4 from '../templates/Template4.vue';
 import Template5 from '../templates/Template5.vue'; // 导入新模板
 
 export default {
     name: 'CardPreview',
-    components: { Template1, Template2, Template3, Template4, Template5 }, // 注册新模板
+    // 移除 Template4 组件注册
+    components: { Template1, Template2, Template3, Template5 }, // 注册新模板
     props: {
         template: {
             type: String,
@@ -86,8 +88,9 @@ export default {
                     return Template2;
                 case 'template3':
                     return Template3;
-                case 'template4':
-                    return Template4;
+                // 移除 Template4 case
+                // case 'template4':
+                //     return Template4;
                 case 'template5': // 添加新模板 case
                     return Template5;
                 default:

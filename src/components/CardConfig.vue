@@ -5,7 +5,7 @@
         <!-- 模板选择 -->
         <div class="mb-6">
             <h3 class="text-lg font-medium mb-2">选择模板</h3>
-            <div class="grid grid-cols-3 gap-4 items-start">
+            <div class="grid grid-cols-3 gap-4 items-start max-h-60 overflow-y-auto pr-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <div v-for="(template, index) in templatesInfo" :key="template.id"
                      @click="selectTemplate(template.id)"
                      :ref="el => { if (el) templateItemRefs[index] = el }"
@@ -65,12 +65,12 @@
                 <textarea v-model="card.title" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题"
                     rows="1" @input="adjustTextareaHeight"></textarea>
 
-                <textarea v-model="card.content" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
+                <textarea v-model="card.body" class="w-full px-3 py-2 border rounded-lg dynamic-textarea"
                     placeholder="卡片内容 (支持 Markdown 格式)" rows="4" @input="adjustTextareaHeight"></textarea>
             </div>
 
             <button @click="addCard"
-                class="w-full py-2 border border-dashed rounded-lg text-xhs-gray hover:text-xhs-pink hover:border-xhs-pink transition-colors">
+                class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink hover:bg-xhs-pink hover:text-white transition-colors">
                 添加卡片
             </button>
         </div>
@@ -95,7 +95,6 @@ import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
 import Template3 from '../templates/Template3.vue';
-import Template4 from '../templates/Template4.vue';
 import Template5 from '../templates/Template5.vue';
 
 export default {
@@ -117,14 +116,12 @@ export default {
             { id: 'template1', name: '模板1', aspectRatio: '3/4' },
             { id: 'template2', name: '模板2', aspectRatio: '3/4' },
             { id: 'template3', name: '模板3', aspectRatio: '3/4' },
-            { id: 'template4', name: '模板4', aspectRatio: '9/16' },
             { id: 'template5', name: '模板5', aspectRatio: '16/9' }
         ]);
         const templateComponentMap = {
             template1: Template1,
             template2: Template2,
             template3: Template3,
-            template4: Template4,
             template5: Template5
         };
         const previewCoverContent = ref({ title: '标题', subtitle: '副标题' });
@@ -198,7 +195,7 @@ export default {
             }
             content.value.contentCards.push({
                 title: '新卡片标题',
-                content: '在这里输入卡片内容...'
+                body: '在这里输入卡片内容...'
             });
             updateContent();
         };
