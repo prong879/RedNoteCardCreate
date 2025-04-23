@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定义基础样式 */
+body {
+    font-family: 'PingFang SC', 'Helvetica Neue', 'Arial', 'sans-serif';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #333333;
+}
+
+/* 小红书风格卡片 */
+.xhs-card {
+    @apply rounded-xl shadow-lg overflow-hidden bg-white;
+    width: 375px;
+    height: 667px;
+}
+
+/* 封面卡片样式 */
+.cover-card {
+    @apply flex flex-col justify-center items-center text-center px-6 py-8;
+    background: linear-gradient(135deg, #FF2442 0%, #FF8A98 100%);
+    color: white;
+}
+
+/* 内容卡片样式 */
+.content-card {
+    @apply p-6 flex flex-col;
+}
+
+/* 标题样式 */
+.card-title {
+    @apply text-2xl font-bold mb-4;
+}

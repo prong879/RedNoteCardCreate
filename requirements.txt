@@ -1,0 +1,14 @@
+# 前端项目依赖
+# 使用 npm install 安装
+
+# 核心依赖
+vue@3.3.4
+html2canvas@1.4.1
+file-saver@2.0.5
+
+# 开发依赖
+@vitejs/plugin-vue@4.2.3
+autoprefixer@10.4.14
+postcss@8.4.24
+tailwindcss@3.3.2
+vite@4.3.9 
