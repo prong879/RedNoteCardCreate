@@ -10,6 +10,7 @@ module.exports = {
         // 此处暂时清空，因为背景已固定在模板中
         'aspect-[3/4]',
         'aspect-[9/16]',
+        'aspect-[16/9]',
     ],
     theme: {
         extend: {

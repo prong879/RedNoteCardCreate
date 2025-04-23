@@ -60,10 +60,11 @@ import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
 import Template3 from '../templates/Template3.vue';
 import Template4 from '../templates/Template4.vue';
+import Template5 from '../templates/Template5.vue'; // 导入新模板
 
 export default {
     name: 'CardPreview',
-    components: { Template1, Template2, Template3, Template4 }, // 注册新模板
+    components: { Template1, Template2, Template3, Template4, Template5 }, // 注册新模板
     props: {
         template: {
             type: String,
@@ -86,6 +87,8 @@ export default {
                     return Template3;
                 case 'template4':
                     return Template4;
+                case 'template5': // 添加新模板 case
+                    return Template5;
                 default:
                     return Template1; // 默认使用模板1
             }

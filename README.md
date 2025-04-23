@@ -61,6 +61,35 @@ npm run build
 
 构建后的文件位于 `/dist` 目录。
 
+## 版本控制建议 (Git Workflow)
+
+为了保持项目开发的清晰和稳定，推荐采用以下基于特性分支的 Git 工作流：
+
+1.  **`main` 分支**:
+    *   **角色**: 始终代表最新、最稳定、可随时运行的版本。
+    *   **操作**:
+        *   **禁止**直接在此分支提交未完成或未测试的代码。
+        *   只合并 (merge) 已经开发完成并通过测试的特性分支 (`feature/*`) 或修复分支 (`fix/*`)。
+
+2.  **特性分支 (`feature/*`, `fix/*`, `refactor/*` 等)**:
+    *   **角色**: 所有新功能开发、Bug 修复、代码重构都在各自的特性分支上进行。
+    *   **命名**: 使用清晰的名称，如 `feature/add-template4`, `fix/preview-scaling`, `refactor/card-component`。
+    *   **流程**:
+        1.  **创建**: 从最新的 `main` 分支创建新分支 (`git checkout main && git pull && git checkout -b feature/xxx`)。
+        2.  **开发**: 在特性分支上进行编码，进行小步、频繁的提交 (`git commit -m "feat: 添加..."`)，推荐使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/v1.0.0/) 规范编写提交信息。
+        3.  **合并**: 功能完成后，切换回 `main` 分支，确保其为最新，然后合并特性分支 (`git checkout main && git pull && git merge --no-ff feature/xxx`)。`--no-ff` 可以保留分支的合并历史。
+        4.  **推送**: 将本地的 `main` 和特性分支推送到远程仓库 (`git push origin main`, `git push origin feature/xxx`)。
+        5.  **清理**: 合并后可删除不再需要的本地和远程特性分支 (`git branch -d feature/xxx`, `git push origin --delete feature/xxx`)。
+
+**优点**:
+
+*   **隔离性**: 功能开发互不影响。
+*   **稳定性**: `main` 分支始终可用。
+*   **可追溯**: 清晰的开发和合并历史。
+*   **简单高效**: 适合单人或小团队项目。
+
+**远程仓库**: 强烈建议使用 GitHub/GitLab/Gitee 等平台托管远程仓库，并定期推送代码作为备份。
+
 ## 工作流程
 
 1.  **准备内容**：根据 `选题库.md` 构思内容，并在 `src/content/topicTemplates.js` 中添加或修改对应的选题模板数据。
