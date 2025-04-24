@@ -43,8 +43,8 @@
                         </div>
                     </div>
                     <!-- 封面标题和副标题 -->
-                    <textarea v-model="content.coverCard.title" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题" rows="1"></textarea>
-                    <textarea v-model="content.coverCard.subtitle" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar" placeholder="输入副标题" rows="2"></textarea>
+                    <textarea v-model="content.coverCard.title" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题" rows="1"></textarea>
+                    <textarea v-model="content.coverCard.subtitle" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar" placeholder="输入副标题" rows="2"></textarea>
                 </div>
 
                 <!-- 内容卡片配置 - 使用 draggable 包裹 -->
@@ -75,8 +75,8 @@
                                      <button @click="removeCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="content.contentCards.length > 1"> 删除 </button>
                                 </div>
                             </div>
-                            <textarea v-model="card.title" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
-                            <textarea v-model="card.body" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
+                            <textarea v-model="card.title" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
+                            <textarea v-model="card.body" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
                         </div>
                     </template>
                 </draggable>
@@ -90,8 +90,8 @@
              <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">全局页眉/页脚</h3>
                   <div class="p-3 border rounded-lg space-y-2">
-                      <textarea v-model="content.headerText" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页眉 (所有卡片生效)" rows="1"></textarea>
-                      <textarea v-model="content.footerText" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页脚 (所有卡片生效)" rows="1"></textarea>
+                      <textarea v-model="content.headerText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页眉 (所有卡片生效)" rows="1"></textarea>
+                      <textarea v-model="content.footerText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页脚 (所有卡片生效)" rows="1"></textarea>
                   </div>
              </div>
              <!-- 小红书主文案 -->
@@ -109,12 +109,18 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import draggable from 'vuedraggable';
-import Template1 from '../templates/Template1.vue';
-import Template2 from '../templates/Template2.vue';
-import Template3 from '../templates/Template3.vue';
-import Template5 from '../templates/Template5.vue';
+// 移除模板组件的直接导入，因为它们在 useTemplatePreviewScaling 中处理
+// import Template1 from '../templates/Template1.vue';
+// import Template2 from '../templates/Template2.vue';
+// import Template3 from '../templates/Template3.vue';
+// import Template5 from '../templates/Template5.vue';
+
+// 导入组合式函数
+import { useCardManagement } from '../composables/useCardManagement';
+import { useTextareaAutoHeight } from '../composables/useTextareaAutoHeight';
+import { useTemplatePreviewScaling } from '../composables/useTemplatePreviewScaling';
 
 export default {
     name: 'CardConfig',
@@ -143,159 +149,61 @@ export default {
         'focus-preview-card'
     ],
     setup(props, { emit }) {
-        const content = ref({});
+        // 获取根元素的引用
         const cardConfigRoot = ref(null);
 
-        const adjustTextareaHeightInternal = (textarea) => {
-            if (textarea) {
-                textarea.style.height = 'auto';
-                textarea.style.height = `${textarea.scrollHeight + 2}px`;
-            }
-        };
+        // 1. 使用 useCardManagement 管理内容状态和操作
+        const {
+            content,
+            addCard: addCardInternal, // 重命名以避免与下面的包装函数冲突
+            removeCard,
+            toggleVisibility,
+            getButtonClass,
+            onDragEnd,
+            updateContent
+        } = useCardManagement(props, emit);
 
-        const adjustAllTextareaHeights = () => {
-            if (cardConfigRoot.value) {
-                const textareas = cardConfigRoot.value.querySelectorAll('.dynamic-textarea');
-                textareas.forEach(adjustTextareaHeightInternal);
-            }
-        };
+        // 2. 使用 useTextareaAutoHeight 管理文本域高度
+        const {
+            adjustSingleTextarea,
+            adjustAllTextareas
+        } = useTextareaAutoHeight(cardConfigRoot);
 
-        watch(() => props.cardContent, (newVal) => {
-             try {
-                 content.value = structuredClone(newVal);
-             } catch (e) {
-                 content.value = { ...newVal };
-             }
-             nextTick(adjustAllTextareaHeights);
-         }, { deep: true, immediate: true });
+        // 3. 使用 useTemplatePreviewScaling 管理模板预览
+        const {
+            templatesInfo,
+            previewCoverContent,
+            templateItemRefs,
+            scalingDivRefs,
+            getTemplateComponent,
+            selectTemplate,
+            // updateScale // 通常不需要手动调用
+        } = useTemplatePreviewScaling(content, emit);
 
+        // 监听内容变化，自动调整文本域高度
+        watch(content, () => {
+             nextTick(adjustAllTextareas);
+         }, { deep: true });
+
+        // 组件挂载后调整所有文本域高度
         onMounted(() => {
-             nextTick(() => {
-                  adjustAllTextareaHeights();
-                  if (typeof ResizeObserver !== 'undefined') {
-                      resizeObserver = new ResizeObserver(entries => {
-                          updateScale();
-                      });
-                      templateItemRefs.value.forEach(el => {
-                          if (el) {
-                              resizeObserver.observe(el);
-                          }
-                      });
-                      updateScale();
-                  } else {
-                      console.warn('ResizeObserver is not supported in this browser.');
-                  }
-             });
+            nextTick(adjustAllTextareas);
         });
 
-        onBeforeUnmount(() => {
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-            }
-        });
+        // --- 保留在组件内的简单事件处理器 ---
 
-        const templatesInfo = ref([
-            { id: 'template1', name: '模板1', aspectRatio: '3/4' },
-            { id: 'template2', name: '模板2', aspectRatio: '3/4' },
-            { id: 'template3', name: '模板3', aspectRatio: '3/4' },
-            { id: 'template5', name: '模板5', aspectRatio: '16/9' }
-        ]);
-        const templateComponentMap = {
-            template1: Template1,
-            template2: Template2,
-            template3: Template3,
-            template5: Template5
-        };
-
-        const previewCoverContent = computed(() => ({
-            title: content.value?.coverCard?.title || '标题',
-            subtitle: content.value?.coverCard?.subtitle || '副标题'
-        }));
-
-        const templateItemRefs = ref([]);
-        const scalingDivRefs = ref([]);
-        let resizeObserver = null;
-        const BASE_CARD_WIDTH = 320;
-
-        const updateScale = () => {
-             templateItemRefs.value.forEach((itemEl, index) => {
-                 if (itemEl && scalingDivRefs.value[index]) {
-                     const previewContainer = itemEl.querySelector('.preview-container');
-                     if (!previewContainer) return;
-
-                     const containerWidth = previewContainer.clientWidth;
-                     // 确保宽度至少为 1px 避免除零错误
-                     const safeContainerWidth = Math.max(1, containerWidth);
-                     const scale = Math.min(1, safeContainerWidth / BASE_CARD_WIDTH);
-                     scalingDivRefs.value[index].style.transform = `scale(${scale})`;
-
-                     // 根据宽高比计算并设置容器的精确高度
-                     try {
-                         const templateInfo = templatesInfo.value[index];
-                         if (templateInfo && templateInfo.aspectRatio) {
-                             const parts = templateInfo.aspectRatio.split('/');
-                             if (parts.length === 2) {
-                                 const wRatio = parseFloat(parts[0]);
-                                 const hRatio = parseFloat(parts[1]);
-                                 if (wRatio > 0 && hRatio > 0) {
-                                     const originalHeight = (hRatio / wRatio) * BASE_CARD_WIDTH;
-                                     const scaledHeight = originalHeight * scale;
-                                     previewContainer.style.height = `${scaledHeight}px`;
-                                 } else {
-                                     previewContainer.style.height = 'auto'; // 无效宽高比则自动高度
-                                 }
-                             } else {
-                                 previewContainer.style.height = 'auto'; // 格式错误则自动高度
-                             }
-                         } else {
-                             previewContainer.style.height = 'auto'; // 缺少信息则自动高度
-                         }
-                     } catch (e) {
-                         console.error("Error calculating preview height:", e);
-                         previewContainer.style.height = 'auto'; // 出错时自动高度
-                     }
-                 }
-             });
-        };
-
-        const getTemplateComponent = (templateId) => {
-            return templateComponentMap[templateId] || Template1;
-        };
-
-        const selectTemplate = (templateId) => {
-            emit('update:template', templateId);
-        };
-
-        const updateContent = () => {
-             emit('update:content', { ...content.value });
-        };
-
-        const adjustTextareaHeight = (event) => {
-            adjustTextareaHeightInternal(event.target);
-            updateContent();
-        };
-
+        // 包装 addCard 以便传入 adjustAllTextareas 回调
         const addCard = () => {
-            if (!Array.isArray(content.value.contentCards)) {
-                 content.value.contentCards = [];
-            }
-            content.value.contentCards.push({
-                title: '新卡片标题',
-                body: '在这里输入卡片内容...',
-                showHeader: true,
-                showFooter: true
-            });
-            updateContent();
-            nextTick(adjustAllTextareaHeights);
+            addCardInternal(adjustAllTextareas);
         };
 
-        const removeCard = (index) => {
-             if (Array.isArray(content.value.contentCards) && content.value.contentCards.length > 1) {
-                 content.value.contentCards.splice(index, 1);
-                 updateContent();
-            }
+        // 处理文本域输入事件：调整高度并触发内容更新
+        const handleTextareaInput = (event) => {
+            adjustSingleTextarea(event.target);
+            updateContent(); // 确保修改通过 v-model 绑定后，通知父组件
         };
 
+        // 复制主文案
         const copyMainText = () => {
              const textToCopy = content.value?.mainText || '';
              if (!textToCopy) {
@@ -312,53 +220,34 @@ export default {
                 });
         };
 
-        const toggleVisibility = (cardType, field, index = null) => {
-            let card;
-            if (cardType === 'coverCard') {
-                card = content.value.coverCard;
-            } else if (cardType === 'contentCard' && index !== null && content.value.contentCards && content.value.contentCards[index]) {
-                card = content.value.contentCards[index];
-            }
-
-            if (card) {
-                card[field] = !(typeof card[field] === 'boolean' ? card[field] : true);
-            }
-            updateContent();
-        };
-
-        const getButtonClass = (isVisible) => {
-            const visible = typeof isVisible === 'boolean' ? isVisible : true;
-            return visible
-                ? 'border border-gray-400 text-gray-600 bg-gray-100 hover:bg-gray-200'
-                : 'border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200';
-        };
-
+        // 定位预览卡片
         const focusPreview = (index) => {
-            console.log('Focus preview card:', index);
             emit('focus-preview-card', index);
         };
 
-        const onDragEnd = () => {
-            updateContent();
-        };
-
+        // 返回 setup 需要暴露给模板的所有内容
         return {
-            content,
+            // Refs
             cardConfigRoot,
-            templatesInfo,
-            previewCoverContent,
             templateItemRefs,
             scalingDivRefs,
-            getTemplateComponent,
-            selectTemplate,
+            // From useCardManagement
+            content,
             addCard,
             removeCard,
-            copyMainText,
-            adjustTextareaHeight,
             toggleVisibility,
             getButtonClass,
-            focusPreview,
-            onDragEnd
+            onDragEnd,
+            // From useTextareaAutoHeight (no direct exposure needed)
+            // From useTemplatePreviewScaling
+            templatesInfo,
+            previewCoverContent,
+            getTemplateComponent,
+            selectTemplate,
+            // Local handlers
+            handleTextareaInput,
+            copyMainText,
+            focusPreview
         };
     },
 }

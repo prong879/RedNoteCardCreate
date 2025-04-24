@@ -22,6 +22,7 @@
 ### 技术栈
 
 -   **前端框架**：Vue.js 3 (v3.3.4) - 使用组合式 API (Composition API)。
+    -   *代码组织*: 采用组合式函数 (`src/composables`) 拆分组件逻辑，提高可维护性和复用性。
 -   **构建工具**：Vite (v4.3.9) - 提供快速的开发和构建体验。
 -   **样式方案**：Tailwind CSS (v3.3.2) - 原子化 CSS 框架，快速构建界面。
 -   **CSS 预处理器**：PostCSS (v8.4.24) - 处理 CSS 兼容性 (autoprefixer)。
@@ -109,10 +110,14 @@ npm run build
 │   ├── assets/         # 静态资源 (样式)
 │   │   └── styles/
 │   │       └── index.css # 主要样式文件 (引入Tailwind)
-│   ├── components/     # Vue 组件
+│   ├── components/     # Vue 组件 (视图层)
 │   │   ├── CardConfig.vue  # 卡片配置面板
 │   │   ├── CardPreview.vue # 卡片预览面板
 │   │   └── TopicSelector.vue # 选题选择器
+│   ├── composables/    # Vue 组合式函数 (逻辑复用)
+│   │   ├── useCardManagement.js       # 管理卡片内容状态与操作
+│   │   ├── useTemplatePreviewScaling.js # 管理模板预览、缩放与选择
+│   │   └── useTextareaAutoHeight.js   # 管理文本域自动高度
 │   ├── content/        # 选题内容模板数据
 │   │   └── topicTemplates.js # 选题数据定义
 │   ├── templates/      # 卡片样式模板组件
@@ -120,7 +125,7 @@ npm run build
 │   │   ├── Template2.vue   # 模板2实现 (3:4)
 │   │   ├── Template3.vue   # 模板3实现 (3:4)
 │   │   └── Template5.vue   # 模板5实现 (可能为 9:16)
-│   ├── utils/          # 工具函数
+│   ├── utils/          # 通用工具函数
 │   │   ├── cardExport.js   # 卡片导出逻辑
 │   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑
 │   ├── App.vue         # 应用根组件
