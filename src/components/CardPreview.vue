@@ -22,7 +22,7 @@
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     封面卡片
-                    <button @click="exportSingleCard($refs.coverCard, '封面卡片')"
+                    <button @click="exportCardByIndex(-1, '封面卡片')"
                         class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                         导出
                     </button>
@@ -41,7 +41,7 @@
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     内容卡片 {{ index + 1 }}
-                    <button @click="exportSingleCard($refs[`contentCard${index}`][0], `内容卡片_${index + 1}`)"
+                    <button @click="exportCardByIndex(index, `内容卡片_${index + 1}`)"
                         class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                         导出
                     </button>
@@ -115,6 +115,7 @@ export default {
 
         const previewScrollContainer = ref(null);
         const contentCardRefs = ref([]);
+        const coverCard = ref(null); // 添加封面卡片容器的 ref
 
         onBeforeUpdate(() => {
             contentCardRefs.value = [];
@@ -138,42 +139,49 @@ export default {
             }
         });
 
-        return {
-            activeTemplateComponent,
-            previewScrollContainer,
-            contentCardRefs
-        };
-    },
-    methods: {
-        // 导出和复制方法保持不变
-        async exportSingleCard(cardElement, fileName) {
+        // 导出单个卡片 (封面或内容)
+        const exportCardByIndex = async (index, fileName) => {
+            let cardContainerElement = null;
+            if (index === -1) { // -1 代表封面卡片
+                cardContainerElement = coverCard.value;
+            } else if (index >= 0 && contentCardRefs.value[index]) {
+                cardContainerElement = contentCardRefs.value[index];
+            }
+
+            if (!cardContainerElement) {
+                alert(`无法找到索引为 ${index} 的卡片容器元素。`);
+                console.error(`无法找到索引为 ${index} 的卡片容器元素。`);
+                return;
+            }
+
             try {
-                // 注意：需要导出 cardElement 内部的实际卡片DOM，而不是外层div
-                const actualCard = cardElement.querySelector('.xhs-card');
+                // 注意：仍然需要导出 cardElement 内部的实际卡片DOM
+                const actualCard = cardContainerElement.querySelector('.xhs-card');
                 if (!actualCard) {
-                    throw new Error("找不到卡片元素");
+                    throw new Error("在容器元素内找不到 .xhs-card 元素");
                 }
                 await exportCardAsImage(actualCard, fileName);
                 alert(`成功导出 ${fileName}`);
             } catch (error) {
-                console.error('导出失败:', error);
-                alert('导出失败: ' + error.message);
+                console.error(`导出卡片 "${fileName}" (索引 ${index}) 失败:`, error);
+                alert(`导出失败: ${error.message}`);
             }
-        },
+        };
 
-        async exportAllCards() {
+        // 导出全部卡片
+        const exportAllCards = async () => {
             try {
                 const cardsToExport = [];
 
-                // 获取封面卡片元素
-                const coverCardElement = this.$refs.coverCard?.querySelector('.xhs-card');
+                // 获取封面卡片元素 (使用 ref)
+                const coverCardElement = coverCard.value?.querySelector('.xhs-card');
                 if (coverCardElement) {
                     cardsToExport.push(coverCardElement);
                 }
 
-                // 获取内容卡片元素
-                this.content.contentCards.forEach((_, index) => {
-                    const contentCardElement = this.$refs[`contentCard${index}`]?.[0]?.querySelector('.xhs-card');
+                // 获取内容卡片元素 (使用 ref 数组)
+                contentCardRefs.value.forEach((containerElement) => {
+                    const contentCardElement = containerElement?.querySelector('.xhs-card');
                     if (contentCardElement) {
                         cardsToExport.push(contentCardElement);
                     }
@@ -184,7 +192,9 @@ export default {
                     return;
                 }
 
-                const result = await exportCardsAsImages(cardsToExport, this.content.title);
+                // 使用 props 中的 title (如果需要的话，或者保持原来的 this.content.title)
+                const title = props.content?.title || '卡片集'; // 假设 title 在 props.content 中
+                const result = await exportCardsAsImages(cardsToExport, title);
 
                 if (result.success) {
                     alert(result.message);
@@ -195,11 +205,18 @@ export default {
                 console.error('批量导出失败:', error);
                 alert('批量导出失败: ' + error.message);
             }
-        },
+        };
 
-        async copyMainText() {
+        // 复制主文案
+        const copyMainText = async () => {
             try {
-                const result = await copyTextToClipboard(this.content.mainText);
+                // 直接从 props 访问
+                const textToCopy = props.content?.mainText || '';
+                if (!textToCopy) {
+                    alert("主文案为空，无法复制。");
+                    return;
+                }
+                const result = await copyTextToClipboard(textToCopy);
                 if (result.success) {
                     alert('主文案已复制到剪贴板！');
                 } else {
@@ -209,7 +226,17 @@ export default {
                 console.error('复制失败:', error);
                 alert('复制失败: ' + error.message);
             }
-        }
+        };
+
+        return {
+            activeTemplateComponent,
+            previewScrollContainer,
+            contentCardRefs,
+            coverCard, // 暴露封面 ref
+            exportCardByIndex,
+            exportAllCards,
+            copyMainText
+        };
     }
 }
 </script>
@@ -217,7 +244,7 @@ export default {
 <style scoped>
 .card-container {
     position: relative;
-    /* width: 320px; */ /* 移除冗余宽度，由模板内部 w-80 控制 */
+    /* 移除冗余宽度，由模板内部 w-80 控制 */
 }
 
 /* Markdown 样式现在由各自的模板组件处理 */

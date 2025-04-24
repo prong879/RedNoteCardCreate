@@ -180,11 +180,6 @@ export default {
             // updateScale // 通常不需要手动调用
         } = useTemplatePreviewScaling(content, emit);
 
-        // 监听内容变化，自动调整文本域高度
-        watch(content, () => {
-             nextTick(adjustAllTextareas);
-         }, { deep: true });
-
         // 组件挂载后调整所有文本域高度
         onMounted(() => {
             nextTick(adjustAllTextareas);
