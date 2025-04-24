@@ -6,18 +6,20 @@
 
 ### 主要功能
 
-1.  **主题模板加载**：从预设的 `topicTemplates.js` 文件中加载选题内容，每个选题包含封面卡片、多张内容卡片和主文案。
-2.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template5` - 支持 3:4 和 9:16 等比例)。
-3.  **可视化内容编辑**：
-    *   实时编辑主题标题、封面副标题、卡片标题和内容。
+1.  **主题元数据加载**：从 `src/content/topicsMeta.js` 加载所有选题的元信息（标题、描述）。
+2.  **动态内容加载**：选择选题后，从对应的 `src/content/topicXX_content.js` 文件动态加载详细内容（封面卡片、内容卡片数组、主文案）。
+3.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template5` - 支持 3:4 和 9:16 等比例)。
+4.  **可视化内容编辑**：
+    *   实时编辑全局页眉/页脚、封面标题/副标题、卡片标题/内容、主文案。
+    *   内容卡片支持拖拽排序 (`vuedraggable`)。
+    *   内容卡片和封面卡片支持单独显隐页眉/页脚。
     *   支持 **Markdown 语法** (使用 `markdown-it` 库) 和 **LaTeX 数学公式** (行内 `$formula$` 和块级 `$$formula$$`，使用 `katex` 库渲染)。
-    *   动态添加或删除内容卡片。
-4.  **实时预览**：在编辑的同时，右侧面板实时显示选定卡片样式模板下的最终效果。
-5.  **图片导出**：
-    *   使用 `html2canvas` 将预览卡片导出为 PNG 图片。
-    *   支持单独导出某一张卡片或一键导出所有卡片。
-    *   导出图片具有较高分辨率 (scale: 2)。
-6.  **文案复制**：一键复制编辑好的小红书主文案到剪贴板。
+    *   动态添加或删除内容卡片（至少保留一张）。
+5.  **实时预览**：在编辑的同时，右侧面板实时显示选定卡片样式模板下的最终效果。点击编辑区卡片旁的定位按钮可滚动预览区到对应卡片。
+6.  **内容保存与导出**：
+    *   **图片导出**：使用 `html2canvas` 将预览卡片导出为 PNG 图片。支持单独导出某一张卡片或一键导出所有卡片。导出图片具有较高分辨率 (scale: 2)。
+    *   **文案复制**：一键复制编辑好的小红书主文案到剪贴板。
+    *   **JS 文件生成**: 将当前编辑的所有内容（包括页眉页脚、卡片、主文案）保存为一个 JS 文件 (`topicXX_content.js`) 供用户下载，方便后续替换项目中的原始文件。
 
 ### 技术栈
 
@@ -30,7 +32,8 @@
 -   **LaTeX 渲染**：KaTeX (latest) - 快速 Web 数学公式渲染库。
 -   **图片生成**：html2canvas (v1.4.1) - 将 DOM 元素渲染成 Canvas，进而导出为图片。
 -   **文件保存**：file-saver (v2.0.5) - 在客户端保存生成的文件。
--   **数据结构**：JavaScript 对象/JSON - 用于定义和存储选题模板内容。
+-   **拖拽排序**: vuedraggable (next) - 实现卡片拖拽排序功能。
+-   **数据结构**：JavaScript 对象/JSON - 用于定义和存储选题内容。
 
 ## 使用方法
 
@@ -93,12 +96,17 @@ npm run build
 
 ## 工作流程
 
-1.  **准备内容**：根据 `选题库.md` 构思内容，并在 `src/content/topicTemplates.js` 中添加或修改对应的选题模板数据。
+1.  **准备内容**：
+    *   在 `src/content/topicsMeta.js` 中定义选题的元信息 (ID, 标题, 描述)。
+    *   为每个选题 ID 创建对应的 `src/content/topicXX_content.js` 文件，包含详细的卡片内容和主文案。
 2.  **启动应用**：运行 `npm run dev`。
-3.  **选择选题**：在应用首页点击要制作的选题内容。
-4.  **选择样式**：在编辑页面的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板3`, `模板5`)。
-5.  **编辑与预览**：在编辑页面调整卡片内容（可使用 Markdown 和 LaTeX），并在右侧实时预览选定样式下的效果。
-6.  **导出资源**：点击"导出全部卡片"生成图片，点击"复制主文案"获取文本。
+3.  **选择选题**：在应用首页（`TopicSelector`）点击要制作的选题卡片，应用将加载对应的 `topicXX_content.js`。
+4.  **选择样式**：在编辑页面（`CardConfig`）的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板3`, `模板5`)。
+5.  **编辑与预览**：在 `CardConfig` 中调整卡片内容（可使用 Markdown 和 LaTeX），并在右侧 `CardPreview` 中实时预览选定样式下的效果。可添加、删除、拖拽排序内容卡片，显隐页眉页脚。
+6.  **导出/保存资源**：
+    *   点击"生成 JS 文件供下载"按钮，将当前编辑状态保存为一个新的 `topicXX_content.js` 文件。用户需手动将其移动到 `src/content/` 目录替换旧文件。
+    *   点击预览区的"导出"按钮生成图片。
+    *   点击配置区的"复制主文案"按钮获取文本。
 7.  **发布**：使用导出的图片和文案在小红书平台发布笔记。
 
 ## 项目结构
@@ -115,28 +123,30 @@ npm run build
 │   │   ├── CardPreview.vue # 卡片预览面板
 │   │   └── TopicSelector.vue # 选题选择器
 │   ├── composables/    # Vue 组合式函数 (逻辑复用)
-│   │   ├── useCardManagement.js       # 管理卡片内容状态与操作
+│   │   ├── useCardManagement.js       # 管理卡片内容状态与操作 (增删改、显隐、拖拽)
 │   │   ├── useTemplatePreviewScaling.js # 管理模板预览、缩放与选择
 │   │   └── useTextareaAutoHeight.js   # 管理文本域自动高度
-│   ├── content/        # 选题内容模板数据
-│   │   └── topicTemplates.js # 选题数据定义
+│   ├── content/        # 选题内容数据
+│   │   ├── topicsMeta.js      # 选题元信息 (ID, 标题, 描述)
+│   │   ├── topic01_content.js # 选题1的详细内容
+│   │   └── ...                # 其他选题内容文件
 │   ├── templates/      # 卡片样式模板组件
 │   │   ├── Template1.vue   # 模板1实现 (3:4)
 │   │   ├── Template2.vue   # 模板2实现 (3:4)
 │   │   ├── Template3.vue   # 模板3实现 (3:4)
-│   │   └── Template5.vue   # 模板5实现 (可能为 9:16)
+│   │   └── Template5.vue   # 模板5实现 (可能为 16:9)
 │   ├── utils/          # 通用工具函数
-│   │   ├── cardExport.js   # 卡片导出逻辑
-│   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑
-│   ├── App.vue         # 应用根组件
+│   │   ├── cardExport.js   # 卡片导出逻辑 (html2canvas, file-saver)
+│   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑 (markdown-it, katex)
+│   ├── App.vue         # 应用根组件 (协调各部分)
 │   └── main.js         # 应用入口文件
 ├── .gitignore          # Git 忽略配置
 ├── index.html          # HTML 入口文件
-├── package.json        # 项目依赖与脚本配置 (主要的依赖管理文件)
+├── package.json        # 项目依赖与脚本配置
 ├── package-lock.json   # 确切的依赖版本锁定文件
 ├── postcss.config.js   # PostCSS 配置文件
 ├── README.md           # 项目说明文档 (本文件)
-├── requirements.txt    # (用途待确认，可能与其他流程相关)
+├── requirements.txt    # (Python 依赖? 待确认用途或移除)
 ├── tailwind.config.js  # Tailwind CSS 配置文件
 ├── vite.config.js      # Vite 配置文件
 ├── 解决方案概要.md   # 解决方案设计文档
@@ -149,8 +159,8 @@ npm run build
 ## 具体使用步骤
 
 1.  **选择选题内容**：
-    *   启动应用后，首页展示 `src/content/topicTemplates.js` 中定义的所有可用选题内容。
-    *   点击想要使用的选题卡片，进入编辑页面。
+    *   启动应用后，首页展示 `src/content/topicsMeta.js` 中定义的所有可用选题。
+    *   点击想要使用的选题卡片，应用会加载对应的 `topicXX_content.js` 文件，并进入编辑页面。
 
 2.  **选择卡片样式**：
     *   在编辑页左侧的配置面板中，点击"选择模板"下的样式预览图（模板1/2/3/5）来切换卡片的视觉风格。
@@ -171,43 +181,53 @@ npm run build
 
 ## 选题内容模板扩展
 
-可以通过编辑 `src/content/topicTemplates.js` 文件添加或修改选题内容。
+项目的内容组织分为两部分：
 
-```javascript
-// 导出一个新的选题对象
-export const topicXX = {
-  coverCard: {
-    title: '新选题的封面标题', 
-    subtitle: '封面卡片的副标题内容\n支持换行'
-    // 不再需要 bgColor
-  },
-  contentCards: [
-    {
-      title: '第一个内容卡片的标题',
-      content: '卡片内容，支持 **Markdown** 格式和 $LaTeX$ 公式。\n- 列表项1\n- 列表项2\n$$\alpha + \beta = \gamma$$ ',
-      // 不再需要 bgColor
-    },
-    // 可以添加更多内容卡片对象
-  ],
-  mainText: `这是对应的小红书笔记主文案。
+1.  **选题元信息 (`src/content/topicsMeta.js`)**: 这个文件定义了所有选题的基础信息，用于在选择器中展示。
+    ```javascript
+    // src/content/topicsMeta.js
+    export const topicsMeta = [
+      {
+        id: 'topic01', // 唯一 ID，与内容文件名对应
+        title: '【小白入门】什么是时间序列数据？',
+        description: '用生活实例：股价、气温、你的体重变化...'
+      },
+      // ... 更多选题元信息
+    ];
+    ```
 
-包含所有必要的文字内容和 #话题标签。
+2.  **选题详细内容 (`src/content/topicXX_content.js`)**: 每个选题对应一个文件，文件名必须是 `topic` 加上元信息中的 `id` 再加上 `_content.js` (例如 `topic01_content.js`)。文件导出一个包含具体内容的常量。
+    ```javascript
+    // src/content/topicXX_content.js
+    export const topicXX_contentData = { // 导出常量名需与文件名匹配
+      headerText: "全局页眉文本 (可选)",
+      footerText: "全局页脚文本 (可选)",
+      coverCard: {
+        title: '封面卡片标题',
+        subtitle: '封面卡片副标题\n支持换行',
+        showHeader: true, // 是否显示页眉
+        showFooter: true  // 是否显示页脚
+      },
+      contentCards: [
+        {
+          title: '内容卡片1标题',
+          body: '内容卡片1正文，支持 **Markdown** 和 $LaTeX$。\n- 列表\n$$\alpha$$',
+          showHeader: true,
+          showFooter: true
+        },
+        // ... 更多内容卡片对象
+      ],
+      mainText: `对应的小红书主文案。
 
-➡️ **重点信息**
-✅ 清单
-$E=mc^2$
+      #话题标签`
+    };
+    ```
 
-#话题1 #话题2`
-};
+**添加新选题的步骤**:
 
-// 别忘了在文件底部的 default export 中导出新选题
-export default {
-  topic01,
-  topic02,
-  topic03,
-  topicXX // 添加新选题
-};
-```
+1.  在 `src/content/topicsMeta.js` 的 `topicsMeta` 数组中添加一个新的对象，定义 `id`, `title`, `description`。
+2.  在 `src/content/` 目录下创建一个新的 JS 文件，命名为 `topicYY_content.js` (YY 是上一步定义的 `id`)。
+3.  在新文件中，按照上述格式定义并导出 `topicYY_contentData` 常量，填充卡片内容和主文案。
 
 ## 开发阶段
 
@@ -215,23 +235,31 @@ export default {
     *   [x] 项目初始化与配置 (Vite, Vue3, Tailwind)
     *   [x] 核心组件开发 (`TopicSelector`, `CardConfig`, `CardPreview`)
     *   [x] 主题模板加载与内容绑定
+        *   [x] **修复**: 重构内容加载逻辑，使用 `topicsMeta.js` 和独立的 `topicXX_content.js` 文件。
+        *   [x] **修复**: 解决动态导入在开发环境下的路径解析和 Vite 分析问题 (使用 `import.meta.glob`)。
     *   [x] 基础卡片样式模板 (`Template1`, `Template2`, `Template3`)
     *   [x] 新增卡片样式模板 (`Template5` - 可能为 9:16 宽高比)
     *   [x] 图片导出功能 (`html2canvas`, `file-saver`)
     *   [x] 文案复制功能
     *   [x] Markdown 与 LaTeX 渲染 (`markdown-it`, `katex`)
     *   [x] 更新默认卡片尺寸比例为 3:4 (小红书标准)，部分模板可能保持特定比例
+    *   [x] **修复**: 在 `useCardManagement` 中使用 `JSON.parse/stringify` 替换 `structuredClone` 以实现可靠深拷贝。
+    *   [x] 实现卡片拖拽排序 (`vuedraggable`)
+    *   [x] 实现卡片页眉/页脚单独显隐
 
 -   [ ] **阶段2**：功能完善
     *   [ ] 完善 Markdown 渲染支持 (例如代码高亮 `highlight.js`)
     *   [ ] 提供更多背景样式选项 (如果需要覆盖模板固定样式)
     *   [ ] 实现配置的本地存储 (LocalStorage)，记住上次编辑状态或常用配置。
     *   [ ] 优化导出流程，例如打包为 ZIP 文件。
+    *   [ ] (已实现) 生成 JS 文件供下载。
 
 -   [ ] **阶段3**：高级功能与体验优化
     *   [ ] 表情符号选择器集成到文本编辑器。
     *   [ ] 允许用户上传自定义背景图片 (如果需要)。
-    *   [ ] 增加拖拽调整卡片顺序功能。
+    *   [x] (已实现) 增加拖拽调整卡片顺序功能。
+    *   [ ] 优化模板预览缩放逻辑，确保不同比例模板预览效果准确。
+    *   [x] (已实现) 点击编辑区卡片按钮滚动预览区。
 
 ## 模板开发规定
 
