@@ -26,7 +26,7 @@
                     <!-- 内容卡片内容 -->
                     <template v-else>
                         <h3 class="text-xl font-bold mb-4 whitespace-pre-line pt-2">{{ content.title }}</h3>
-                        <div class="markdown-body flex-grow overflow-y-hidden pr-1" v-html="renderContent(content.body)"></div>
+                        <div class="markdown-body flex-grow overflow-y-hidden pr-1" v-html="renderedMarkdown"></div>
                     </template>
                 </div>
 
@@ -82,10 +82,11 @@ export default {
             default: true
         }
     },
-    methods: {
-        // 渲染 Markdown 和 LaTeX
-        renderContent(text) {
-            return renderMarkdownAndLaTeX(text);
+    computed: {
+        // 计算渲染后的 Markdown 和 LaTeX 内容
+        renderedMarkdown() {
+            // 只有在 content.body 存在时才进行渲染
+            return this.content && this.content.body ? renderMarkdownAndLaTeX(this.content.body) : '';
         }
     }
 }

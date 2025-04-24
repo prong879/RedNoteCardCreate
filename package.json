@@ -12,7 +12,8 @@
         "html2canvas": "^1.4.1",
         "katex": "^0.16.22",
         "marked": "^15.0.9",
-        "vue": "^3.3.4"
+        "vue": "^3.3.4",
+        "vue-draggable-next": "^2.2.1"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^4.2.3",

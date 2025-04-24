@@ -236,3 +236,69 @@ export default {
 -   [ ] 自定义背景图片
 -   [ ] 拖拽排序
 -   [ ] 测试覆盖
+
+
+
+## 模板开发规定
+
+为确保项目模板的一致性、可维护性和质量，所有新卡片模板的开发应遵循以下规定：
+
+1.  **文件与命名**:
+    *   模板组件应放置在 `src/templates/` 目录下。
+    *   文件名和组件名应采用大驼峰命名法，例如 `TemplateNewStyle.vue`，组件 `name` 属性也应设置为 `TemplateNewStyle`。
+
+2.  **基础结构**:
+    *   必须包含一个唯一的根 `<div>` 元素。
+    *   内部结构应逻辑清晰，强制要求划分为页眉、主内容、页脚等逻辑区域，并**必须**为这些关键区域添加以下 CSS 类名：
+        *   页眉区域: `card-header`
+        *   主内容区域: `card-content`
+        *   页脚区域: `card-footer`
+        *   (可选) Markdown/富文本内容容器: `markdown-body` (如果适用)
+
+3.  **Props 规范**:
+    *   **必需 Props**: 必须接收以下核心 Props，并进行类型和必要性校验：
+        *   `type: { type: String, required: true, validator: (value) => ['cover', 'content'].includes(value) }` 用于区分卡片类型。
+        *   `content: { type: Object, required: true }` 用于接收核心内容数据。
+        *   `title: { type: String, default: '' }` (主要用于封面)。
+        *   `headerText: { type: String, default: '' }`。
+        *   `footerText: { type: String, default: '' }`。
+        *   `isHeaderVisible: { type: Boolean, default: true }`。
+        *   `isFooterVisible: { type: Boolean, default: true }`。
+    *   **可选 Props**: 可根据模板特定需求添加其他 Props（如背景色、字体配置等），但必须提供合理的默认值。
+    *   **Props 定义**: 应包含 `type`, `required` (如果需要), `default`, `validator` (如果需要)。
+
+4.  **内容处理**:
+    *   必须使用 `type` Prop 结合 `v-if`/`v-else` 来处理封面 (`cover`) 和内容 (`content`) 两种卡片类型的不同渲染逻辑。
+    *   内容卡片的 Markdown/LaTeX 渲染必须通过计算属性调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数，并将结果绑定到 `v-html`。
+        ```javascript
+        import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
+        
+        export default {
+          // ... props
+          computed: {
+            renderedMarkdown() {
+              // 确保 content 和 content.body 存在
+              return this.content && this.content.body ? renderMarkdownAndLaTeX(this.content.body) : '';
+            }
+          }
+        }
+        ```
+    *   普通文本（页眉、页脚、标题等）应使用 `{{ }}` 插值，并添加 `whitespace-pre-line` 类以支持换行。
+
+5.  **样式规范**:
+    *   **主要使用 Tailwind CSS**: 优先使用 Tailwind 的原子类进行布局和样式设置。
+    *   **Scoped CSS**: 特定于模板的复杂样式（如特殊背景、字体效果）或需要覆盖子组件/第三方库（如 KaTeX）样式时，使用 `<style scoped>`。
+    *   **深度选择器**: 在 `<style scoped>` 中修改子组件或第三方库样式时，**必须**使用 `:deep()` 深度选择器，以确保样式正确应用且不影响其他组件。例如：`.markdown-body :deep(.katex) { /* KaTeX 样式覆盖 */ }`
+    *   **避免全局污染**: 禁止在模板组件内定义未加 `scoped` 的全局样式。
+    *   **样式可维护性**: 避免过于复杂或嵌套过深的 CSS 规则。鼓励使用 CSS 变量提高可配置性。
+    *   **响应式设计**: 鼓励考虑不同屏幕尺寸的显示效果，使用 Tailwind 的响应式修饰符。
+    *   **内容溢出**: 应妥善处理内容可能溢出的情况（特别是 `card-content` 或 `markdown-body`），例如使用 `overflow-y-auto` 并配合 `max-h-xx`。
+
+6.  **性能**:
+    *   涉及复杂计算或数据处理的逻辑（如 Markdown 渲染）必须使用计算属性 (`computed`) 以利用 Vue 的缓存机制。
+    *   避免在模板中进行复杂的逻辑运算。
+
+7.  **注册与使用**:
+    *   新模板开发完成后，需要在 `src/components/CardConfig.vue` 中进行注册和添加预览图，以便用户可以选择。
+
+遵循这些规定有助于保持代码库的整洁，降低维护成本，并确保所有模板都能与现有系统良好集成。
