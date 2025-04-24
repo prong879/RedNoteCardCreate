@@ -7,7 +7,7 @@
 ### 主要功能
 
 1.  **主题模板加载**：从预设的 `topicTemplates.js` 文件中加载选题内容，每个选题包含封面卡片、多张内容卡片和主文案。
-2.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template4` - 支持 3:4 和 9:16 比例)。
+2.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template5` - 支持 3:4 和 9:16 等比例)。
 3.  **可视化内容编辑**：
     *   实时编辑主题标题、封面副标题、卡片标题和内容。
     *   支持 **Markdown 语法** (使用 `markdown-it` 库) 和 **LaTeX 数学公式** (行内 `$formula$` 和块级 `$$formula$$`，使用 `katex` 库渲染)。
@@ -73,7 +73,7 @@ npm run build
 
 2.  **特性分支 (`feature/*`, `fix/*`, `refactor/*` 等)**:
     *   **角色**: 所有新功能开发、Bug 修复、代码重构都在各自的特性分支上进行。
-    *   **命名**: 使用清晰的名称，如 `feature/add-template4`, `fix/preview-scaling`, `refactor/card-component`。
+    *   **命名**: 使用清晰的名称，如 `feature/add-template5`, `fix/preview-scaling`, `refactor/card-component`。
     *   **流程**:
         1.  **创建**: 从最新的 `main` 分支创建新分支 (`git checkout main && git pull && git checkout -b feature/xxx`)。
         2.  **开发**: 在特性分支上进行编码，进行小步、频繁的提交 (`git commit -m "feat: 添加..."`)，推荐使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/v1.0.0/) 规范编写提交信息。
@@ -95,7 +95,7 @@ npm run build
 1.  **准备内容**：根据 `选题库.md` 构思内容，并在 `src/content/topicTemplates.js` 中添加或修改对应的选题模板数据。
 2.  **启动应用**：运行 `npm run dev`。
 3.  **选择选题**：在应用首页点击要制作的选题内容。
-4.  **选择样式**：在编辑页面的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板3`, `模板4`)。
+4.  **选择样式**：在编辑页面的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板3`, `模板5`)。
 5.  **编辑与预览**：在编辑页面调整卡片内容（可使用 Markdown 和 LaTeX），并在右侧实时预览选定样式下的效果。
 6.  **导出资源**：点击"导出全部卡片"生成图片，点击"复制主文案"获取文本。
 7.  **发布**：使用导出的图片和文案在小红书平台发布笔记。
@@ -119,7 +119,7 @@ npm run build
 │   │   ├── Template1.vue   # 模板1实现 (3:4)
 │   │   ├── Template2.vue   # 模板2实现 (3:4)
 │   │   ├── Template3.vue   # 模板3实现 (3:4)
-│   │   └── Template4.vue   # 模板4实现 (9:16)
+│   │   └── Template5.vue   # 模板5实现 (可能为 9:16)
 │   ├── utils/          # 工具函数
 │   │   ├── cardExport.js   # 卡片导出逻辑
 │   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑
@@ -128,11 +128,17 @@ npm run build
 ├── .gitignore          # Git 忽略配置
 ├── index.html          # HTML 入口文件
 ├── package.json        # 项目依赖与脚本配置 (主要的依赖管理文件)
+├── package-lock.json   # 确切的依赖版本锁定文件
 ├── postcss.config.js   # PostCSS 配置文件
 ├── README.md           # 项目说明文档 (本文件)
+├── requirements.txt    # (用途待确认，可能与其他流程相关)
 ├── tailwind.config.js  # Tailwind CSS 配置文件
 ├── vite.config.js      # Vite 配置文件
-└── 解决方案概要.md   # 解决方案设计文档
+├── 解决方案概要.md   # 解决方案设计文档
+├── 第01期-什么是时间序列.md # 示例或内容源文件
+├── 写作要点分析.md     # 示例或内容源文件
+├── 选题库.md           # 示例或内容源文件
+└── 【文字版】时间序列数据.md # 示例或内容源文件
 ```
 
 ## 具体使用步骤
@@ -142,7 +148,7 @@ npm run build
     *   点击想要使用的选题卡片，进入编辑页面。
 
 2.  **选择卡片样式**：
-    *   在编辑页左侧的配置面板中，点击"选择模板"下的样式预览图（模板1/2/3/4）来切换卡片的视觉风格。
+    *   在编辑页左侧的配置面板中，点击"选择模板"下的样式预览图（模板1/2/3/5）来切换卡片的视觉风格。
 
 3.  **编辑卡片内容**：
     *   修改整体标题、封面副标题、各内容卡片的标题和内容。
@@ -205,14 +211,13 @@ export default {
     *   [x] 核心组件开发 (`TopicSelector`, `CardConfig`, `CardPreview`)
     *   [x] 主题模板加载与内容绑定
     *   [x] 基础卡片样式模板 (`Template1`, `Template2`, `Template3`)
-    *   [x] 新增卡片样式模板 (`Template4` - 9:16 宽高比)
+    *   [x] 新增卡片样式模板 (`Template5` - 可能为 9:16 宽高比)
     *   [x] 图片导出功能 (`html2canvas`, `file-saver`)
     *   [x] 文案复制功能
     *   [x] Markdown 与 LaTeX 渲染 (`markdown-it`, `katex`)
-    *   [x] 更新默认卡片尺寸比例为 3:4 (小红书标准)，模板4保持 9:16
+    *   [x] 更新默认卡片尺寸比例为 3:4 (小红书标准)，部分模板可能保持特定比例
 
 -   [ ] **阶段2**：功能完善
-    *   [ ] 在编辑器区域实现实时 Markdown 预览（所见即所得）
     *   [ ] 完善 Markdown 渲染支持 (例如代码高亮 `highlight.js`)
     *   [ ] 提供更多背景样式选项 (如果需要覆盖模板固定样式)
     *   [ ] 实现配置的本地存储 (LocalStorage)，记住上次编辑状态或常用配置。
@@ -222,22 +227,6 @@ export default {
     *   [ ] 表情符号选择器集成到文本编辑器。
     *   [ ] 允许用户上传自定义背景图片 (如果需要)。
     *   [ ] 增加拖拽调整卡片顺序功能。
-    *   [ ] 国际化支持 (如果需要)。
-    *   [ ] 单元测试和端到端测试。
-
-## 待开发功能
-
-（与开发阶段中的未完成项对应）
-
--   [ ] 编辑器输入md语法，右侧实时支持 Markdown 预览
--   [ ] 代码高亮支持
--   [ ] 本地存储历史记录或配置
--   [ ] 表情符号选择器
--   [ ] 自定义背景图片
--   [ ] 拖拽排序
--   [ ] 测试覆盖
-
-
 
 ## 模板开发规定
 
@@ -292,13 +281,4 @@ export default {
     *   **避免全局污染**: 禁止在模板组件内定义未加 `scoped` 的全局样式。
     *   **样式可维护性**: 避免过于复杂或嵌套过深的 CSS 规则。鼓励使用 CSS 变量提高可配置性。
     *   **响应式设计**: 鼓励考虑不同屏幕尺寸的显示效果，使用 Tailwind 的响应式修饰符。
-    *   **内容溢出**: 应妥善处理内容可能溢出的情况（特别是 `card-content` 或 `markdown-body`），例如使用 `overflow-y-auto` 并配合 `max-h-xx`。
-
-6.  **性能**:
-    *   涉及复杂计算或数据处理的逻辑（如 Markdown 渲染）必须使用计算属性 (`computed`) 以利用 Vue 的缓存机制。
-    *   避免在模板中进行复杂的逻辑运算。
-
-7.  **注册与使用**:
-    *   新模板开发完成后，需要在 `src/components/CardConfig.vue` 中进行注册和添加预览图，以便用户可以选择。
-
-遵循这些规定有助于保持代码库的整洁，降低维护成本，并确保所有模板都能与现有系统良好集成。
+    *   **内容溢出**: 应妥善处理内容可能溢出的情况（特别是 `card-content` 或 `markdown-body`

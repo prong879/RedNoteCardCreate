@@ -13,8 +13,8 @@
                  <div class="grid grid-cols-3 gap-4 items-start max-h-60 overflow-y-auto pr-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <!-- Template items ... -->
                      <div v-for="(template, index) in templatesInfo" :key="template.id" @click="selectTemplate(template.id)" :ref="el => { if (el) templateItemRefs[index] = el }" class="template-item flex flex-col items-center p-1 border rounded-lg cursor-pointer transition-all" :class="{ 'border-xhs-pink border-2': selectedTemplate === template.id, 'border-gray-200': selectedTemplate !== template.id }">
-                        <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50', `aspect-[${template.aspectRatio}]`, 'flex', 'justify-center', 'items-center']">
-                            <div :ref="el => { if (el) scalingDivRefs[index] = el }" style="transform-origin: center center; width: 320px;">
+                        <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50']">
+                            <div :ref="el => { if (el) scalingDivRefs[index] = el }" style="transform-origin: top left; width: 320px;">
                                 <component :is="getTemplateComponent(template.id)" type="cover" :title="previewCoverContent.title" :content="previewCoverContent" />
                             </div>
                         </div>
@@ -220,11 +220,40 @@ export default {
         const updateScale = () => {
              templateItemRefs.value.forEach((itemEl, index) => {
                  if (itemEl && scalingDivRefs.value[index]) {
-                     const containerWidth = itemEl.clientWidth;
-                     const padding = 8;
-                     const availableWidth = Math.max(1, containerWidth - padding);
-                     const scale = Math.min(1, availableWidth / BASE_CARD_WIDTH);
+                     const previewContainer = itemEl.querySelector('.preview-container');
+                     if (!previewContainer) return;
+
+                     const containerWidth = previewContainer.clientWidth;
+                     // 确保宽度至少为 1px 避免除零错误
+                     const safeContainerWidth = Math.max(1, containerWidth);
+                     const scale = Math.min(1, safeContainerWidth / BASE_CARD_WIDTH);
                      scalingDivRefs.value[index].style.transform = `scale(${scale})`;
+
+                     // 根据宽高比计算并设置容器的精确高度
+                     try {
+                         const templateInfo = templatesInfo.value[index];
+                         if (templateInfo && templateInfo.aspectRatio) {
+                             const parts = templateInfo.aspectRatio.split('/');
+                             if (parts.length === 2) {
+                                 const wRatio = parseFloat(parts[0]);
+                                 const hRatio = parseFloat(parts[1]);
+                                 if (wRatio > 0 && hRatio > 0) {
+                                     const originalHeight = (hRatio / wRatio) * BASE_CARD_WIDTH;
+                                     const scaledHeight = originalHeight * scale;
+                                     previewContainer.style.height = `${scaledHeight}px`;
+                                 } else {
+                                     previewContainer.style.height = 'auto'; // 无效宽高比则自动高度
+                                 }
+                             } else {
+                                 previewContainer.style.height = 'auto'; // 格式错误则自动高度
+                             }
+                         } else {
+                             previewContainer.style.height = 'auto'; // 缺少信息则自动高度
+                         }
+                     } catch (e) {
+                         console.error("Error calculating preview height:", e);
+                         previewContainer.style.height = 'auto'; // 出错时自动高度
+                     }
                  }
              });
         };
