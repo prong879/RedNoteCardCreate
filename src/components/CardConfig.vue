@@ -407,7 +407,5 @@ export default {
     border: 1px dashed #0ea5e9;
 }
 
-.drag-handle {
-    /* 可以根据需要添加更多样式，例如 padding */
-}
+/* .drag-handle is used as a selector for vuedraggable, styled with Tailwind */
 </style>
