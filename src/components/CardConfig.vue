@@ -48,25 +48,31 @@
                 </div>
 
                 <!-- 内容卡片配置 - 使用 draggable 包裹 -->
-                <draggable
-                    v-model="content.contentCards"
+                <draggable 
+                    v-model="content.contentCards" 
                     item-key="index" 
-                    @end="updateContent" 
-                    animation="300"
                     tag="div" 
-                    class="content-cards-draggable-list" 
+                    handle=".drag-handle" 
+                    ghost-class="ghost-card"
+                    @end="onDragEnd"
                 >
                     <template #item="{element: card, index}">
-                        <!-- 每个卡片的容器，确保 key 在这里 -->
-                        <div :key="index" class="draggable-card p-3 mb-4 border bg-white rounded-lg space-y-2 shadow-md cursor-move" :id="`config-card-${index}`">
-                            <!-- 内容卡片配置 (保持不变) -->
+                        <div class="mb-4 p-3 border bg-white rounded-lg space-y-2 shadow-md" :id="`config-card-${index}`">
+                            <!-- 添加拖拽句柄 -->
                             <div class="flex justify-between items-center mb-2">
-                                <span class="font-medium">卡片 {{ index + 1 }}</span>
+                                <div class="flex items-center">
+                                    <span class="drag-handle cursor-move mr-2 text-gray-400 hover:text-gray-600" title="拖拽排序">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                                        </svg>
+                                    </span>
+                                    <span class="font-medium">卡片 {{ index + 1 }}</span>
+                                </div>
                                 <div class="flex items-center space-x-1 md:space-x-2">
-                                    <button @click="focusPreview(index)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /> </svg> </button>
-                                    <button @click="toggleVisibility('contentCard', 'showHeader', index)" :class="getButtonClass(card.showHeader)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
-                                    <button @click="toggleVisibility('contentCard', 'showFooter', index)" :class="getButtonClass(card.showFooter)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
-                                    <button @click="removeCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="content.contentCards && content.contentCards.length > 1"> 删除 </button>
+                                     <button @click="focusPreview(index)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /> </svg> </button>
+                                     <button @click="toggleVisibility('contentCard', 'showHeader', index)" :class="getButtonClass(card.showHeader)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
+                                     <button @click="toggleVisibility('contentCard', 'showFooter', index)" :class="getButtonClass(card.showFooter)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
+                                     <button @click="removeCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="content.contentCards.length > 1"> 删除 </button>
                                 </div>
                             </div>
                             <textarea v-model="card.title" @input="adjustTextareaHeight" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
@@ -74,7 +80,6 @@
                         </div>
                     </template>
                 </draggable>
-
                 <button @click="addCard" class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink bg-white hover:bg-xhs-pink hover:text-white transition-colors shadow-sm">添加卡片</button>
             </div>
         </div>
@@ -105,15 +110,17 @@
 
 <script>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue';
+import draggable from 'vuedraggable';
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
 import Template3 from '../templates/Template3.vue';
 import Template5 from '../templates/Template5.vue';
-import draggable from 'vue-draggable-next';
 
 export default {
     name: 'CardConfig',
-    components: { draggable },
+    components: {
+        draggable,
+    },
     props: {
         selectedTemplate: {
             type: String,
@@ -277,21 +284,15 @@ export default {
         };
 
         const toggleVisibility = (cardType, field, index = null) => {
+            let card;
             if (cardType === 'coverCard') {
-                if (content.value.coverCard) {
-                    if (typeof content.value.coverCard[field] === 'boolean') {
-                        content.value.coverCard[field] = !content.value.coverCard[field];
-                    } else {
-                         content.value.coverCard[field] = false;
-                    }
-                }
-            } else if (cardType === 'contentCard' && index !== null && content.value.contentCards[index]) {
-                const card = content.value.contentCards[index];
-                 if (typeof card[field] === 'boolean') {
-                     card[field] = !card[field];
-                 } else {
-                     card[field] = false;
-                 }
+                card = content.value.coverCard;
+            } else if (cardType === 'contentCard' && index !== null && content.value.contentCards && content.value.contentCards[index]) {
+                card = content.value.contentCards[index];
+            }
+
+            if (card) {
+                card[field] = !(typeof card[field] === 'boolean' ? card[field] : true);
             }
             updateContent();
         };
@@ -306,6 +307,10 @@ export default {
         const focusPreview = (index) => {
             console.log('Focus preview card:', index);
             emit('focus-preview-card', index);
+        };
+
+        const onDragEnd = () => {
+            updateContent();
         };
 
         return {
@@ -323,7 +328,8 @@ export default {
             adjustTextareaHeight,
             toggleVisibility,
             getButtonClass,
-            focusPreview
+            focusPreview,
+            onDragEnd
         };
     },
 }
@@ -366,21 +372,13 @@ export default {
   scrollbar-color: #c7c7c7 #f1f1f1;
 }
 
-/* 为拖拽元素添加移动光标 */
-.draggable-card {
-    cursor: move;
-}
-
-/* 可选：为拖拽占位符添加样式 */
-.content-cards-draggable-list .sortable-ghost {
+.ghost-card {
     opacity: 0.5;
-    background: #f0f0f0;
-    border: 1px dashed #ccc;
+    background: #c8ebfb;
+    border: 1px dashed #0ea5e9;
 }
 
-/* 可选：为正在拖拽的元素添加样式 */
-.content-cards-draggable-list .sortable-drag {
-    opacity: 0.7;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+.drag-handle {
+    /* 可以根据需要添加更多样式，例如 padding */
 }
 </style>
