@@ -13,9 +13,11 @@ export const exportCardAsImage = async (cardElement, fileName) => {
             scale: 2, // 提高导出图片质量
             useCORS: true, // 允许跨域图片
             backgroundColor: null, // 透明背景
+            logging: true, // 启用日志记录，方便调试
         };
 
         // 生成canvas
+        console.log('使用 html2canvas 导出元素:', cardElement, '选项:', options); // 添加日志
         const canvas = await html2canvas(cardElement, options);
 
         // 转换为blob

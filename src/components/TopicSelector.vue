@@ -31,46 +31,65 @@ const emit = defineEmits(['select-topic']);
 const topics = ref(topicsMeta);
 const savedTopicInfo = reactive({});
 
+// 使用 import.meta.glob 获取所有 content 文件信息
+// 注意：路径是相对于当前文件的，所以是 '../content/'
+const contentModules = import.meta.glob('../content/*_content.js'); // 非 eager 模式
+
 onMounted(async () => {
+    // 构建一个简单的查找表，将 topicId 映射到期望的文件路径键 (相对于当前文件)
+    const expectedPathKeys = {};
+    topics.value.forEach(topic => {
+        expectedPathKeys[topic.id] = `../content/${topic.id}_content.js`;
+    });
+
     await Promise.all(topics.value.map(async (topic) => {
         const savedContentJson = localStorage.getItem(`cardgen_topic_content_${topic.id}`);
         let cardCount = 0;
-        let exists = false;
+        let existsInLocalStorage = false; // 重命名以区分文件是否存在
 
         if (savedContentJson) {
             try {
                 const savedContent = JSON.parse(savedContentJson);
                 cardCount = 1 + (Array.isArray(savedContent.contentCards) ? savedContent.contentCards.length : 0);
-                exists = true;
+                existsInLocalStorage = true;
             } catch (e) {
-                console.error(`解析已存内容时出错 (topic ${topic.id}):`, e);
-                exists = false;
+                console.error(`解析 localStorage 内容时出错 (topic ${topic.id}):`, e);
+                existsInLocalStorage = false;
             }
         }
 
-        if (!exists) {
-            let path = '';
-            try {
-                path = `../content/${topic.id}_content.js`;
-                const contentModule = await import(/* @vite-ignore */ path);
+        // 如果 localStorage 中不存在，尝试检查原始文件是否存在并获取卡片数
+        if (!existsInLocalStorage) {
+            const expectedPathKey = expectedPathKeys[topic.id];
+            // 检查 import.meta.glob 的结果中是否有这个文件
+            if (contentModules[expectedPathKey]) {
+                try {
+                    // 调用动态导入函数加载模块
+                    const moduleLoader = contentModules[expectedPathKey];
+                    const contentModule = await moduleLoader();
+                    const exportName = `${topic.id}_contentData`;
+                    const originalTopic = contentModule[exportName];
 
-                const exportName = `${topic.id}_contentData`;
-                const originalTopic = contentModule[exportName];
-
-                if (originalTopic && originalTopic.contentCards) {
-                    cardCount = 1 + (Array.isArray(originalTopic.contentCards) ? originalTopic.contentCards.length : 0);
-                } else {
-                     console.warn(`动态导入成功但未找到正确导出的内容或内容卡片 (ID: ${topic.id}, Expected Export: ${exportName}, Path: ${path})`);
-                     cardCount = 1;
+                    if (originalTopic && originalTopic.contentCards) {
+                        cardCount = 1 + (Array.isArray(originalTopic.contentCards) ? originalTopic.contentCards.length : 0);
+                    } else {
+                        // 文件存在但导出不正确或没有内容卡片
+                        console.warn(`原始文件模块加载成功但未找到有效内容 (ID: ${topic.id}, Path: ${expectedPathKey})`);
+                        cardCount = 1; // 至少有封面
+                    }
+                } catch (loadError) {
+                    // 文件存在但加载模块失败
+                    console.error(`加载原始文件模块失败 (ID: ${topic.id}, Path: ${expectedPathKey}):`, loadError);
+                    cardCount = 1; // 出错了，默认算一张
                 }
-                exists = false;
-            } catch (importError) {
-                console.error(`动态导入原始内容失败 (ID: ${topic.id}, Path: ${path}):`, importError);
-                cardCount = 1;
-                exists = false;
+            } else {
+                // 文件在 import.meta.glob 中未找到，即原始文件不存在
+                console.warn(`原始文件未找到 (ID: ${topic.id}, Path: ${expectedPathKey})`);
+                cardCount = 1; // 文件不存在，默认算一张（封面）
             }
         }
-        savedTopicInfo[topic.id] = { exists: exists, cardCount: cardCount };
+        // 注意：按钮显示文字的逻辑依赖 existsInLocalStorage
+        savedTopicInfo[topic.id] = { exists: existsInLocalStorage, cardCount: cardCount };
     }));
 });
 

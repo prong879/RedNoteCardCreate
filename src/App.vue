@@ -90,7 +90,7 @@ export default {
 
       try {
         // 修改动态导入路径: ../content/ -> ./content/
-        const contentModule = await import(/* @vite-ignore */ `./content/${topicId}_content.js`);
+        const contentModule = await import(`./content/${topicId}_content.js`);
         
         if (contentModule && contentModule[`${topicId}_contentData`]) {
           cardContent.value = { ...contentModule[`${topicId}_contentData`] };

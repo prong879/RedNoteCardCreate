@@ -19,7 +19,7 @@
                      }">
                     <!-- 封面卡片内容 -->
                     <template v-if="type === 'cover'">
-                        <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left">{{ title }}</h1>
+                        <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left text-white">{{ title }}</h1>
                         <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
                     </template>
                     

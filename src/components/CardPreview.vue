@@ -145,13 +145,25 @@ export default {
         };
     },
     methods: {
-        // 导出和复制方法保持不变
+        // 新增：获取可导出卡片元素的辅助方法
+        _getExportableCardElement(containerElement) {
+            if (!containerElement) {
+                console.warn('尝试获取卡片元素但容器元素不存在');
+                return null;
+            }
+            const actualCard = containerElement.querySelector('.card');
+            if (!actualCard) {
+                console.warn('在容器元素内找不到 .card 元素', containerElement);
+            }
+            return actualCard;
+        },
+
+        // 修改：使用辅助方法
         async exportSingleCard(cardElement, fileName) {
             try {
-                // 注意：需要导出 cardElement 内部的实际卡片DOM，而不是外层div
-                const actualCard = cardElement.querySelector('.xhs-card');
+                const actualCard = this._getExportableCardElement(cardElement); // 使用辅助函数
                 if (!actualCard) {
-                    throw new Error("找不到卡片元素");
+                    throw new Error("找不到可导出的卡片元素 (.card)");
                 }
                 await exportCardAsImage(actualCard, fileName);
                 alert(`成功导出 ${fileName}`);
@@ -161,27 +173,39 @@ export default {
             }
         },
 
+        // 修改：使用辅助方法
         async exportAllCards() {
             try {
                 const cardsToExport = [];
 
                 // 获取封面卡片元素
-                const coverCardElement = this.$refs.coverCard?.querySelector('.xhs-card');
+                const coverCardContainer = this.$refs.coverCard;
+                const coverCardElement = this._getExportableCardElement(coverCardContainer); // 使用辅助函数
                 if (coverCardElement) {
                     cardsToExport.push(coverCardElement);
                 }
 
                 // 获取内容卡片元素
                 this.content.contentCards.forEach((_, index) => {
-                    const contentCardElement = this.$refs[`contentCard${index}`]?.[0]?.querySelector('.xhs-card');
+                    // 修改：直接访问 setup 返回的 ref 数组
+                    const contentCardContainer = this.contentCardRefs?.[index]; 
+                    const contentCardElement = this._getExportableCardElement(contentCardContainer); // 使用辅助函数
                     if (contentCardElement) {
                         cardsToExport.push(contentCardElement);
+                    } else {
+                        // 添加日志帮助调试
+                        console.warn(`在导出全部卡片时，未找到索引 ${index} 的内容卡片的可导出元素 (.card)。容器元素:`, contentCardContainer);
                     }
                 });
 
                 if (cardsToExport.length === 0) {
                     alert("没有可导出的卡片元素。");
                     return;
+                }
+
+                // 添加日志：如果只找到封面卡片
+                if (cardsToExport.length === 1 && coverCardElement) {
+                    console.warn("只找到了封面卡片用于导出，请检查内容卡片的 ref 获取或模板内是否存在 .card 元素。");
                 }
 
                 const result = await exportCardsAsImages(cardsToExport, this.content.title);

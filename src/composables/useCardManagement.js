@@ -4,17 +4,23 @@ export function useCardManagement(props, emit) {
     const content = ref({});
 
     // 深拷贝初始 props.cardContent 到本地 ref
-    // 使用 try-catch 兼容非原生 structuredClone 环境
     watch(() => props.cardContent, (newVal) => {
-        try {
-            content.value = structuredClone(newVal);
-        } catch (e) {
-            console.warn('structuredClone is not available, falling back to shallow copy. Deep reactivity might be affected.');
-            // 浅拷贝作为后备，注意这可能不会完全复制深层嵌套对象的响应性
-            content.value = { ...newVal };
+        // 使用 JSON 方法进行深拷贝，兼容性好，适用于当前数据结构
+        // 注意：此方法无法处理 Date, RegExp, Map, Set, Function 等特殊类型
+        // 移除 structuredClone 尝试和浅拷贝后备
+        if (newVal && typeof newVal === 'object') { // 确保 newVal 是一个对象且不为 null
+            try {
+                content.value = JSON.parse(JSON.stringify(newVal));
+            } catch (e) {
+                console.error('深拷贝 cardContent 失败 (JSON.parse/stringify): ', e, '原始值:', newVal);
+                // 拷贝失败时，至少给一个空对象，避免后续操作出错
+                content.value = {};
+            }
+        } else {
+            // 如果 newVal 不是有效对象 (可能是 null, undefined, 或非对象类型)
+            content.value = {}; // 或者根据需要设置为其他默认值
         }
-        // 触发更新，确保使用新数据
-        // nextTick(() => updateContent()); // 初始加载时不一定需要立即emit
+        // 初始加载时不一定需要立即emit updateContent
     }, { deep: true, immediate: true });
 
     // 通知父组件内容已更新
