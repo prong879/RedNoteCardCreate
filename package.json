@@ -13,7 +13,8 @@
         "katex": "^0.16.22",
         "marked": "^15.0.9",
         "vue": "^3.3.4",
-        "vue-draggable-next": "^2.2.1"
+        "vue-draggable-next": "^2.2.1",
+        "vuedraggable": "^4.1.0"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^4.2.3",
