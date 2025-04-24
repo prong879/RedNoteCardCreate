@@ -24,7 +24,7 @@
             
             <div class="flex flex-col lg:flex-row gap-8">
               <!-- 左侧：配置面板 -->
-              <div class="lg:w-1/2 bg-white rounded-lg shadow-lg p-6">
+              <div class="lg:w-1/2 bg-white rounded-lg shadow-lg">
                 <CardConfig 
                   :selectedTemplate="selectedTemplate"
                   :cardContent="cardContent"
@@ -33,6 +33,7 @@
                   @update:content="updateCardContent"
                   @return-to-topics="showTopicSelector = true"
                   @save-content="generateContentJsFile"
+                  @focus-preview-card="handleFocusPreviewCard"
                 />
               </div>
               
@@ -41,6 +42,8 @@
                 <CardPreview 
                   :template="selectedTemplate"
                   :content="cardContent"
+                  :focusedIndex="focusedPreviewIndex"
+                  @reset-focus="focusedPreviewIndex = null"
                 />
               </div>
             </div>
@@ -77,6 +80,8 @@ export default {
     
     // 当前主题ID
     const currentTopicId = ref(null)
+    
+    const focusedPreviewIndex = ref(null);
     
     // 加载主题
     const loadTopic = async ({ key: topicId }) => {
@@ -160,6 +165,11 @@ export default {
 请手动将其移动到项目的 'src/content/' 目录下替换旧文件。`);
     };
     
+    const handleFocusPreviewCard = (index) => {
+      console.log('App received focus event for index:', index);
+      focusedPreviewIndex.value = index;
+    };
+    
     return {
       showTopicSelector,
       selectedTemplate,
@@ -167,7 +177,9 @@ export default {
       currentTopicId,
       loadTopic,
       updateCardContent,
-      generateContentJsFile
+      generateContentJsFile,
+      focusedPreviewIndex,
+      handleFocusPreviewCard
     }
   }
 }

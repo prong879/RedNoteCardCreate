@@ -8,7 +8,7 @@
             </button>
         </div>
 
-        <div class="flex overflow-x-auto gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+        <div ref="previewScrollContainer" class="flex overflow-x-auto gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
             <!-- 封面卡片 -->
             <div class="card-container flex-shrink-0">
                 <div ref="coverCard">
@@ -30,8 +30,8 @@
             </div>
 
             <!-- 内容卡片 -->
-            <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0">
-                <div :ref="`contentCard${index}`">
+            <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0" :ref="el => { if (el) contentCardRefs[index] = el }">
+                <div>
                     <component :is="activeTemplateComponent" type="content"
                          :content="card"
                          :headerText="content.headerText || ''"
@@ -63,7 +63,7 @@
 </template>
 
 <script>
-import { computed } from 'vue';
+import { computed, ref, watch, onBeforeUpdate, nextTick } from 'vue';
 import { exportCardAsImage, exportCardsAsImages, copyTextToClipboard } from '../utils/cardExport';
 
 // 导入所有模板组件
@@ -86,9 +86,14 @@ export default {
         content: {
             type: Object,
             required: true
+        },
+        focusedIndex: {
+            type: Number,
+            default: null
         }
     },
-    setup(props) {
+    emits: ['reset-focus'],
+    setup(props, { emit }) {
         // 根据传入的 template prop 计算当前应使用的模板组件
         const activeTemplateComponent = computed(() => {
             switch (props.template) {
@@ -108,7 +113,36 @@ export default {
             }
         });
 
-        return { activeTemplateComponent };
+        const previewScrollContainer = ref(null);
+        const contentCardRefs = ref([]);
+
+        onBeforeUpdate(() => {
+            contentCardRefs.value = [];
+        });
+
+        watch(() => props.focusedIndex, (newIndex) => {
+            if (newIndex !== null && newIndex >= 0) {
+                nextTick(() => {
+                     const targetElement = contentCardRefs.value[newIndex];
+                     if (targetElement && previewScrollContainer.value) {
+                         console.log(`Scrolling preview to card index: ${newIndex}`, targetElement);
+                         targetElement.scrollIntoView({
+                             behavior: 'smooth',
+                             block: 'nearest',
+                             inline: 'center'
+                         });
+                     } else {
+                         console.warn(`Could not find preview card element for index: ${newIndex}`);
+                     }
+                });
+            }
+        });
+
+        return {
+            activeTemplateComponent,
+            previewScrollContainer,
+            contentCardRefs
+        };
     },
     methods: {
         // 导出和复制方法保持不变
