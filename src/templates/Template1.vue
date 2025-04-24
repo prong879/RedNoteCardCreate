@@ -1,108 +1,78 @@
 <template>
-    <!-- 模板1 的根元素，用于包裹封面或内容卡片 -->
+    <!-- 模板1 的根元素 -->
     <div class="template1">
-        <!-- 封面卡片: 当 type 为 'cover' 时显示 -->
-        <!-- v-if="type === 'cover'": 条件渲染指令，仅当 props.type 为 'cover' 时渲染此 div -->
-        <!-- class="xhs-card cover-card-bg w-80 aspect-[3/4] relative": -->
-        <!--   xhs-card: 全局定义的卡片基础样式 -->
-        <!--   cover-card-bg: 此模板封面卡片的特定背景样式 (渐变色) -->
-        <!--   w-80: 设置宽度 (Tailwind: 20rem / 320px) -->
-        <!--   aspect-[3/4]: 设置宽高比为 3:4 (小红书标准尺寸) -->
-        <!--   relative: 设置相对定位，为其子绝对定位元素提供定位上下文 -->
-        <div v-if="type === 'cover'" class="xhs-card cover-card-bg w-80 aspect-[3/4] relative">
-            <!-- 内层 div (前景层)，实现磨砂玻璃效果 -->
-            <!-- class="frosted-layer absolute inset-6 bg-black/30 backdrop-blur-lg rounded-2xl p-6 text-white flex flex-col justify-center items-center overflow-hidden": -->
-            <!--   frosted-layer: 自定义或用于标识的类名，表示磨砂层 -->
-            <!--   absolute: 绝对定位 -->
-            <!--   inset-6: 距离父元素所有边缘 1.5rem (24px) (Tailwind) -->
-            <!--   bg-black/30: 半透明黑色背景 (30% 不透明度) (Tailwind) -->
-            <!--   backdrop-blur-lg: 对元素后面的内容应用较强的模糊效果 (Tailwind) -->
-            <!--   rounded-2xl: 更大的圆角 (Tailwind) -->
-            <!--   p-6: 内边距 1.5rem (24px) (Tailwind) -->
-            <!--   text-white: 文字颜色为白色 (Tailwind) -->
-            <!--   flex flex-col justify-center items-center: Flexbox 布局，使内容垂直排列、水平居中、垂直居中 -->
-            <!--   overflow-hidden: 隐藏超出元素边界的内容 (Tailwind) -->
-            <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-4 text-white flex flex-col justify-between overflow-hidden">
-                 <!-- 页眉区域 - 条件渲染 -->
-                 <div v-if="isHeaderVisible" class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
-
-                 <!-- 主内容区域 (根据页眉页脚是否存在调整间距可能需要) -->
-                 <div class="main-content flex-grow flex flex-col justify-center items-center text-center" :class="{'pt-4': !isHeaderVisible, 'pb-4': !isFooterVisible}">
-                     <!-- 封面主标题 -->
-                     <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left">{{ title }}</h1>
-                     <!-- 封面副标题 -->
-                     <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
-                 </div>
-
-                 <!-- 页脚区域 - 条件渲染 -->
-                 <div v-if="isFooterVisible" class="footer text-xs opacity-80 text-right mt-2 whitespace-pre-line">{{ footerText }}</div>
-            </div>
-        </div>
-
-        <!-- 内容卡片: 当 type 为 'content' 时显示 -->
-        <!-- v-else-if="type === 'content'": 条件渲染指令，仅当 props.type 为 'content' 时渲染此 div -->
-        <!-- 修改类名，应用封面卡片的背景 -->
-        <div v-else-if="type === 'content'" class="xhs-card cover-card-bg w-80 aspect-[3/4] relative">
-             <!-- 内层 div (前景层)，样式改为与封面卡片一致 -->
-             <!-- 修改 inset, bg-opacity, backdrop-blur, p, 并添加 text-white -->
-             <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-4 flex flex-col overflow-hidden text-white">
-                <!-- 页眉区域 - 条件渲染 -->
-                <div v-if="isHeaderVisible" class="header text-xs opacity-80 text-left mb-2 whitespace-pre-line">{{ headerText }}</div>
-
-                <!-- 主内容区域 (标题 + 不可滚动 Markdown) -->
-                <div class="main-content flex-grow flex flex-col overflow-hidden" :class="{'pt-4': !isHeaderVisible, 'pb-4': !isFooterVisible}">
-                    <!-- 内容卡片的标题 (添加 pt-2 避免太贴近页眉) -->
-                    <h3 class="text-xl font-bold mb-4 whitespace-pre-line text-white pt-2">{{ content.title }}</h3>
-                    <!-- Markdown 内容渲染区域 - 修改: overflow-y-hidden 隐藏滚动条 -->
-                    <div class="markdown-content katex-compatible flex-grow overflow-y-hidden pr-1" v-html="renderContent(content.body)"></div>
+        <!-- 卡片容器 -->
+        <div class="card w-80 aspect-[3/4] relative cover-card-bg">
+            <!-- 磨砂玻璃前景层 -->
+            <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-4 text-white flex flex-col overflow-hidden">
+                <!-- 页眉区域 -->
+                <div v-if="isHeaderVisible" class="card-header text-xs opacity-80 mb-2 whitespace-pre-line">
+                    {{ headerText }}
                 </div>
 
-                <!-- 页脚区域 - 条件渲染 -->
-                <div v-if="isFooterVisible" class="footer text-xs opacity-80 text-right mt-2 pt-2 whitespace-pre-line">{{ footerText }}</div>
-             </div>
+                <!-- 主内容区域 -->
+                <div class="card-content flex-grow flex flex-col" 
+                     :class="{
+                        'pt-4': !isHeaderVisible, 
+                        'pb-4': !isFooterVisible,
+                        'justify-center': type === 'cover'
+                     }">
+                    <!-- 封面卡片内容 -->
+                    <template v-if="type === 'cover'">
+                        <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left">{{ title }}</h1>
+                        <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
+                    </template>
+                    
+                    <!-- 内容卡片内容 -->
+                    <template v-else>
+                        <h3 class="text-xl font-bold mb-4 whitespace-pre-line pt-2">{{ content.title }}</h3>
+                        <div class="markdown-body flex-grow overflow-y-hidden pr-1" v-html="renderContent(content.body)"></div>
+                    </template>
+                </div>
+
+                <!-- 页脚区域 -->
+                <div v-if="isFooterVisible" 
+                     class="card-footer text-xs opacity-80 mt-2 whitespace-pre-line text-right"
+                     :class="{ 'pt-2': type === 'content' }">
+                    {{ footerText }}
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <script>
-// 导入 Markdown 和 LaTeX 的渲染工具函数
 import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
 
 export default {
-    // 组件名称，用于调试和 Vue Devtools 中识别
     name: 'Template1',
-    // 定义组件接收的 props (父组件传递给子组件的数据)
     props: {
         // 卡片类型: 'cover' 或 'content'
         type: {
-            type: String,     // Prop 类型必须是字符串
-            required: true,   // 这个 Prop 是必需的
-            // 自定义验证函数，确保传入的值是 'cover' 或 'content' 中的一个
+            type: String,
+            required: true,
             validator: (value) => ['cover', 'content'].includes(value)
         },
-        // 主标题 (主要用于封面卡片)
+        // 标题内容
         title: {
-            type: String,     // Prop 类型是字符串
-            default: ''       // 如果父组件没有传递 title，则默认为空字符串
+            type: String,
+            default: ''
         },
-        // 内容对象 (用于封面副标题或内容卡片的标题和内容)
+        // 内容对象 (cover: {subtitle}, content: {title, body})
         content: {
-            type: Object,     // Prop 类型必须是对象
-            required: true    // 这个 Prop 是必需的
-            // 对象内部结构示例 (由父组件决定具体内容):
-            // 对于 cover: { subtitle: '这是副标题' }
-            // 对于 content: { title: '内容标题', body: 'Markdown **文本** $E=mc^2$' }
+            type: Object,
+            required: true
         },
-        // 新增 props 用于页眉和页脚
+        // 页眉和页脚文本
         headerText: {
             type: String,
-            default: '' // 默认空字符串
+            default: ''
         },
         footerText: {
             type: String,
-            default: '' // 默认空字符串
+            default: ''
         },
-        // 新增：控制页眉页脚可见性的 Props
+        // 控制页眉页脚可见性
         isHeaderVisible: {
             type: Boolean,
             default: true
@@ -112,12 +82,9 @@ export default {
             default: true
         }
     },
-    // 定义组件的方法
     methods: {
-        // 渲染 Markdown 和 LaTeX 文本的方法
+        // 渲染 Markdown 和 LaTeX
         renderContent(text) {
-            // 调用导入的 renderMarkdownAndLaTeX 函数处理文本
-            // 这个函数会将包含 Markdown 和 LaTeX 的纯文本字符串转换为 HTML 字符串
             return renderMarkdownAndLaTeX(text);
         }
     }
@@ -125,76 +92,41 @@ export default {
 </script>
 
 <style scoped>
-/* 组件的局部样式 (scoped): 这些样式只应用于当前组件内的元素 */
-
-/* 模板1 封面卡片的背景特定样式 (现在内容卡片也用这个) */
-.template1 .cover-card-bg {
-    /* 设置字体，优先使用苹方字体，如果系统没有则使用无衬线字体 */
+/* 卡片基础样式 */
+.template1 .card {
     font-family: 'PingFang SC', sans-serif;
-    /* 设置 CSS 渐变背景，从左上到右下，颜色从 #e36be8 到 #581cdc */
+}
+
+/* 渐变背景 */
+.cover-card-bg {
     background: linear-gradient(135deg, #e36be8 0%, #581cdc 100%);
 }
 
-/* 移除不再使用的 content-card-bg 样式 */
-/* .template1 .content-card-bg { ... } */
-
-/* --- KaTeX 公式样式调整 --- */
-/* :deep() 选择器用于穿透 scoped CSS 的限制，修改子组件或 v-html 插入内容的样式 */
-/* 这允许我们为 markdownRenderer 生成的 KaTeX HTML 元素应用样式 */
-
-/* 为 KaTeX 块级公式 (单独成行的公式) 添加样式 */
-/* .katex-compatible 是我们在 <template> 中添加到 Markdown 容器上的类 */
-/* .katex-display 是 KaTeX 库为块级公式生成的类 */
-.katex-compatible :deep(.katex-display) {
-    margin: 0.5em 0; /* 上下外边距设为 0.5em，增加公式与周围文本的间距 */
-    overflow-x: auto; /* 如果公式宽度超过容器，允许水平滚动查看 */
-    overflow-y: hidden; /* 隐藏垂直滚动条 (通常不需要) */
-    /* background-color: rgba(240, 240, 240, 0.5); /* 可选：为公式块添加浅灰色背景 */
-    /* padding: 0.5em; 可选：为公式块添加内边距 */
-    /* border-radius: 4px; 可选：为公式块添加圆角 */
+/* KaTeX 公式样式 */
+.markdown-body :deep(.katex-display) {
+    margin: 0.5em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
-/* 为所有 KaTeX 公式 (包括行内公式和块级公式) 调整基础字体大小 */
-/* .katex 是 KaTeX 库为所有公式容器添加的类 */
-/* .katex-compatible :deep(.katex) { */
-    /* font-size: 1.1em;  稍微增大 KaTeX 渲染的字体大小，使其更易读 (相对于周围文本) */
-    /* 默认情况下 KaTeX 会尝试匹配周围字体大小，但有时可能需要微调 */
-    /* 这里注释掉了，可以根据实际效果取消注释或调整数值 */
-/* } */
-
-/* 针对代码块的样式调整 (如果 markdownRenderer 支持并生成了特定的类) */
-/* .katex-compatible :deep(pre) { */
-    /* background-color: #f5f5f5; /* 设定代码块背景色 */
-    /* padding: 1em;           /* 设定代码块内边距 */
-    /* border-radius: 4px;     /* 设定代码块圆角 */
-    /* overflow-x: auto;       /* 代码过长时允许水平滚动 */
-    /* margin: 0.5em 0;        /* 设定代码块的垂直外边距 */
-/* } */
-
-/* .katex-compatible :deep(code) { */
-    /* font-family: 'Courier New', Courier, monospace; /* 为代码设置等宽字体 */
-    /* color: #333;             /* 设定代码文字颜色 */
-/* } */
-
-/* --- Markdown 列表样式恢复 --- */
-/* 由于 Tailwind base 重置了列表样式，我们需要手动添加回来 */
-.markdown-content :deep(ul) {
-    list-style-type: disc; /* 无序列表使用圆点 */
-    margin-left: 1.5rem;   /* 左边距，用于显示项目符号 */
-    margin-top: 0.5rem;    /* 上边距 */
-    margin-bottom: 0.5rem; /* 下边距 */
-    padding-left: 1rem;    /* 可选：内边距，进一步调整符号位置 */
-}
-
-.markdown-content :deep(ol) {
-    list-style-type: decimal; /* 有序列表使用数字 */
-    margin-left: 1.5rem;     /* 左边距 */
+/* Markdown 列表样式 */
+.markdown-body :deep(ul) {
+    list-style-type: disc;
+    margin-left: 1.5rem;
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
-    padding-left: 1rem;     /* 可选：内边距 */
+    padding-left: 1rem;
 }
 
-.markdown-content :deep(li) {
-    margin-bottom: 0.25rem; /* 列表项之间的下边距 */
+.markdown-body :deep(ol) {
+    list-style-type: decimal;
+    margin-left: 1.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding-left: 1rem;
+}
+
+.markdown-body :deep(li) {
+    margin-bottom: 0.25rem;
 }
 </style>
