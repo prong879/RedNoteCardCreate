@@ -8,23 +8,20 @@ import { ref, computed, onMounted, onBeforeUnmount, shallowRef } from 'vue';
 import { useTemplateLoader } from './useTemplateLoader';
 
 export function useTemplatePreviewScaling(contentRef, emit) {
-    const { getAsyncTemplateComponent } = useTemplateLoader();
+    // 从 useTemplateLoader 获取动态生成的 templatesInfo 和加载器
+    const { templatesInfo: importedTemplatesInfo, getAsyncTemplateComponent } = useTemplateLoader();
 
-    const templatesInfo = ref([
-        { id: 'template1', name: '模板1', aspectRatio: '3/4' },
-        { id: 'template2', name: '模板2', aspectRatio: '3/4' },
-        { id: 'template5', name: '模板5', aspectRatio: '16/9' }
-    ]);
+    // 直接使用导入的 templatesInfo (它已经是响应式的，因为 useTemplateLoader 内部创建)
+    // 注意：如果 useTemplateLoader 不是响应式导出，则需要 ref(importedTemplatesInfo)
+    const templatesInfo = ref(importedTemplatesInfo); // 保持 ref 包装以防万一
 
-    // 使用 shallowRef 替代 ref
     const asyncTemplateComponentsMap = shallowRef({});
 
-    // 初始化时填充映射表 (需要修改 .value 的方式)
+    // 初始化时填充映射表 (使用动态的 templatesInfo)
     const initialMap = {};
     templatesInfo.value.forEach(template => {
         initialMap[template.id] = getAsyncTemplateComponent(template.id);
     });
-    // 一次性赋值给 shallowRef 的 .value
     asyncTemplateComponentsMap.value = initialMap;
 
     const previewCoverContent = computed(() => ({
@@ -49,10 +46,12 @@ export function useTemplatePreviewScaling(contentRef, emit) {
                 const scale = Math.min(1, safeContainerWidth / BASE_CARD_WIDTH);
                 scalingDivRefs.value[index].style.transform = `scale(${scale})`;
 
-                // --- RESTORE HEIGHT CALCULATION WITH CHECK --- 
-                // 计算并设置容器高度 (确保使用 find 来安全查找)
+                // --- HEIGHT CALCULATION WITH CHECK --- 
                 try {
-                    const templateInfo = templatesInfo.value.find(t => t.id === templatesInfo.value[index]?.id);
+                    // 修正：确保 find 使用正确的索引或 ID
+                    const currentTemplateId = templatesInfo.value[index]?.id;
+                    const templateInfo = currentTemplateId ? templatesInfo.value.find(t => t.id === currentTemplateId) : null;
+
                     if (templateInfo && templateInfo.aspectRatio) {
                         const parts = templateInfo.aspectRatio.split('/');
                         if (parts.length === 2) {
@@ -61,37 +60,34 @@ export function useTemplatePreviewScaling(contentRef, emit) {
                             if (wRatio > 0 && hRatio > 0) {
                                 const originalHeight = (hRatio / wRatio) * BASE_CARD_WIDTH;
                                 const calculatedHeight = originalHeight * scale;
-
-                                // 获取当前高度 (需要处理空字符串或非像素值的情况)
                                 const currentHeightStyle = previewContainer.style.height || '';
                                 const currentHeightPx = parseFloat(currentHeightStyle.replace('px', ''));
 
-                                // 仅在高度变化大于 1px 时更新，避免循环
                                 if (isNaN(currentHeightPx) || Math.abs(calculatedHeight - currentHeightPx) > 1) {
                                     previewContainer.style.height = `${calculatedHeight}px`;
                                 }
                             } else {
                                 if (previewContainer.style.height !== 'auto') {
-                                    previewContainer.style.height = 'auto'; // Fallback
+                                    previewContainer.style.height = 'auto';
                                 }
                             }
                         } else {
                             if (previewContainer.style.height !== 'auto') {
-                                previewContainer.style.height = 'auto'; // Fallback
+                                previewContainer.style.height = 'auto';
                             }
                         }
                     } else {
                         if (previewContainer.style.height !== 'auto') {
-                            previewContainer.style.height = 'auto'; // Fallback
+                            previewContainer.style.height = 'auto';
                         }
                     }
                 } catch (e) {
                     console.error("Error calculating preview height:", e);
                     if (previewContainer.style.height !== 'auto') {
-                        previewContainer.style.height = 'auto'; // Fallback on error
+                        previewContainer.style.height = 'auto';
                     }
                 }
-                // --- END OF RESTORED BLOCK ---
+                // --- END OF HEIGHT CALCULATION ---
             }
         });
     };
@@ -121,7 +117,7 @@ export function useTemplatePreviewScaling(contentRef, emit) {
     });
 
     return {
-        templatesInfo,
+        templatesInfo, // 现在是动态生成的
         previewCoverContent,
         templateItemRefs,
         scalingDivRefs,

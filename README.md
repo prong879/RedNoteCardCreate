@@ -30,6 +30,9 @@
 
 -   **前端框架**：Vue.js 3 (v3.3.4) - 使用组合式 API (Composition API)。
     -   *代码组织*: 采用组合式函数 (`src/composables`) 拆分组件逻辑，提高可维护性和复用性。
+    -   *动态加载*: 
+        -   选题内容 (`topicXX_content.js`) 根据用户选择按需动态加载。
+        -   卡片模板组件 (`src/templates/*.vue`) 也采用动态加载 (`import.meta.glob` + `defineAsyncComponent`)，优化初始加载性能。
 -   **构建工具**：Vite (v4.3.9) - 提供快速的开发和构建体验。
 -   **样式方案**：Tailwind CSS (v3.3.2) - 原子化 CSS 框架，快速构建界面。
 -   **CSS 预处理器**：PostCSS (v8.4.24) - 处理 CSS 兼容性 (autoprefixer)。
@@ -284,28 +287,41 @@ npm run build
 
 1.  **文件与命名**: 
     *   模板组件应放置在 `src/templates/` 目录下。
-    *   文件名和组件名应采用大驼峰命名法，例如 `TemplateNewStyle.vue`，组件 `name` 属性也应设置为 `TemplateNewStyle`。
+    *   文件名和组件名应采用大驼峰命名法，例如 `TemplateNewStyle.vue`。
+    *   **重要**: 文件名（去除 `.vue` 后缀并转为小写）将作为模板的**唯一 ID** (例如 `TemplateNewStyle.vue` -> `id: 'templatenewstyle'`)，此 ID 用于在元数据文件中查找配置。
 
-2.  **基础结构**: 
+2.  **元数据注册 (必需!)**: 
+    *   在 `src/config/templateMetadata.js` 文件中，**必须**为新模板添加一个条目。
+    *   该条目的**键 (key)** 必须是根据上述规则生成的模板 ID (小写)。
+    *   该条目的**值 (value)** 必须是一个包含以下属性的对象：
+        *   `name`: (必需) `string` - 用户友好的模板名称，用于在 UI 选择列表中显示。
+        *   `aspectRatio`: (必需) `string` - 模板的宽高比，格式为 `'宽/高'` (例如 `'3/4'`, `'16/9'`)，用于计算预览缩放。
+    ```javascript
+    // src/config/templateMetadata.js 示例
+    export const templateMetadata = {
+      // ... 其他模板
+      templatenewstyle: { // key 必须是小写的模板 ID
+        name: '新样式模板', // 用于显示的名称
+        aspectRatio: '1/1' // 模板的宽高比
+      }
+    };
+    ```
+
+3.  **基础结构**: 
     *   必须包含一个唯一的根 `<div>` 元素。
-    *   内部结构应逻辑清晰，强制要求划分为页眉、主内容、页脚等逻辑区域，并**必须**为这些关键区域添加以下 CSS 类名：
-        *   页眉区域: `card-header`
-        *   主内容区域: `card-content`
-        *   页脚区域: `card-footer`
-        *   (可选) Markdown/富文本内容容器: `markdown-body` (如果适用)
+    *   (推荐) 为根元素添加通用 CSS 类，如 `card` 或 `xhs-card`，以便导出功能 (`_getExportableCardElement`) 能够可靠地找到它。
+    *   内部结构应逻辑清晰，建议划分为页眉、主内容、页脚等逻辑区域，并添加相应的 CSS 类 (`card-header`, `card-content`, `card-footer`) 以提高可读性。
 
-3.  **Props 规范**: 
+4.  **Props 规范**: 
     *   **必需 Props**: 必须接收以下核心 Props，并进行类型和必要性校验：
-        *   `type: { type: String, required: true, validator: (value) => ['cover', 'content'].includes(value) }` 用于区分卡片类型。
-        *   `cardData: { type: Object, required: true }` 用于统一接收卡片数据（封面卡片对象 `coverCard` 或内容卡片对象 `contentCards[i]`）。
-        *   `headerText: { type: String, default: '' }`。 
-        *   `footerText: { type: String, default: '' }`。
-        *   `isHeaderVisible: { type: Boolean, default: true }`。
-        *   `isFooterVisible: { type: Boolean, default: true }`。
-    *   **可选 Props**: 可根据模板特定需求添加其他 Props（如背景色、字体配置等），但必须提供合理的默认值。
-    *   **Props 定义**: 应包含 `type`, `required` (如果需要), `default`, `validator` (如果需要)。
+        *   `type: { type: String, required: true, validator: (value) => ['cover', 'content'].includes(value) }`
+        *   `cardData: { type: Object, required: true }`
+        *   `headerText: { type: String, default: '' }`
+        *   `footerText: { type: String, default: '' }`
+        *   `isHeaderVisible: { type: Boolean, default: true }`
+        *   `isFooterVisible: { type: Boolean, default: true }`
 
-4.  **内容处理**: 
+5.  **内容处理**: 
     *   必须使用 `type` Prop 结合 `v-if`/`v-else` 来处理封面 (`cover`) 和内容 (`content`) 两种卡片类型的不同渲染逻辑。
     *   **标题、副标题与正文渲染 (Markdown/LaTeX 支持)**: 
         *   **封面标题 (`cardData.title`)**, **封面副标题 (`cardData.subtitle`)**, **内容卡片标题 (`cardData.title`)** 和 **内容卡片正文 (`cardData.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
@@ -359,7 +375,7 @@ npm run build
         ```
     *   **普通纯文本渲染**: 对于页眉 (`headerText`)、页脚 (`footerText`) 等**确定始终为纯文本**的内容，应使用 `{{ }}` 插值，并为其容器元素添加 `whitespace-pre-line` CSS 类以支持换行。
 
-5.  **样式规范**: 
+6.  **样式规范**: 
     *   **主要使用 Tailwind CSS**: 优先使用 Tailwind 的原子类进行布局和样式设置。
     *   **Scoped CSS**: 特定于模板的复杂样式（如特殊背景、字体效果）或需要覆盖子组件/第三方库（如 KaTeX）样式时，使用 `<style scoped>`。
     *   **深度选择器 (`:deep()`)**: 
@@ -386,6 +402,29 @@ npm run build
     *   **样式可维护性**: 避免过于复杂或嵌套过深的 CSS 规则。鼓励使用 CSS 变量提高可配置性。
     *   **响应式设计**: 鼓励考虑不同屏幕尺寸的显示效果，使用 Tailwind 的响应式修饰符。
     *   **内容溢出**: 应妥善处理内容可能溢出的情况（特别是 `card-content` 或 `markdown-body`
+
+## 添加新模板的步骤
+
+要向应用中添加一个新的卡片样式模板，请遵循以下步骤：
+
+1.  **创建模板组件**: 在 `src/templates/` 目录下创建一个新的 `.vue` 文件，例如 `TemplateAwesome.vue`。确保遵循上述"模板开发规定"中的**基础结构**、**Props 规范**、**内容处理**和**样式规范**。
+
+2.  **注册元数据**: 打开 `src/config/templateMetadata.js` 文件。
+    *   根据你的文件名 `TemplateAwesome.vue`，确定模板 ID 为 `templateawesome` (全小写)。
+    *   在 `templateMetadata` 对象中添加一个新的键值对：
+        ```javascript
+        export const templateMetadata = {
+          // ... 其他模板
+          templateawesome: {       // 使用小写的 ID 作为 key
+            name: '超棒模板',       // 定义在 UI 中显示的名称
+            aspectRatio: '4/3'    // 定义正确的宽高比
+          }
+        };
+        ```
+
+3.  **重启开发服务器 (或等待热更新)**: 保存所有更改。Vite 的 `import.meta.glob` 应该能够自动检测到新文件，而 `useTemplateLoader` 会读取更新后的元数据。
+
+4.  **测试**: 刷新应用页面，检查新模板是否出现在选择列表中，并且预览、缩放和导出功能是否正常工作。
 
 ## Markdown 内容转换为 JS 数据
 
