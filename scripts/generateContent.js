@@ -13,7 +13,7 @@ function convertFile(inputFilePath) {
 
     try {
         const fileContent = fs.readFileSync(inputFilePath, 'utf8');
-        const { data: frontMatter, content: markdownContent } = matter(fileContent);
+        const { data: frontMatter, content: originalMarkdownContent } = matter(fileContent);
 
         const topicId = frontMatter.topicId;
         if (!topicId || typeof topicId !== 'string') {
@@ -21,29 +21,58 @@ function convertFile(inputFilePath) {
             return false;
         }
 
+        // --- 提取 Front Matter 数据 (不再读取 mainText) ---
         const headerText = frontMatter.headerText || '';
         const footerText = frontMatter.footerText || '';
-        const mainText = frontMatter.mainText || '';
+        let mainText = ''; // <--- 直接初始化为空字符串
         const coverShowHeader = frontMatter.coverShowHeader !== undefined ? frontMatter.coverShowHeader : true;
         const coverShowFooter = frontMatter.coverShowFooter !== undefined ? frontMatter.coverShowFooter : true;
         const contentDefaultShowHeader = frontMatter.contentDefaultShowHeader !== undefined ? frontMatter.contentDefaultShowHeader : true;
         const contentDefaultShowFooter = frontMatter.contentDefaultShowFooter !== undefined ? frontMatter.contentDefaultShowFooter : true;
 
-        const cardContents = markdownContent.trim().split(/\r?\n---\r?\n/);
+        let markdownContentForCards = originalMarkdownContent.trim();
 
-        if (cardContents.length < 1 || !cardContents[0].trim()) {
-            console.error(`   ❌ 错误：文件 ${path.basename(inputFilePath)} 内容为空或格式不正确。`);
-            return false;
+        // --- 查找并提取 ## Main Text 或 ## 主文案 --- 
+        const mainTextMarkerEn = '\n## Main Text\n';
+        const mainTextMarkerZh = '\n## 主文案\n';
+        let mainTextStartIndex = markdownContentForCards.indexOf(mainTextMarkerEn);
+        let markerLength = mainTextMarkerEn.length;
+
+        if (mainTextStartIndex === -1) {
+            mainTextStartIndex = markdownContentForCards.indexOf(mainTextMarkerZh);
+            markerLength = mainTextMarkerZh.length;
         }
 
-        // 处理封面卡片
-        const coverContentRaw = cardContents[0].trim();
-        let coverTitle = '';
+        if (mainTextStartIndex !== -1) {
+            // console.log(`   ℹ️ 在正文中找到主文案标记。`); // 日志信息可以保留或移除
+            mainText = markdownContentForCards.substring(mainTextStartIndex + markerLength).trim();
+            markdownContentForCards = markdownContentForCards.substring(0, mainTextStartIndex).trim();
+        }
+        // else {
+        //    console.log(`   ℹ️ 未在正文中找到主文案标记...`); // 不再需要 fallback 日志
+        // }
+
+        // --- 处理卡片内容 ---
+        const cardContents = markdownContentForCards.split(/\r?\n---\r?\n/);
+
+        // 错误检查：如果既没有卡片内容，也没有从正文提取到主文案，则报错
+        if (cardContents.length === 0 || (cardContents.length === 1 && !cardContents[0].trim())) {
+            if (!mainText) {
+                console.error(`   ❌ 错误：文件 ${path.basename(inputFilePath)} 内容为空或格式不正确（既无卡片内容，也未在正文找到 ## Main Text 区域）。`);
+                return false;
+            }
+            console.warn(`   ⚠️ 警告：文件 ${path.basename(inputFilePath)} 未找到封面卡片或内容卡片部分。`);
+            cardContents.unshift('');
+        }
+
+        // 处理封面卡片 (即使内容为空也要处理，以防只有 mainText)
+        const coverContentRaw = (cardContents[0] || '').trim();
+        let coverTitle = frontMatter.title || ''; // 从 Front Matter 获取默认标题
         let coverSubtitle = '';
         const coverLines = coverContentRaw.split(/\r?\n/);
         const titleIndex = coverLines.findIndex(line => line.trim().startsWith('# '));
         if (titleIndex !== -1) {
-            coverTitle = coverLines[titleIndex].trim().substring(2).trim();
+            coverTitle = coverLines[titleIndex].trim().substring(2).trim(); // Markdown 标题覆盖 Front Matter 标题
             let subtitleStartIndex = -1;
             for (let i = titleIndex + 1; i < coverLines.length; i++) {
                 if (coverLines[i].trim() !== '') {
@@ -55,8 +84,17 @@ function convertFile(inputFilePath) {
                 coverSubtitle = coverLines.slice(subtitleStartIndex).join('\n').trim();
             }
         } else {
-            console.warn(`   ⚠️ 警告：文件 ${path.basename(inputFilePath)} 封面卡片未找到一级标题 (#)。`);
-            coverSubtitle = coverContentRaw;
+            // 如果 Markdown 中没有 `# ` 标题，但有内容，则内容视为副标题
+            if (coverContentRaw) {
+                coverSubtitle = coverContentRaw;
+                if (coverTitle === frontMatter.title) { // 且 Front Matter title 也未被覆盖
+                    console.warn(`   ⚠️ 警告：文件 ${path.basename(inputFilePath)} 封面卡片未找到一级标题 (#)。使用Front Matter的title '${coverTitle}'。`);
+                } else {
+                    console.warn(`   ⚠️ 警告：文件 ${path.basename(inputFilePath)} 封面卡片未找到一级标题 (#)。`);
+                }
+            } else if (!coverTitle) { // 如果 Markdown内容为空，且Front Matter title也为空
+                console.warn(`   ⚠️ 警告：文件 ${path.basename(inputFilePath)} 封面卡片标题和内容均为空。`);
+            }
         }
         const coverCard = {
             title: coverTitle,
@@ -69,6 +107,7 @@ function convertFile(inputFilePath) {
         const contentCards = [];
         const showHeaderRegex = /<!--\s*cardShowHeader\s*:\s*(true|false)\s*-->/i;
         const showFooterRegex = /<!--\s*cardShowFooter\s*:\s*(true|false)\s*-->/i;
+        // 从索引 1 开始，因为索引 0 是封面
         for (let i = 1; i < cardContents.length; i++) {
             const cardContentRaw = cardContents[i].trim();
             if (!cardContentRaw) continue;
@@ -109,7 +148,7 @@ function convertFile(inputFilePath) {
             footerText,
             coverCard,
             contentCards,
-            mainText
+            mainText // 这个 mainText 现在只可能来自正文标记，否则为空字符串
         };
 
         // 生成 JS 文件内容

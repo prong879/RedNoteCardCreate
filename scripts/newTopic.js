@@ -41,8 +41,7 @@ topicId: ${topicId}
 title: ${JSON.stringify(mainTitle)} 
 headerText: "" 
 footerText: "" 
-mainText: | 
-  
+# mainText: (已移除 - 请在正文使用 ## Main Text)
 coverShowHeader: true 
 coverShowFooter: true 
 contentDefaultShowHeader: true 
@@ -58,6 +57,12 @@ contentDefaultShowFooter: true
 ## 内容卡片 1 标题
 
 内容卡片 1 正文
+
+---
+
+## Main Text
+
+在这里编写你的小红书主文案...
 `;
 
 // --- 检查文件是否存在并写入 ---
