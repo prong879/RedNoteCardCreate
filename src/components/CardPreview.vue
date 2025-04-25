@@ -15,8 +15,7 @@
                 <div class="card-container flex-shrink-0" ref="coverCardContainer">
                     <div ref="coverCard">
                         <component :is="activeTemplateComponent" type="cover"
-                            :title="content.coverCard.title"
-                            :content="content.coverCard"
+                            :cardData="content.coverCard" 
                             :headerText="content.headerText || ''"
                             :footerText="content.footerText || ''"
                             :isHeaderVisible="content.coverCard.showHeader !== false"
@@ -35,7 +34,7 @@
                 <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0" :ref="el => { if (el) contentCardRefs[index] = el }">
                     <div>
                         <component :is="activeTemplateComponent" type="content"
-                             :content="card"
+                             :cardData="card" 
                              :headerText="content.headerText || ''"
                              :footerText="content.footerText || ''"
                              :isHeaderVisible="card.showHeader !== false"
@@ -80,15 +79,11 @@
 import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted, onUpdated, onUnmounted } from 'vue';
 import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard } from '../utils/cardExport';
 
-// 导入所有模板组件
-import Template1 from '../templates/Template1.vue';
-import Template2 from '../templates/Template2.vue';
-import Template3 from '../templates/Template3.vue';
-import Template5 from '../templates/Template5.vue';
+// 导入新的模板加载器
+import { useTemplateLoader } from '../composables/useTemplateLoader';
 
 export default {
     name: 'CardPreview',
-    components: { Template1, Template2, Template3, Template5 },
     props: {
         template: {
             type: String,
@@ -109,19 +104,12 @@ export default {
     },
     emits: ['reset-focus', 'preview-scrolled-to-index'],
     setup(props, { emit }) {
+        // 使用新的加载器
+        const { getAsyncTemplateComponent } = useTemplateLoader();
+
+        // 修改 activeTemplateComponent 计算属性以使用加载器
         const activeTemplateComponent = computed(() => {
-            switch (props.template) {
-                case 'template1':
-                    return Template1;
-                case 'template2':
-                    return Template2;
-                case 'template3':
-                    return Template3;
-                case 'template5':
-                    return Template5;
-                default:
-                    return Template1;
-            }
+            return getAsyncTemplateComponent(props.template); // 直接调用加载器
         });
 
         const previewScrollContainer = ref(null);
@@ -273,38 +261,52 @@ export default {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
             }
-            let actualCard = containerElement.querySelector('.template1') || containerElement.querySelector('.template2') || containerElement.querySelector('.template3') || containerElement.querySelector('.template5');
-             if (!actualCard || !actualCard.classList.contains('card')) {
-                actualCard = containerElement.querySelector('.card') || containerElement.querySelector('.xhs-card');
-             }
-
+            // 修改查找逻辑以适应模板名称的变化或依赖模板根元素的类
+            // 查找根元素，而不是特定的模板类
+            // 假设所有模板的根元素都有 'card' 或 'xhs-card' 或类似标识
+            let actualCard = containerElement.querySelector('.card') || containerElement.querySelector('.xhs-card');
+            
+            // 如果模板没有通用类，可能需要更复杂的选择器，或者依赖于模板内部结构
+            // 备选方案：查找第一个直接子元素？ containerElement.children[0]
+            // 警告：这种方式非常脆弱，强烈建议所有模板根元素有共同的类
             if (!actualCard) {
-                console.warn('在容器元素内找不到可导出的卡片元素 (如 .card, .xhs-card 或模板根元素)', containerElement);
+                 console.warn('在容器元素内找不到具有 .card 或 .xhs-card 类的可导出卡片元素', containerElement);
+                 // 尝试回退到查找第一个子元素
+                 actualCard = containerElement.children?.[0]; 
+                  if (actualCard) {
+                      console.warn('回退到使用第一个子元素进行导出，请确保模板结构稳定。');
+                  } else {
+                      console.error('无法定位到任何可导出的元素。');
+                  }
             }
             return actualCard;
         },
 
-        async exportSingleCard(cardElement, fileName) {
+        async exportSingleCard(cardElementRefOrActualElement, fileName) {
+            // 确定是 ref 还是直接的元素
+            const cardElement = cardElementRefOrActualElement && cardElementRefOrActualElement.$el 
+                                ? cardElementRefOrActualElement.$el // 如果是 Vue 组件实例 Ref
+                                : cardElementRefOrActualElement;    // 如果是 DOM 元素 Ref 或直接元素
+            
             if (!this.topicId) {
                 alert('无法获取主题ID，无法导出。');
                 return;
             }
             try {
-                const actualCard = this._getExportableCardElement(cardElement);
-                if (!actualCard) {
+                const actualCardToExport = this._getExportableCardElement(cardElement);
+                if (!actualCardToExport) {
                     throw new Error("找不到可导出的卡片元素");
                 }
-                await exportCardAsImage(actualCard, fileName);
+                await exportCardAsImage(actualCardToExport, fileName);
                 alert(`成功导出 ${fileName}.png`);
-            } catch (error) {
-                console.error('导出失败:', error);
+            } catch (error) {                console.error('导出失败:', error);
                 alert('导出失败: ' + error.message);
             }
         },
 
         _getAllExportableElements() {
             const elements = [];
-            const coverCardContainer = this.$refs.coverCard;
+            const coverCardContainer = this.$refs.coverCardContainer; // 使用容器的 ref
             const coverCardElement = this._getExportableCardElement(coverCardContainer);
             if (coverCardElement) {
                 elements.push({ element: coverCardElement, type: 'cover', index: -1 });
@@ -313,7 +315,7 @@ export default {
             }
 
             this.content.contentCards.forEach((_, index) => {
-                const contentCardContainer = this.contentCardRefs?.[index];
+                const contentCardContainer = this.$refs.contentCardRefs?.[index]; // 使用容器的 ref
                 const contentCardElement = this._getExportableCardElement(contentCardContainer);
                 if (contentCardElement) {
                     elements.push({ element: contentCardElement, type: 'content', index: index });

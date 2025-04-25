@@ -12,15 +12,15 @@
              :class="type === 'cover' ? 'justify-center items-center text-center' : ''">
             <!-- 封面卡片内容 -->
             <div v-if="type === 'cover'" class="cover-content-inner">
-                <h1 class="text-3xl font-serif font-bold mb-8 tracking-wider cover-title whitespace-pre-line">{{ title }}</h1>
-                <div v-if="renderedCoverSubtitle" class="cover-subtitle text-base text-gray-600 mt-3 whitespace-pre-line" v-html="renderedCoverSubtitle"></div>
+                <h1 v-if="renderedCoverTitle" class="text-3xl font-serif font-bold mb-8 tracking-wider cover-title whitespace-pre-line rendered-title" v-html="renderedCoverTitle"></h1>
+                <div v-if="renderedCoverSubtitle" class="cover-subtitle text-base opacity-90 mt-3 whitespace-pre-line" v-html="renderedCoverSubtitle"></div>
             </div>
 
             <!-- 内容卡片内容 -->
             <div v-else class="content-content-inner flex flex-col flex-grow">
-                <h3 class="text-xl font-serif font-bold mb-4 text-blue-800 border-b-2 border-blue-200 pb-2 flex-shrink-0 content-title whitespace-pre-line">{{ content.title }}</h3>
+                <h3 v-if="renderedContentTitle" class="text-xl font-serif font-bold mb-4 text-blue-800 border-b-2 border-blue-200 pb-2 flex-shrink-0 content-title whitespace-pre-line rendered-title" v-html="renderedContentTitle"></h3>
                 <!-- Markdown/LaTeX 渲染区域 -->
-                <div class="markdown-body flex-grow font-serif katex-compatible overflow-y-auto content-body" v-html="renderedMarkdown">
+                <div v-if="renderedMarkdownBody" class="markdown-body flex-grow font-serif katex-compatible overflow-y-auto content-body" v-html="renderedMarkdownBody">
                 </div>
             </div>
         </div>
@@ -45,11 +45,8 @@ export default {
             required: true,
             validator: (value) => ['cover', 'content'].includes(value)
         },
-        title: { // 主要用于封面标题
-            type: String,
-            default: ''
-        },
-        content: { // 包含 subtitle (封面) 或 title, body (内容)
+        // 统一接收卡片数据对象
+        cardData: {
             type: Object,
             required: true
         },
@@ -71,24 +68,32 @@ export default {
         }
     },
     setup(props) {
-        // 计算属性用于渲染 Markdown 和 LaTeX
-        const renderedMarkdown = computed(() => {
-            // 确保是内容卡片且 content 和 content.body 存在
-            if (props.type === 'content' && props.content && props.content.body) {
-                return renderMarkdownAndLaTeX(props.content.body);
-            }
-            return ''; // 如果不是内容卡片或 body 不存在，返回空字符串
+        const renderedCoverTitle = computed(() => {
+            return props.type === 'cover' && props.cardData && props.cardData.title
+                   ? renderMarkdownAndLaTeX(props.cardData.title)
+                   : '';
         });
-
         const renderedCoverSubtitle = computed(() => {
-            return props.type === 'cover' && props.content && props.content.subtitle
-                   ? renderMarkdownAndLaTeX(props.content.subtitle)
+            return props.type === 'cover' && props.cardData && props.cardData.subtitle
+                   ? renderMarkdownAndLaTeX(props.cardData.subtitle)
+                   : '';
+        });
+        const renderedContentTitle = computed(() => {
+            return props.type === 'content' && props.cardData && props.cardData.title
+                   ? renderMarkdownAndLaTeX(props.cardData.title)
+                   : '';
+        });
+        const renderedMarkdownBody = computed(() => {
+            return props.type === 'content' && props.cardData && props.cardData.body
+                   ? renderMarkdownAndLaTeX(props.cardData.body)
                    : '';
         });
 
         return {
-            renderedMarkdown,
-            renderedCoverSubtitle
+            renderedCoverTitle,
+            renderedCoverSubtitle,
+            renderedContentTitle,
+            renderedMarkdownBody
         };
     }
 }

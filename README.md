@@ -8,7 +8,7 @@
 
 1.  **主题元数据加载**：从 `src/content/topicsMeta.js` 加载所有选题的元信息（标题、描述）。
 2.  **动态内容加载与检测**：选择选题后，从对应的 `src/content/topicXX_content.js` 文件动态加载详细内容。`TopicSelector` 会检测文件是否存在以及 `localStorage` 状态。
-3.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template5` - 支持 3:4 和 9:16 等比例)。
+3.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template5` - 支持 3:4 和 9:16 等比例)。用户可以在预览区选择不同的模板，实时查看效果。
 4.  **可视化内容编辑**：
     *   实时编辑全局页眉/页脚、封面标题/副标题、卡片标题/内容、主文案。
     *   内容卡片支持拖拽排序 (`vuedraggable`)。
@@ -30,6 +30,9 @@
 
 -   **前端框架**：Vue.js 3 (v3.3.4) - 使用组合式 API (Composition API)。
     -   *代码组织*: 采用组合式函数 (`src/composables`) 拆分组件逻辑，提高可维护性和复用性。
+    -   *动态加载*: 
+        -   选题内容 (`topicXX_content.js`) 根据用户选择按需动态加载。
+        -   卡片模板组件 (`src/templates/*.vue`) 也采用动态加载 (`import.meta.glob` + `defineAsyncComponent`)，优化初始加载性能。
 -   **构建工具**：Vite (v4.3.9) - 提供快速的开发和构建体验。
 -   **样式方案**：Tailwind CSS (v3.3.2) - 原子化 CSS 框架，快速构建界面。
 -   **CSS 预处理器**：PostCSS (v8.4.24) - 处理 CSS 兼容性 (autoprefixer)。
@@ -106,7 +109,7 @@ npm run build
     *   为每个选题 ID 创建对应的 `src/content/topicXX_content.js` 文件，包含详细的卡片内容和主文案。
 2.  **启动应用**：运行 `npm run dev`。
 3.  **选择选题**：在应用首页（`TopicSelector`）点击要制作的选题卡片，应用将加载对应的 `topicXX_content.js`。
-4.  **选择样式**：在编辑页面（`CardConfig`）的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板3`, `模板5`)。
+4.  **选择样式**：在编辑页面（`CardConfig`）的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板5`)。
 5.  **编辑与预览**：
     *   在 `CardConfig` 中调整卡片内容（可使用 Markdown 和 LaTeX），并在右侧 `CardPreview` 中实时预览选定样式下的效果。
     *   可添加、删除、拖拽排序内容卡片，显隐页眉页脚。
@@ -153,8 +156,7 @@ npm run build
 │   ├── templates/		# 卡片样式模板组件
 │   │   ├── Template1.vue   # 模板1实现 (3:4)
 │   │   ├── Template2.vue   # 模板2实现 (3:4)
-│   │   ├── Template3.vue   # 模板3实现 (3:4)
-│   │   └── Template5.vue   # 模板5实现 (9:16)
+│   │   ├── Template5.vue   # 模板5实现 (9:16)
 │   ├── utils/		# 通用工具函数 (无状态逻辑)
 │   │   ├── cardExport.js   # 卡片导出逻辑 (html2canvas, file-saver, jszip)
 │   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑 (markdown-it, katex)
@@ -178,7 +180,7 @@ npm run build
     *   点击想要使用的选题卡片，应用会加载对应的 `topicXX_content.js` 文件，并进入编辑页面。
 
 2.  **选择卡片样式**：
-    *   在编辑页左侧的配置面板中，点击"选择模板"下的样式预览图（模板1/2/3/5）来切换卡片的视觉风格。
+    *   在编辑页左侧的配置面板中，点击"选择模板"下的样式预览图（模板1/2/5）来切换卡片的视觉风格。
 
 3.  **编辑卡片内容**：
     *   修改整体标题、封面副标题、各内容卡片的标题和内容。
@@ -256,8 +258,8 @@ npm run build
     *   [x] 主题模板加载与内容绑定
         *   [x] 重构内容加载逻辑，使用 `topicsMeta.js` 和独立的 `topicXX_content.js` 文件。
         *   [x] 解决动态导入在开发环境下的路径解析和 Vite 分析问题 (使用 `import.meta.glob`)。
-    *   [x] 基础卡片样式模板 (`Template1`, `Template2`, `Template3`)
-    *   [x] 新增卡片样式模板 (`Template5` - 9:16 宽高比)
+    *   [x] 基础卡片样式模板 (`Template1`, `Template2`)
+    *   [x] 添加模板5 (`Template5`)
     *   [x] 图片导出功能 (`html2canvas`, `file-saver`)
     *   [x] 文案复制功能
     *   [x] Markdown 与 LaTeX 渲染 (`markdown-it`, `katex`)
@@ -285,72 +287,85 @@ npm run build
 
 1.  **文件与命名**: 
     *   模板组件应放置在 `src/templates/` 目录下。
-    *   文件名和组件名应采用大驼峰命名法，例如 `TemplateNewStyle.vue`，组件 `name` 属性也应设置为 `TemplateNewStyle`。
+    *   文件名和组件名应采用大驼峰命名法，例如 `TemplateNewStyle.vue`。
+    *   **重要**: 文件名（去除 `.vue` 后缀并转为小写）将作为模板的**唯一 ID** (例如 `TemplateNewStyle.vue` -> `id: 'templatenewstyle'`)，此 ID 用于在元数据文件中查找配置。
 
-2.  **基础结构**: 
+2.  **元数据注册 (必需!)**: 
+    *   在 `src/config/templateMetadata.js` 文件中，**必须**为新模板添加一个条目。
+    *   该条目的**键 (key)** 必须是根据上述规则生成的模板 ID (小写)。
+    *   该条目的**值 (value)** 必须是一个包含以下属性的对象：
+        *   `name`: (必需) `string` - 用户友好的模板名称，用于在 UI 选择列表中显示。
+        *   `aspectRatio`: (必需) `string` - 模板的宽高比，格式为 `'宽/高'` (例如 `'3/4'`, `'16/9'`)，用于计算预览缩放。
+    ```javascript
+    // src/config/templateMetadata.js 示例
+    export const templateMetadata = {
+      // ... 其他模板
+      templatenewstyle: { // key 必须是小写的模板 ID
+        name: '新样式模板', // 用于显示的名称
+        aspectRatio: '1/1' // 模板的宽高比
+      }
+    };
+    ```
+
+3.  **基础结构**: 
     *   必须包含一个唯一的根 `<div>` 元素。
-    *   内部结构应逻辑清晰，强制要求划分为页眉、主内容、页脚等逻辑区域，并**必须**为这些关键区域添加以下 CSS 类名：
-        *   页眉区域: `card-header`
-        *   主内容区域: `card-content`
-        *   页脚区域: `card-footer`
-        *   (可选) Markdown/富文本内容容器: `markdown-body` (如果适用)
+    *   (推荐) 为根元素添加通用 CSS 类，如 `card` 或 `xhs-card`，以便导出功能 (`_getExportableCardElement`) 能够可靠地找到它。
+    *   内部结构应逻辑清晰，建议划分为页眉、主内容、页脚等逻辑区域，并添加相应的 CSS 类 (`card-header`, `card-content`, `card-footer`) 以提高可读性。
 
-3.  **Props 规范**: 
+4.  **Props 规范**: 
     *   **必需 Props**: 必须接收以下核心 Props，并进行类型和必要性校验：
-        *   `type: { type: String, required: true, validator: (value) => ['cover', 'content'].includes(value) }` 用于区分卡片类型。
-        *   `content: { type: Object, required: true }` 用于接收核心内容数据。
-        *   `title: { type: String, default: '' }` (主要用于封面)。
-        *   `headerText: { type: String, default: '' }`。
-        *   `footerText: { type: String, default: '' }`。
-        *   `isHeaderVisible: { type: Boolean, default: true }`。
-        *   `isFooterVisible: { type: Boolean, default: true }`。
-    *   **可选 Props**: 可根据模板特定需求添加其他 Props（如背景色、字体配置等），但必须提供合理的默认值。
-    *   **Props 定义**: 应包含 `type`, `required` (如果需要), `default`, `validator` (如果需要)。
+        *   `type: { type: String, required: true, validator: (value) => ['cover', 'content'].includes(value) }`
+        *   `cardData: { type: Object, required: true }`
+        *   `headerText: { type: String, default: '' }`
+        *   `footerText: { type: String, default: '' }`
+        *   `isHeaderVisible: { type: Boolean, default: true }`
+        *   `isFooterVisible: { type: Boolean, default: true }`
 
-4.  **内容处理**: 
+5.  **内容处理**: 
     *   必须使用 `type` Prop 结合 `v-if`/`v-else` 来处理封面 (`cover`) 和内容 (`content`) 两种卡片类型的不同渲染逻辑。
     *   **标题、副标题与正文渲染 (Markdown/LaTeX 支持)**: 
-        *   **封面标题 (`title`)**, **封面副标题 (`content.subtitle`)**, **内容卡片标题 (`content.title`)** 和 **内容卡片正文 (`content.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
-        *   实现方式：必须通过 Vue 的**计算属性 (computed property)** 调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数对相应的文本进行处理，并将结果绑定到模板中对应元素的 `v-html` 指令上。
+        *   **封面标题 (`cardData.title`)**, **封面副标题 (`cardData.subtitle`)**, **内容卡片标题 (`cardData.title`)** 和 **内容卡片正文 (`cardData.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
+        *   实现方式：必须通过 Vue 的**计算属性 (computed property)** 调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数对 `cardData` 中相应的文本进行处理，并将结果绑定到模板中对应元素的 `v-html` 指令上。
         *   **注意**: 当使用 `v-html` 渲染由 Markdown 生成的 HTML 时，如果 Markdown 源文本仅包含一行文本，`markdown-it` 默认会将其包裹在一个 `<p>` 标签内。这可能会引入不必要的垂直边距。为避免此问题，建议在模板组件的 `<style scoped>` 中添加针对渲染容器的 `:deep(p) { margin: 0; }` 样式规则来重置段落边距。
         ```javascript
-        // 示例：渲染标题、副标题和正文
+        // 示例：在 setup 函数中处理 cardData
         import { computed } from 'vue';
         import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
         
         export default {
           props: {
-            type: String,
-            title: String, // 封面标题
-            content: Object // 包含 content.subtitle, content.title, content.body
+            type: String, // 'cover' or 'content'
+            cardData: Object, // 包含 title, subtitle (cover) 或 title, body (content)
             // ... 其他 props
           },
           setup(props) {
             const renderedCoverTitle = computed(() => {
-              return props.title ? renderMarkdownAndLaTeX(props.title) : '';
+              return props.type === 'cover' && props.cardData?.title
+                     ? renderMarkdownAndLaTeX(props.cardData.title)
+                     : '';
             });
             
-            const renderedCoverSubtitle = computed(() => { // 新增或修改
-              return props.type === 'cover' && props.content && props.content.subtitle
-                     ? renderMarkdownAndLaTeX(props.content.subtitle)
+            const renderedCoverSubtitle = computed(() => {
+              return props.type === 'cover' && props.cardData?.subtitle
+                     ? renderMarkdownAndLaTeX(props.cardData.subtitle)
                      : '';
             });
 
             const renderedContentTitle = computed(() => {
-              return props.type === 'content' && props.content && props.content.title 
-                     ? renderMarkdownAndLaTeX(props.content.title) 
+              return props.type === 'content' && props.cardData?.title 
+                     ? renderMarkdownAndLaTeX(props.cardData.title) 
                      : '';
             });
 
             const renderedMarkdownBody = computed(() => {
-              return props.type === 'content' && props.content && props.content.body 
-                     ? renderMarkdownAndLaTeX(props.content.body) 
+              return props.type === 'content' && props.cardData?.body 
+                     ? renderMarkdownAndLaTeX(props.cardData.body) 
                      : '';
             });
 
             return { 
               renderedCoverTitle, 
-              renderedCoverSubtitle, // 确保返回
+              renderedCoverSubtitle,
               renderedContentTitle, 
               renderedMarkdownBody 
             };
@@ -360,7 +375,7 @@ npm run build
         ```
     *   **普通纯文本渲染**: 对于页眉 (`headerText`)、页脚 (`footerText`) 等**确定始终为纯文本**的内容，应使用 `{{ }}` 插值，并为其容器元素添加 `whitespace-pre-line` CSS 类以支持换行。
 
-5.  **样式规范**: 
+6.  **样式规范**: 
     *   **主要使用 Tailwind CSS**: 优先使用 Tailwind 的原子类进行布局和样式设置。
     *   **Scoped CSS**: 特定于模板的复杂样式（如特殊背景、字体效果）或需要覆盖子组件/第三方库（如 KaTeX）样式时，使用 `<style scoped>`。
     *   **深度选择器 (`:deep()`)**: 
@@ -387,6 +402,29 @@ npm run build
     *   **样式可维护性**: 避免过于复杂或嵌套过深的 CSS 规则。鼓励使用 CSS 变量提高可配置性。
     *   **响应式设计**: 鼓励考虑不同屏幕尺寸的显示效果，使用 Tailwind 的响应式修饰符。
     *   **内容溢出**: 应妥善处理内容可能溢出的情况（特别是 `card-content` 或 `markdown-body`
+
+## 添加新模板的步骤
+
+要向应用中添加一个新的卡片样式模板，请遵循以下步骤：
+
+1.  **创建模板组件**: 在 `src/templates/` 目录下创建一个新的 `.vue` 文件，例如 `TemplateAwesome.vue`。确保遵循上述"模板开发规定"中的**基础结构**、**Props 规范**、**内容处理**和**样式规范**。
+
+2.  **注册元数据**: 打开 `src/config/templateMetadata.js` 文件。
+    *   根据你的文件名 `TemplateAwesome.vue`，确定模板 ID 为 `templateawesome` (全小写)。
+    *   在 `templateMetadata` 对象中添加一个新的键值对：
+        ```javascript
+        export const templateMetadata = {
+          // ... 其他模板
+          templateawesome: {       // 使用小写的 ID 作为 key
+            name: '超棒模板',       // 定义在 UI 中显示的名称
+            aspectRatio: '4/3'    // 定义正确的宽高比
+          }
+        };
+        ```
+
+3.  **重启开发服务器 (或等待热更新)**: 保存所有更改。Vite 的 `import.meta.glob` 应该能够自动检测到新文件，而 `useTemplateLoader` 会读取更新后的元数据。
+
+4.  **测试**: 刷新应用页面，检查新模板是否出现在选择列表中，并且预览、缩放和导出功能是否正常工作。
 
 ## Markdown 内容转换为 JS 数据
 

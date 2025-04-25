@@ -9,7 +9,7 @@ contentDefaultShowHeader: true
 contentDefaultShowFooter: true
 ---
 
-# 30秒搞懂⏱️\n时间序列数据🤔
+# 30秒搞懂⏱️\n什么是时间序列🤔
 
 股价📈 气温☀️ 体重⚖️...
 每天都在接触，却不知道它的名字？

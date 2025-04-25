@@ -1,35 +1,38 @@
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import Template1 from '../templates/Template1.vue';
-import Template2 from '../templates/Template2.vue';
-import Template3 from '../templates/Template3.vue';
-import Template5 from '../templates/Template5.vue';
+import { ref, computed, onMounted, onBeforeUnmount, shallowRef } from 'vue';
+// 移除静态模板导入
+// import Template1 from '../templates/Template1.vue'; 
+// import Template2 from '../templates/Template2.vue';
+// import Template5 from '../templates/Template5.vue';
+
+// 导入新的模板加载器
+import { useTemplateLoader } from './useTemplateLoader';
 
 export function useTemplatePreviewScaling(contentRef, emit) {
+    // 从 useTemplateLoader 获取动态生成的 templatesInfo 和加载器
+    const { templatesInfo: importedTemplatesInfo, getAsyncTemplateComponent } = useTemplateLoader();
 
-    const templatesInfo = ref([
-        { id: 'template1', name: '模板1', aspectRatio: '3/4' },
-        { id: 'template2', name: '模板2', aspectRatio: '3/4' },
-        { id: 'template3', name: '模板3', aspectRatio: '3/4' },
-        { id: 'template5', name: '模板5', aspectRatio: '16/9' } // 注意：实际比例可能需要根据Template5确认
-    ]);
+    // 直接使用导入的 templatesInfo (它已经是响应式的，因为 useTemplateLoader 内部创建)
+    // 注意：如果 useTemplateLoader 不是响应式导出，则需要 ref(importedTemplatesInfo)
+    const templatesInfo = ref(importedTemplatesInfo); // 保持 ref 包装以防万一
 
-    const templateComponentMap = {
-        template1: Template1,
-        template2: Template2,
-        template3: Template3,
-        template5: Template5
-    };
+    const asyncTemplateComponentsMap = shallowRef({});
 
-    // 用于预览的封面内容，依赖外部传入的 contentRef
+    // 初始化时填充映射表 (使用动态的 templatesInfo)
+    const initialMap = {};
+    templatesInfo.value.forEach(template => {
+        initialMap[template.id] = getAsyncTemplateComponent(template.id);
+    });
+    asyncTemplateComponentsMap.value = initialMap;
+
     const previewCoverContent = computed(() => ({
         title: contentRef.value?.coverCard?.title || '标题',
         subtitle: contentRef.value?.coverCard?.subtitle || '副标题'
     }));
 
-    const templateItemRefs = ref([]); // Ref for each template item's outer div
-    const scalingDivRefs = ref([]);   // Ref for the div that gets scaled
+    const templateItemRefs = ref([]);
+    const scalingDivRefs = ref([]);
     let resizeObserver = null;
-    const BASE_CARD_WIDTH = 320; // 模板的基础宽度，用于计算缩放比例
+    const BASE_CARD_WIDTH = 320;
 
     // 更新所有预览图的缩放比例和容器高度
     const updateScale = () => {
@@ -43,9 +46,12 @@ export function useTemplatePreviewScaling(contentRef, emit) {
                 const scale = Math.min(1, safeContainerWidth / BASE_CARD_WIDTH);
                 scalingDivRefs.value[index].style.transform = `scale(${scale})`;
 
-                // 计算并设置容器高度
+                // --- HEIGHT CALCULATION WITH CHECK --- 
                 try {
-                    const templateInfo = templatesInfo.value[index];
+                    // 修正：确保 find 使用正确的索引或 ID
+                    const currentTemplateId = templatesInfo.value[index]?.id;
+                    const templateInfo = currentTemplateId ? templatesInfo.value.find(t => t.id === currentTemplateId) : null;
+
                     if (templateInfo && templateInfo.aspectRatio) {
                         const parts = templateInfo.aspectRatio.split('/');
                         if (parts.length === 2) {
@@ -53,28 +59,37 @@ export function useTemplatePreviewScaling(contentRef, emit) {
                             const hRatio = parseFloat(parts[1]);
                             if (wRatio > 0 && hRatio > 0) {
                                 const originalHeight = (hRatio / wRatio) * BASE_CARD_WIDTH;
-                                const scaledHeight = originalHeight * scale;
-                                previewContainer.style.height = `${scaledHeight}px`;
+                                const calculatedHeight = originalHeight * scale;
+                                const currentHeightStyle = previewContainer.style.height || '';
+                                const currentHeightPx = parseFloat(currentHeightStyle.replace('px', ''));
+
+                                if (isNaN(currentHeightPx) || Math.abs(calculatedHeight - currentHeightPx) > 1) {
+                                    previewContainer.style.height = `${calculatedHeight}px`;
+                                }
                             } else {
-                                previewContainer.style.height = 'auto';
+                                if (previewContainer.style.height !== 'auto') {
+                                    previewContainer.style.height = 'auto';
+                                }
                             }
                         } else {
-                            previewContainer.style.height = 'auto';
+                            if (previewContainer.style.height !== 'auto') {
+                                previewContainer.style.height = 'auto';
+                            }
                         }
                     } else {
-                        previewContainer.style.height = 'auto';
+                        if (previewContainer.style.height !== 'auto') {
+                            previewContainer.style.height = 'auto';
+                        }
                     }
                 } catch (e) {
                     console.error("Error calculating preview height:", e);
-                    previewContainer.style.height = 'auto';
+                    if (previewContainer.style.height !== 'auto') {
+                        previewContainer.style.height = 'auto';
+                    }
                 }
+                // --- END OF HEIGHT CALCULATION ---
             }
         });
-    };
-
-    // 获取模板对应的 Vue 组件
-    const getTemplateComponent = (templateId) => {
-        return templateComponentMap[templateId] || Template1; // 默认为 Template1
     };
 
     // 选择模板时触发父组件事件
@@ -85,38 +100,29 @@ export function useTemplatePreviewScaling(contentRef, emit) {
     // 在组件挂载后初始化 ResizeObserver 并进行首次缩放计算
     onMounted(() => {
         if (typeof ResizeObserver !== 'undefined') {
-            resizeObserver = new ResizeObserver(entries => {
-                updateScale(); // 容器尺寸变化时重新计算缩放
-            });
+            resizeObserver = new ResizeObserver(updateScale);
             templateItemRefs.value.forEach(el => {
-                if (el) {
-                    resizeObserver.observe(el);
-                }
+                if (el) resizeObserver.observe(el);
             });
-            updateScale(); // 初始计算
+            updateScale();
         } else {
-            // 兼容性处理或提示
-            console.warn('ResizeObserver is not supported in this browser. Preview scaling might not work correctly on resize.');
-            // 可以在这里添加 window resize listener 作为后备，但性能不如 ResizeObserver
-            updateScale(); // 尝试在挂载时计算一次
+            console.warn('ResizeObserver not supported...');
+            updateScale();
         }
     });
 
     // 在组件卸载前断开 ResizeObserver
     onBeforeUnmount(() => {
-        if (resizeObserver) {
-            resizeObserver.disconnect();
-        }
-        // 如果使用了 window resize listener 作为后备，也需要在这里移除
+        if (resizeObserver) resizeObserver.disconnect();
     });
 
     return {
-        templatesInfo,
+        templatesInfo, // 现在是动态生成的
         previewCoverContent,
         templateItemRefs,
         scalingDivRefs,
-        getTemplateComponent,
+        asyncTemplateComponentsMap,
         selectTemplate,
-        updateScale // 暴露 updateScale 可能用于手动触发更新
+        updateScale
     };
 } 
