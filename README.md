@@ -309,12 +309,12 @@ npm run build
 
 4.  **内容处理**: 
     *   必须使用 `type` Prop 结合 `v-if`/`v-else` 来处理封面 (`cover`) 和内容 (`content`) 两种卡片类型的不同渲染逻辑。
-    *   **标题与正文渲染 (Markdown/LaTeX 支持)**: 
-        *   **封面标题 (`title`)**, **内容卡片标题 (`content.title`)** 和 **内容卡片正文 (`content.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
+    *   **标题、副标题与正文渲染 (Markdown/LaTeX 支持)**: 
+        *   **封面标题 (`title`)**, **封面副标题 (`content.subtitle`)**, **内容卡片标题 (`content.title`)** 和 **内容卡片正文 (`content.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
         *   实现方式：必须通过 Vue 的**计算属性 (computed property)** 调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数对相应的文本进行处理，并将结果绑定到模板中对应元素的 `v-html` 指令上。
         *   **注意**: 当使用 `v-html` 渲染由 Markdown 生成的 HTML 时，如果 Markdown 源文本仅包含一行文本，`markdown-it` 默认会将其包裹在一个 `<p>` 标签内。这可能会引入不必要的垂直边距。为避免此问题，建议在模板组件的 `<style scoped>` 中添加针对渲染容器的 `:deep(p) { margin: 0; }` 样式规则来重置段落边距。
         ```javascript
-        // 示例：渲染标题和正文
+        // 示例：渲染标题、副标题和正文
         import { computed } from 'vue';
         import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
         
@@ -322,12 +322,18 @@ npm run build
           props: {
             type: String,
             title: String, // 封面标题
-            content: Object // 包含 content.title, content.body
+            content: Object // 包含 content.subtitle, content.title, content.body
             // ... 其他 props
           },
           setup(props) {
             const renderedCoverTitle = computed(() => {
               return props.title ? renderMarkdownAndLaTeX(props.title) : '';
+            });
+            
+            const renderedCoverSubtitle = computed(() => { // 新增或修改
+              return props.type === 'cover' && props.content && props.content.subtitle
+                     ? renderMarkdownAndLaTeX(props.content.subtitle)
+                     : '';
             });
 
             const renderedContentTitle = computed(() => {
@@ -344,6 +350,7 @@ npm run build
 
             return { 
               renderedCoverTitle, 
+              renderedCoverSubtitle, // 确保返回
               renderedContentTitle, 
               renderedMarkdownBody 
             };
@@ -351,7 +358,7 @@ npm run build
           // ...
         }
         ```
-    *   **普通纯文本渲染**: 对于页眉 (`headerText`)、页脚 (`footerText`)、封面副标题 (`content.subtitle`) 等**确定始终为纯文本**的内容，应使用 `{{ }}` 插值，并为其容器元素添加 `whitespace-pre-line` CSS 类以支持换行。
+    *   **普通纯文本渲染**: 对于页眉 (`headerText`)、页脚 (`footerText`) 等**确定始终为纯文本**的内容，应使用 `{{ }}` 插值，并为其容器元素添加 `whitespace-pre-line` CSS 类以支持换行。
 
 5.  **样式规范**: 
     *   **主要使用 Tailwind CSS**: 优先使用 Tailwind 的原子类进行布局和样式设置。
@@ -415,7 +422,7 @@ yarn add gray-matter --dev
 
 *   **封面卡片内容 (Front Matter 后，第一个 `---` 前)**:
     *   **标题 (`coverCard.title`)**: 脚本会查找此区域内的**第一个一级标题** (以 `# ` 开头，注意 `#` 后有空格)。该行文本 (去除 `# `) 将作为封面标题，**覆盖** Front Matter 中的 `title` 用于卡片显示。支持 Markdown/LaTeX 及换行 (`\n`)。
-    *   **副标题 (`coverCard.subtitle`)**: 封面标题行**之后**的所有非空行内容（保留原始换行）将作为封面副标题。支持普通文本及换行 (`\n`)。
+    *   **副标题 (`coverCard.subtitle`)**: 封面标题行**之后**的所有非空行内容（保留原始换行）将作为封面副标题。**支持 Markdown/LaTeX 及换行 (\n)**。
     *   *无标题情况*: 若未找到 `# ` 标题，则此区域所有内容视为副标题，封面标题为空。
 
 *   **内容卡片内容 (每个 `---` 之后)**:

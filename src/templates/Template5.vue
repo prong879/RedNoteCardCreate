@@ -15,7 +15,7 @@
             <div v-if="type === 'cover'" class="cover-content-inner">
                 <!-- 封面标题使用 v-html 渲染 -->
                 <h1 class="text-2xl font-bold mb-2 cover-title rendered-title" v-html="renderedCoverTitle"></h1>
-                <p class="text-md whitespace-pre-line cover-subtitle">{{ content.subtitle }}</p>
+                <div v-if="renderedCoverSubtitle" class="cover-subtitle text-md whitespace-pre-line" v-html="renderedCoverSubtitle"></div>
             </div>
 
             <!-- 内容卡片内容 -->
@@ -93,10 +93,17 @@ export default {
                     : '';
         });
 
+        const renderedCoverSubtitle = computed(() => {
+            return props.type === 'cover' && props.content && props.content.subtitle
+                   ? renderMarkdownAndLaTeX(props.content.subtitle)
+                   : '';
+        });
+
         return {
             renderedCoverTitle,
             renderedContentTitle,
-            renderedMarkdownBody
+            renderedMarkdownBody,
+            renderedCoverSubtitle
         };
     }
 }

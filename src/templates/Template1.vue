@@ -19,8 +19,8 @@
                      }">
                     <!-- 封面卡片内容 -->
                     <template v-if="type === 'cover'">
-                        <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left text-white rendered-title" v-html="renderedCoverTitle"></h1>
-                        <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
+                        <h1 class="text-4xl font-bold mb-4 whitespace-pre-line text-left text-white rendered-title" v-html="renderedCoverTitle"></h1>
+                        <div v-if="renderedCoverSubtitle" class="cover-subtitle text-xl opacity-90 mt-2 whitespace-pre-line" v-html="renderedCoverSubtitle"></div>
                     </template>
                     
                     <!-- 内容卡片内容 -->
@@ -43,6 +43,7 @@
 
 <script>
 import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
+import { computed } from 'vue';
 
 export default {
     name: 'Template1',
@@ -95,6 +96,12 @@ export default {
         // 新增：计算渲染后的内容卡片标题
         renderedContentTitle() {
              return this.content && this.content.title ? renderMarkdownAndLaTeX(this.content.title) : '';
+        },
+        renderedCoverSubtitle() {
+            // 确保只在 cover 类型且 subtitle 存在时渲染
+            return this.type === 'cover' && this.content && this.content.subtitle
+                   ? renderMarkdownAndLaTeX(this.content.subtitle)
+                   : '';
         }
     }
 }
@@ -143,5 +150,15 @@ export default {
 .rendered-title :deep(p) {
     margin: 0;
     display: inline; /* 如果希望保持在一行 */
+}
+
+.cover-subtitle :deep(p) {
+    margin: 0; /* 确保副标题内的段落无边距 */
+}
+
+/* 如果需要为 KaTeX 公式调整样式 */
+:deep(.katex) {
+    font-size: 1em; /* 保持与周围文本大小一致或微调 */
+    /* color: inherit; */ /* 继承父元素颜色 */
 }
 </style>

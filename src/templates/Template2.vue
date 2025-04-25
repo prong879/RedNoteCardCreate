@@ -13,7 +13,7 @@
             <!-- 封面卡片内容 -->
             <div v-if="type === 'cover'" class="cover-content-inner">
                 <h1 class="text-3xl font-serif font-bold mb-8 tracking-wider cover-title whitespace-pre-line">{{ title }}</h1>
-                <p class="text-lg font-serif whitespace-pre-line opacity-90 cover-subtitle">{{ content.subtitle }}</p>
+                <div v-if="renderedCoverSubtitle" class="cover-subtitle text-base text-gray-600 mt-3 whitespace-pre-line" v-html="renderedCoverSubtitle"></div>
             </div>
 
             <!-- 内容卡片内容 -->
@@ -80,8 +80,15 @@ export default {
             return ''; // 如果不是内容卡片或 body 不存在，返回空字符串
         });
 
+        const renderedCoverSubtitle = computed(() => {
+            return props.type === 'cover' && props.content && props.content.subtitle
+                   ? renderMarkdownAndLaTeX(props.content.subtitle)
+                   : '';
+        });
+
         return {
-            renderedMarkdown
+            renderedMarkdown,
+            renderedCoverSubtitle
         };
     }
 }

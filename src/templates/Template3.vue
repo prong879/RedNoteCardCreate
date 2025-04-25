@@ -95,10 +95,17 @@ export default {
                     : '';
         });
 
+        const renderedCoverSubtitle = computed(() => {
+            return props.type === 'cover' && props.content && props.content.subtitle
+                   ? renderMarkdownAndLaTeX(props.content.subtitle)
+                   : '';
+        });
+
         return {
             renderedCoverTitle,
             renderedContentTitle,
-            renderedMarkdownBody
+            renderedMarkdownBody,
+            renderedCoverSubtitle
         };
     }
 }
