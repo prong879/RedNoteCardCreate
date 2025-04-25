@@ -4,7 +4,7 @@
         <div class="flex-shrink-0 px-6 pt-6 pb-4 border-b">
             <!-- Flex布局, 子元素两端对齐, 垂直居中, 下外边距1rem -->
             <div class="flex justify-between items-center mb-4">
-                 <h2 class="text-xl font-semibold">卡片配置 <span v-if="topicId" class="text-sm text-gray-500">({{ topicId }})</span></h2>
+                 <h2 class="text-xl font-semibold">卡片配置</h2>
                  <button @click="$emit('return-to-topics')" class="px-4 py-1 border border-xhs-gray text-xhs-gray rounded-lg text-sm hover:border-xhs-pink hover:text-xhs-pink transition-colors bg-white">← 返回选择主题</button>
             </div>
             <!-- 选择模板 -->
@@ -55,6 +55,7 @@
                     handle=".drag-handle" 
                     ghost-class="ghost-card"
                     @end="onDragEnd"
+                    :options="dragOptions"
                 >
                     <template #item="{element: card, index}">
                         <div 
@@ -190,6 +191,14 @@ export default {
             selectTemplate,
             // updateScale // 通常不需要手动调用
         } = useTemplatePreviewScaling(content, emit);
+        
+        // 定义拖拽选项以优化滚动
+        const dragOptions = {
+          scroll: true, // 明确启用滚动
+          scrollSensitivity: 120, // 大幅增大触发滚动的敏感区域 (原 50, 默认 30)
+          scrollSpeed: 15,      // 保持稍微加快的滚动速度 (默认 10)
+          forceFallback: true, // 某些情况下可以提高兼容性
+        };
 
         // 组件挂载后调整所有文本域高度
         onMounted(() => {
@@ -299,7 +308,7 @@ export default {
             contentCardConfigSections, // 暴露内容卡片配置 ref 数组
             // From useCardManagement
             content,
-            addCard,
+            addCard: addCardInternal,
             removeCard,
             toggleVisibility,
             getButtonClass,
@@ -313,7 +322,8 @@ export default {
             // Local handlers
             handleTextareaInput,
             copyMainText,
-            focusPreview
+            focusPreview,
+            dragOptions, // 暴露 dragOptions
         };
     },
 }
@@ -338,28 +348,31 @@ export default {
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
+  height: 5px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+  background: transparent;
+  border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #c7c7c7;
-  border-radius: 3px;
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background-clip: content-box;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background-color: rgba(107, 114, 128, 0.7);
 }
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #c7c7c7 #f1f1f1;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 }
 
 .ghost-card {
     opacity: 0.5;
-    background: #c8ebfb;
-    border: 1px dashed #0ea5e9;
+    background: #f7fafc;
+    border: 1px dashed #cbd5e0;
 }
 
 /* .drag-handle is used as a selector for vuedraggable, styled with Tailwind */
