@@ -19,13 +19,13 @@
                      }">
                     <!-- 封面卡片内容 -->
                     <template v-if="type === 'cover'">
-                        <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left text-white">{{ title }}</h1>
+                        <h1 class="text-4xl font-bold mb-10 whitespace-pre-line text-left text-white rendered-title" v-html="renderedCoverTitle"></h1>
                         <p class="text-xl whitespace-pre-line text-left">{{ content.subtitle }}</p>
                     </template>
                     
                     <!-- 内容卡片内容 -->
                     <template v-else>
-                        <h3 class="text-xl font-bold mb-4 whitespace-pre-line pt-2">{{ content.title }}</h3>
+                        <h3 class="text-xl font-bold mb-4 whitespace-pre-line pt-2 rendered-title" v-html="renderedContentTitle"></h3>
                         <div class="markdown-body flex-grow overflow-y-hidden pr-1" v-html="renderedMarkdown"></div>
                     </template>
                 </div>
@@ -87,6 +87,14 @@ export default {
         renderedMarkdown() {
             // 只有在 content.body 存在时才进行渲染
             return this.content && this.content.body ? renderMarkdownAndLaTeX(this.content.body) : '';
+        },
+        // 新增：计算渲染后的封面标题
+        renderedCoverTitle() {
+            return this.title ? renderMarkdownAndLaTeX(this.title) : '';
+        },
+        // 新增：计算渲染后的内容卡片标题
+        renderedContentTitle() {
+             return this.content && this.content.title ? renderMarkdownAndLaTeX(this.content.title) : '';
         }
     }
 }
@@ -129,5 +137,11 @@ export default {
 
 .markdown-body :deep(li) {
     margin-bottom: 0.10rem;
+}
+
+/* 新增：移除渲染后标题内 p 标签的默认边距 */
+.rendered-title :deep(p) {
+    margin: 0;
+    display: inline; /* 如果希望保持在一行 */
 }
 </style>

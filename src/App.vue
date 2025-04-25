@@ -11,17 +11,7 @@
           <!-- 主题选择器 -->
           <TopicSelector v-if="showTopicSelector" @select-topic="loadTopic" />
           
-          <div v-else>
-            <!-- 移除返回按钮 -->
-            <!-- 
-            <button 
-              @click="showTopicSelector = true" 
-              class="mb-6 px-4 py-1 border border-xhs-gray text-xhs-gray rounded-lg text-sm hover:border-xhs-pink hover:text-xhs-pink transition-colors bg-white"
-            >
-              ← 返回选择主题
-            </button>
-            -->
-            
+          <div v-else>           
             <div class="flex flex-col lg:flex-row gap-8">
               <!-- 左侧：配置面板 -->
               <div class="lg:w-1/2 bg-white rounded-lg shadow-lg">
