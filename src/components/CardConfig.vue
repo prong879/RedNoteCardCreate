@@ -58,34 +58,43 @@
                     :options="dragOptions"
                 >
                     <template #item="{element: card, index}">
-                        <div 
-                            :ref="el => { if (el) contentCardConfigSections[index] = el }" 
-                            class="mb-4 p-3 border bg-white rounded-lg space-y-2 shadow-md" 
-                            :id="`config-card-${index}`"
-                        >
-                            <!-- 添加拖拽句柄 -->
-                            <div class="flex justify-between items-center mb-2">
-                                <div class="flex items-center">
-                                    <span class="drag-handle cursor-move mr-2 text-gray-400 hover:text-gray-600" title="拖拽排序">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                                        </svg>
-                                    </span>
-                                    <span class="font-medium">卡片 {{ index + 1 }}</span>
+                        <div class="card-item-group group">
+                            <!-- 原卡片编辑区 -->
+                            <div 
+                                :ref="el => { if (el) contentCardConfigSections[index] = el }" 
+                                class="p-3 border bg-white rounded-lg space-y-2 shadow-md relative z-10" 
+                                :id="`config-card-${index}`"
+                            >
+                                <!-- 添加拖拽句柄 -->
+                                <div class="flex justify-between items-center mb-2">
+                                    <div class="flex items-center">
+                                        <span class="drag-handle cursor-move mr-2 text-gray-400 hover:text-gray-600" title="拖拽排序">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                                            </svg>
+                                        </span>
+                                        <span class="font-medium">卡片 {{ index + 1 }}</span>
+                                    </div>
+                                    <div class="flex items-center space-x-1 md:space-x-2">
+                                         <button @click="focusPreview(index)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /> </svg> </button>
+                                         <button @click="toggleVisibility('contentCard', 'showHeader', index)" :class="getButtonClass(card.showHeader)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
+                                         <button @click="toggleVisibility('contentCard', 'showFooter', index)" :class="getButtonClass(card.showFooter)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
+                                         <button @click="removeCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="content.contentCards.length > 1"> 删除 </button>
+                                    </div>
                                 </div>
-                                <div class="flex items-center space-x-1 md:space-x-2">
-                                     <button @click="focusPreview(index)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /> </svg> </button>
-                                     <button @click="toggleVisibility('contentCard', 'showHeader', index)" :class="getButtonClass(card.showHeader)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
-                                     <button @click="toggleVisibility('contentCard', 'showFooter', index)" :class="getButtonClass(card.showFooter)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
-                                     <button @click="removeCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="content.contentCards.length > 1"> 删除 </button>
-                                </div>
+                                <textarea v-model="card.title" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
+                                <textarea v-model="card.body" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
                             </div>
-                            <textarea v-model="card.title" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
-                            <textarea v-model="card.body" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
+                            <!-- 插入点按钮 -->
+                            <div class="insert-point h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 ease-in-out my-2">
+                                <button @click="insertCard(index + 1)" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-xhs-pink hover:text-xhs-pink flex items-center justify-center text-sm bg-white bg-opacity-70 backdrop-blur-sm">
+                                    + 新卡片
+                                </button>
+                            </div>
                         </div>
                     </template>
                 </draggable>
-                <button @click="addCard" class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink bg-white hover:bg-xhs-pink hover:text-white transition-colors shadow-sm">添加卡片</button>
+                <!-- <button @click="addCard" class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink bg-white hover:bg-xhs-pink hover:text-white transition-colors shadow-sm">添加卡片</button> -->
             </div>
         </div>
 
@@ -172,7 +181,8 @@ export default {
             toggleVisibility,
             getButtonClass,
             onDragEnd,
-            updateContent
+            updateContent,
+            createEmptyCard // 从 useCardManagement 获取创建空卡片的方法
         } = useCardManagement(props, emit);
 
         // 2. 使用 useTextareaAutoHeight 管理文本域高度
@@ -264,6 +274,15 @@ export default {
 
         // --- 保留在组件内的简单事件处理器 ---
 
+        // 插入新卡片到指定索引
+        const insertCard = (index) => {
+            const newCard = createEmptyCard(); // 使用导入的方法创建新卡片
+            content.value.contentCards.splice(index, 0, newCard);
+            updateContent(); // 触发内容更新
+            // 在 DOM 更新后调整所有文本域高度
+            nextTick(adjustAllTextareas);
+        };
+
         // 包装 addCard 以便传入 adjustAllTextareas 回调
         const addCard = () => {
             addCardInternal(adjustAllTextareas);
@@ -308,7 +327,7 @@ export default {
             contentCardConfigSections, // 暴露内容卡片配置 ref 数组
             // From useCardManagement
             content,
-            addCard: addCardInternal,
+            addCard, // 使用包装后的 addCard
             removeCard,
             toggleVisibility,
             getButtonClass,
@@ -324,6 +343,7 @@ export default {
             copyMainText,
             focusPreview,
             dragOptions, // 暴露 dragOptions
+            insertCard, // 暴露插入函数
         };
     },
 }
