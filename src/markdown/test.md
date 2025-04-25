@@ -3,7 +3,7 @@ topicId: topic02
 headerText: "@测试用户"
 footerText: "测试页脚\n第二行"
 mainText: |
-  这是 Topic 02 的主文案。
+  这是 test 的主文案。
   用于测试 Markdown 转换功能。
 coverShowHeader: false
 coverShowFooter: false
