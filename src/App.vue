@@ -5,7 +5,7 @@
         <div class="mx-auto">
           <div class="text-center mb-10">
             <h1 class="text-3xl font-bold text-xhs-pink">小红书知识卡片生成器</h1>
-            <p class="mt-2 text-xhs-gray">时间序列知识科普 · 高效生成精美卡片</p>
+            <p class="mt-2 text-xhs-gray">{{ currentTopicTitle || '请选择一个主题开始' }}</p>
           </div>
           
           <!-- 主题选择器 -->
@@ -86,11 +86,16 @@ export default {
     
     const focusedPreviewIndex = ref(null);
     const focusedEditorIndex = ref(null);
+    const currentTopicTitle = ref('');
     
     // 加载主题
     const loadTopic = async ({ key: topicId }) => {
       console.log(`Attempting to load topic: ${topicId}`);
       currentTopicId.value = topicId;
+      
+      // 首先根据 topicId 查找 meta 信息并更新标题
+      const meta = topicsMeta.find(t => t.id === topicId);
+      currentTopicTitle.value = meta?.title || `未命名主题 (${topicId})`;
 
       try {
         // 修改动态导入路径: ../content/ -> ./content/
@@ -191,7 +196,8 @@ export default {
       focusedPreviewIndex,
       handleFocusPreviewCard,
       focusedEditorIndex,
-      handlePreviewScrolled
+      handlePreviewScrolled,
+      currentTopicTitle
     }
   }
 }
