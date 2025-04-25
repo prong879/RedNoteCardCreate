@@ -174,7 +174,7 @@ npm run build
 
 3.  **编辑卡片内容**：
     *   修改整体标题、封面副标题、各内容卡片的标题和内容。
-    *   内容编辑框支持 Markdown 语法 (如 `**加粗**`, `- 列表`, `换行` 等) 和 LaTeX 公式 (行内 `$E=mc^2$`，块级 `$$\sum_{i=1}^n x_i$$`)。
+    *   内容编辑框支持 Markdown 语法 (如 `**加粗**`, `- 列表`, `换行` 等) 和 LaTeX 公式 (行内 `$E=mc^2$`, 块级 `$$\sum_{i=1}^n x_i$$`)。
     *   可以点击"添加卡片"增加新的内容卡片，或点击"删除"移除多余的卡片。
     *   使用拖拽手柄调整内容卡片顺序。
     *   使用定位按钮或左右箭头快速在编辑区和预览区之间同步滚动位置。
@@ -411,18 +411,46 @@ yarn add gray-matter --dev
 
 *请参考 `src/markdown/topic01.md` 查看具体示例。*
 
-**3. 运行转换脚本**: 
+**3. 生成 JS 文件**: 
 
-在项目根目录打开终端，运行以下命令：
+主要通过 `zhuanhuan` npm 脚本来将 Markdown 文件转换为 `.js` 数据文件。请在项目根目录下使用以下命令：
 
+*   **转换指定文件**: 
+    ```bash
+    npm run zhuanhuan -- <topicId>
+    # 示例 (转换 src/markdown/topic02.md):
+    npm run zhuanhuan -- topic02 
+    ```
+    *   **参数**: 
+        *   `--`: **必需**的分隔符，用于区分 npm 命令和脚本参数。
+        *   `<topicId>`: **必需**，要转换的 Markdown 文件对应的 `topicId` (脚本会自动查找 `src/markdown/<topicId>.md`)。
+
+*   **转换所有文件**: 
+    ```bash
+    npm run zhuanhuan -- all
+    ```
+    *   **参数**: 
+        *   `--`: **必需**的分隔符。
+        *   `all`: **必需** (不区分大小写)，指示脚本转换 `src/markdown/` 目录下的所有 `.md` 文件。
+
+**（可选）创建新 Markdown 文件**: 
+
+使用 `xinwenan` 命令可以快速创建一个包含标准 Front Matter 的新 Markdown 文件。请在项目根目录下使用以下命令：
 ```bash
-node scripts/generateContent.js src/markdown/your_topic_file.md
+npm run xinwenan -- <topicId> <主标题>
+# 示例:
+npm run xinwenan -- topic03 "如何选择合适的模型"
 ```
+*   **参数**: 
+    *   `--`: **必需**的分隔符。
+    *   `<topicId>`: **必需**，新选题的唯一 ID (只允许字母、数字、下划线、短横线)。
+    *   `<主标题>`: **必需**，新选题的主标题 (可以包含空格，如果标题包含特殊 shell 字符，建议用引号包裹)。
 
-将 `src/markdown/your_topic_file.md` 替换为你要转换的 Markdown 文件的实际路径。
+这将在 `src/markdown/` 目录下创建 `<topicId>.md`，并自动填入 `topicId` 和 `title`。
 
-脚本成功运行后，会根据 Markdown 文件中的 `topicId` 在 `src/content/` 目录下生成或覆盖对应的 `topicXX_content.js` 文件。
 
-**注意**: 运行脚本会**覆盖**已存在的同名 `_content.js` 文件，请谨慎操作。
+**注意**: 
+*   运行转换脚本 (`zhuanhuan`) 会**覆盖**已存在的同名 `_content.js` 文件，请谨慎操作。
+*   创建新文件脚本 (`xinwenan`) 如果发现文件已存在则会报错退出。
 
 ## 具体使用步骤
