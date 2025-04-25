@@ -196,39 +196,55 @@ export default {
             nextTick(adjustAllTextareas);
         });
 
-        // 监听 focusedIndex prop 的变化以滚动编辑器
+        // 监听 focusedEditorIndex prop 的变化以滚动编辑器到容器顶部
         watch(() => props.focusedEditorIndex, (newIndex) => {
             console.log('[CardConfig] Watcher triggered. Received focusedEditorIndex:', newIndex);
+            const container = editorScrollContainer.value;
+            if (!container) {
+                console.warn("[CardConfig] 无法找到滚动容器");
+                return;
+            }
+
+            let targetElement;
+            // 确定目标元素
             if (newIndex === null) {
                 // 聚焦封面卡片
-                const targetElement = coverCardConfigSection.value;
-                const container = editorScrollContainer.value;
-                console.log('[CardConfig] Scrolling to cover card. Target:', targetElement, 'Container:', container);
-                if (targetElement && container) {
-                    // 恢复使用 scrollIntoView
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest'
-                    });
-                } else {
-                    console.warn("[CardConfig] 无法找到封面卡片配置元素或容器进行滚动", {target: targetElement, container: container});
-                }
+                targetElement = coverCardConfigSection.value;
+                console.log('[CardConfig] Scrolling to cover card. Target:', targetElement);
             } else if (typeof newIndex === 'number' && newIndex >= 0) {
                 // 聚焦内容卡片
-                nextTick(() => { // 确保 DOM 更新完毕
-                    const targetElement = contentCardConfigSections.value[newIndex];
-                    const container = editorScrollContainer.value;
-                    console.log(`[CardConfig] Scrolling to content card ${newIndex}. Target:`, targetElement, 'Container:', container);
-                    if (targetElement && container) {
-                        // 恢复使用 scrollIntoView
-                        targetElement.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest'
-                        });
-                    } else {
-                        console.warn(`[CardConfig] 无法找到索引 ${newIndex} 的内容卡片配置元素或容器进行滚动`, {target: targetElement, container: container, allRefs: contentCardConfigSections.value});
-                    }
+                // 确保在 DOM 更新后获取 ref
+                targetElement = contentCardConfigSections.value[newIndex];
+                console.log(`[CardConfig] Scrolling to content card ${newIndex}. Target:`, targetElement);
+            } else {
+                // 无效索引，不执行滚动
+                console.warn('[CardConfig] Received invalid index, skipping scroll:', newIndex);
+                return;
+            }
+
+            // 确保目标元素存在后再执行滚动
+            if (targetElement) {
+                nextTick(() => { // 使用 nextTick 确保元素已渲染且位置信息准确
+                    const containerRect = container.getBoundingClientRect();
+                    const targetRect = targetElement.getBoundingClientRect();
+                    // 计算目标元素顶部相对于容器顶部的偏移量
+                    const offsetRelativeToContainer = targetRect.top - containerRect.top;
+                    // 计算容器需要滚动到的目标 scrollTop 值
+                    const desiredScrollTop = container.scrollTop + offsetRelativeToContainer;
+
+                    // 平滑滚动到计算出的位置
+                    container.scrollTo({
+                        top: desiredScrollTop,
+                        behavior: 'smooth'
+                    });
                 });
+            } else {
+                // 如果目标元素未找到，打印警告
+                if (newIndex === null) {
+                    console.warn("[CardConfig] 无法找到封面卡片配置元素进行滚动", {container: container});
+                } else {
+                    console.warn(`[CardConfig] 无法找到索引 ${newIndex} 的内容卡片配置元素进行滚动`, {container: container, allRefs: contentCardConfigSections.value});
+                }
             }
         });
 
