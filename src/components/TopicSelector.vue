@@ -4,7 +4,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div v-for="(topic, index) in topics" :key="topic.id"
                 class="topic-card relative p-4 bg-white border border-gray-200 rounded-lg cursor-pointer shadow-md hover:shadow-2xl hover:scale-105 transition-all flex flex-col overflow-hidden">
-                <div class="absolute top-0 right-1 font-serif italic text-gray-200 opacity-50 z-0 select-none">
+                <div class="absolute top-0 right-1 font-serif italic text-gray-200 opacity-80 z-0 select-none">
                     <span class="text-5xl">{{ getOrdinal(index + 1).number }}</span>
                     <span class="text-xl align-bottom ml-[-0.1em]">{{ getOrdinal(index + 1).suffix }}</span>
                 </div>
