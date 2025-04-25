@@ -120,56 +120,55 @@ npm run build
 ## 项目结构
 
 ```
-.                       # 项目根目录
-├── .git/               # Git 版本控制目录
-├── .vscode/            # VSCode 编辑器配置
-├── docs/               # 项目文档
+.			# 项目根目录
+├── .git/			# Git 版本控制目录
+├── .vscode/			# VSCode 编辑器配置
+├── docs/			# 项目文档
 │   ├── 【文字版】时间序列数据.md
 │   ├── 写作要点分析.md
 │   └── 选题库.md
-├── node_modules/       # 项目依赖
-├── public/             # 静态资源 (如图标) - (注：当前未列出，但通常存在于 Vite 项目)
-├── scripts/            # Node.js 脚本 (如 Markdown 转换脚本)
+├── media/		# 媒体资源 (图片, 动画)
+│   └── ...
+├── node_modules/		# 项目依赖
+├── public/			# 静态资源 (如图标) - (注：当前未列出，但通常存在于 Vite 项目)
+├── scripts/			# Node.js 脚本 (如 Markdown 转换脚本)
 ├── src/
-│   ├── assets/         # 静态资源 (样式)
+│   ├── assets/		# 静态资源 (样式)
 │   │   └── styles/
 │   │       └── index.css # 主要样式文件 (引入Tailwind)
-│   ├── components/     # Vue 组件 (视图层)
+│   ├── components/		# Vue 组件 (视图层)
 │   │   ├── CardConfig.vue  # 卡片配置面板
 │   │   ├── CardPreview.vue # 卡片预览面板
 │   │   └── TopicSelector.vue # 选题选择器
-│   ├── composables/    # Vue 组合式函数 (逻辑复用)
-│   │   ├── useCardManagement.js       # 管理卡片内容状态与操作 (增删改、显隐、拖拽)
+│   ├── composables/	# Vue 组合式函数 (有状态逻辑复用)
+│   │   ├── useCardManagement.js       # 管理卡片内容状态与操作
 │   │   ├── useTemplatePreviewScaling.js # 管理模板预览、缩放与选择
 │   │   └── useTextareaAutoHeight.js   # 管理文本域自动高度
-│   ├── content/        # 选题内容数据
+│   ├── content/		# 选题内容数据
 │   │   ├── topicsMeta.js      # 选题元信息 (ID, 标题, 描述)
 │   │   ├── topic01_content.js # 选题1的详细内容
 │   │   └── ...                # 其他选题内容文件
-│   ├── templates/      # 卡片样式模板组件
+│   ├── prompts/        # AI Prompt 模板
+│   │   └── knowledge_card_prompt.md # 小红书知识卡片生成 Prompt
+│   ├── templates/		# 卡片样式模板组件
 │   │   ├── Template1.vue   # 模板1实现 (3:4)
 │   │   ├── Template2.vue   # 模板2实现 (3:4)
 │   │   ├── Template3.vue   # 模板3实现 (3:4)
 │   │   └── Template5.vue   # 模板5实现 (9:16)
-│   ├── utils/          # 通用工具函数
+│   ├── utils/		# 通用工具函数 (无状态逻辑)
 │   │   ├── cardExport.js   # 卡片导出逻辑 (html2canvas, file-saver, jszip)
 │   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑 (markdown-it, katex)
-│   ├── App.vue         # 应用根组件 (协调各部分)
-│   └── main.js         # 应用入口文件
-├── .gitignore          # Git 忽略配置
-├── index.html          # HTML 入口文件
-├── package.json        # 项目依赖与脚本配置
-├── package-lock.json   # 确切的依赖版本锁定文件
-├── postcss.config.js   # PostCSS 配置文件
-├── README.md           # 项目说明文档 (本文件)
-├── tailwind.config.js  # Tailwind CSS 配置文件
-├── vite.config.js      # Vite 配置文件
-├── 解决方案概要.md     # 解决方案设计文档
-├── 第01期-什么是时间序列.md # 示例或内容源文件 (Markdown 格式)
-├── 写作要点分析.md     # 示例或内容源文件 (Markdown 格式)
-├── 选题库.md           # 示例或内容源文件 (Markdown 格式)
-├── 【文字版】时间序列数据.md # 示例或内容源文件 (Markdown 格式)
-└── windows安装BroserToolsMCP.md # BrowserToolsMCP 安装说明 (Windows)
+│   ├── App.vue		# 应用根组件 (协调各部分)
+│   └── main.js		# 应用入口文件
+├── .gitignore		# Git 忽略配置
+├── index.html		# HTML 入口文件
+├── package.json		# 项目依赖与脚本配置
+├── package-lock.json	# 确切的依赖版本锁定文件
+├── postcss.config.js	# PostCSS 配置文件
+├── README.md		# 项目说明文档 (本文件)
+├── tailwind.config.js	# Tailwind CSS 配置文件
+├── vite.config.js		# Vite 配置文件
+└── ...                 # 其他文档或配置文件
 ```
 
 ## 具体使用步骤
@@ -483,4 +482,37 @@ npm run xinwenan -- topic03 "如何选择合适的模型"
 *   运行转换脚本 (`zhuanhuan`) 会**覆盖**已存在的同名 `_content.js` 文件，请谨慎操作。
 *   创建新文件脚本 (`xinwenan`) 如果发现文件已存在则会报错退出。
 
-## 具体使用步骤
+## AI 助手 Prompt 模板
+
+用于指导 AI 助手（例如本文档中使用的 Gemini/ChatGPT 等）生成符合本项目规范的小红书知识卡片 Markdown 源文件的 Prompt 模板，定义在以下位置：
+
+*   **文件**: `src/prompts/knowledge_card_prompt.md`
+
+在与 AI 助手协作生成新的选题内容时，应参考或使用此模板，以确保输出格式的准确性。
+
+## 媒体资源管理规范
+
+为了更好地管理项目中用于辅助说明的图片、动画等媒体资源（例如使用 Manim 生成的可视化内容），请遵循以下规范：
+
+1.  **存储位置**:
+    *   所有媒体资源应统一存放在项目根目录下的 `media/` 文件夹中。
+
+2.  **内部组织**:
+    *   在 `media/` 文件夹内部，应按照其对应的文档内容或功能模块创建子目录进行组织。例如，对于 `docs/选题库.md` 的辅助媒体，应创建如下结构：
+        ```
+        media/
+        ├── 1_基础入门与核心概念/
+        ├── 2_主流模型介绍/
+        ├── 3_核心检验方法/
+        ├── 4_波动率模型/
+        └── 5_实践与拓展/
+        ```
+
+3.  **文件命名**:
+    *   媒体文件名应具有清晰的描述性，建议采用 `编号_关键词` 的格式，以便快速理解其内容。例如：
+        *   `01_什么是时间序列.mp4`
+        *   `05_平稳性对比.png`
+        *   `12_ACF_PACF拖尾截尾.gif`
+
+4.  **版本控制**:
+    *   大型媒体文件（如高清视频）可能会显著增加 Git 仓库的体积。请根据项目实际情况考虑是否将 `media/` 目录或其中的大型文件添加到 `.gitignore` 中，或考虑使用 Git LFS (Large File Storage) 进行管理。
