@@ -144,7 +144,7 @@ export default {
             type: String,
             default: null
         },
-        focusedIndex: {
+        focusedEditorIndex: {
             type: Number,
             default: null
         }
@@ -197,8 +197,8 @@ export default {
         });
 
         // 监听 focusedIndex prop 的变化以滚动编辑器
-        watch(() => props.focusedIndex, (newIndex) => {
-            console.log('[CardConfig] Watcher triggered. Received focusedIndex:', newIndex);
+        watch(() => props.focusedEditorIndex, (newIndex) => {
+            console.log('[CardConfig] Watcher triggered. Received focusedEditorIndex:', newIndex);
             if (newIndex === null) {
                 // 聚焦封面卡片
                 const targetElement = coverCardConfigSection.value;

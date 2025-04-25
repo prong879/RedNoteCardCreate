@@ -102,7 +102,7 @@ export default {
             type: String,
             required: true
         },
-        focusedIndex: {
+        focusedPreviewIndex: {
             type: Number,
             default: null
         }
@@ -134,7 +134,7 @@ export default {
             contentCardRefs.value = [];
         });
 
-        watch(() => props.focusedIndex, (newIndex) => {
+        watch(() => props.focusedPreviewIndex, (newIndex) => {
             if (newIndex !== null && newIndex >= 0) {
                 nextTick(() => {
                      const targetElement = contentCardRefs.value[newIndex];

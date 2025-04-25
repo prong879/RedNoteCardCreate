@@ -19,7 +19,7 @@
                   :selectedTemplate="selectedTemplate"
                   :cardContent="cardContent"
                   :topicId="currentTopicId"
-                  :focused-index="focusedEditorIndex"
+                  :focused-editor-index="focusedEditorIndex"
                   @update:template="selectedTemplate = $event"
                   @update:content="updateCardContent"
                   @return-to-topics="showTopicSelector = true"
@@ -34,7 +34,7 @@
                   :template="selectedTemplate"
                   :content="cardContent"
                   :topicId="currentTopicId"
-                  :focusedIndex="focusedPreviewIndex"
+                  :focused-preview-index="focusedPreviewIndex"
                   @reset-focus="focusedPreviewIndex = null"
                   @preview-scrolled-to-index="handlePreviewScrolled"
                 />
