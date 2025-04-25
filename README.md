@@ -134,7 +134,7 @@ npm run build
 │   │   ├── Template1.vue   # 模板1实现 (3:4)
 │   │   ├── Template2.vue   # 模板2实现 (3:4)
 │   │   ├── Template3.vue   # 模板3实现 (3:4)
-│   │   └── Template5.vue   # 模板5实现 (可能为 16:9)
+│   │   └── Template5.vue   # 模板5实现 (16:9)
 │   ├── utils/          # 通用工具函数
 │   │   ├── cardExport.js   # 卡片导出逻辑 (html2canvas, file-saver)
 │   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑 (markdown-it, katex)

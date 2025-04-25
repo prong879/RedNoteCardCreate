@@ -11,6 +11,7 @@
         "@agentdeskai/browser-tools-mcp": "^1.2.0",
         "file-saver": "^2.0.5",
         "html2canvas": "^1.4.1",
+        "jszip": "^3.10.1",
         "katex": "^0.16.22",
         "marked": "^15.0.9",
         "vue": "^3.3.4",

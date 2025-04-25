@@ -128,6 +128,6 @@ export default {
 }
 
 .markdown-body :deep(li) {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.10rem;
 }
 </style>

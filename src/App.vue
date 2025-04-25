@@ -42,6 +42,7 @@
                 <CardPreview 
                   :template="selectedTemplate"
                   :content="cardContent"
+                  :topicId="currentTopicId"
                   :focusedIndex="focusedPreviewIndex"
                   @reset-focus="focusedPreviewIndex = null"
                 />

@@ -1,11 +1,11 @@
 <template>
     <div class="card-preview">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold">卡片预览 (模板: {{ template }})</h2>
-            <button @click="exportAllCards"
-                class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors">
-                导出全部卡片
-            </button>
+            <h2 class="text-xl font-semibold">卡片预览</h2>
+            <div class="flex gap-2">
+                <button @click="exportAllAsImages" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">导出所有图片</button>
+                <button @click="exportAllAsZip" class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors">打包下载 (ZIP)</button>
+            </div>
         </div>
 
         <div ref="previewScrollContainer" class="flex overflow-x-auto gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
@@ -22,7 +22,7 @@
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     封面卡片
-                    <button @click="exportSingleCard($refs.coverCard, '封面卡片')"
+                    <button @click="exportSingleCard($refs.coverCard, `${topicId}_封面_${getFormattedDate()}`)"
                         class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                         导出
                     </button>
@@ -41,7 +41,7 @@
                 </div>
                 <div class="mt-2 text-center text-sm text-xhs-gray">
                     内容卡片 {{ index + 1 }}
-                    <button @click="exportSingleCard($refs[`contentCard${index}`][0], `内容卡片_${index + 1}`)"
+                    <button @click="exportSingleCard(contentCardRefs[index], `${topicId}_内容${String(index + 1).padStart(2, '0')}_${getFormattedDate()}`)"
                         class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                         导出
                     </button>
@@ -64,20 +64,17 @@
 
 <script>
 import { computed, ref, watch, onBeforeUpdate, nextTick } from 'vue';
-import { exportCardAsImage, exportCardsAsImages, copyTextToClipboard } from '../utils/cardExport';
+import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard } from '../utils/cardExport';
 
 // 导入所有模板组件
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
 import Template3 from '../templates/Template3.vue';
-// 移除 Template4 导入
-// import Template4 from '../templates/Template4.vue';
-import Template5 from '../templates/Template5.vue'; // 导入新模板
+import Template5 from '../templates/Template5.vue';
 
 export default {
     name: 'CardPreview',
-    // 移除 Template4 组件注册
-    components: { Template1, Template2, Template3, Template5 }, // 注册新模板
+    components: { Template1, Template2, Template3, Template5 },
     props: {
         template: {
             type: String,
@@ -87,6 +84,10 @@ export default {
             type: Object,
             required: true
         },
+        topicId: {
+            type: String,
+            required: true
+        },
         focusedIndex: {
             type: Number,
             default: null
@@ -94,7 +95,6 @@ export default {
     },
     emits: ['reset-focus'],
     setup(props, { emit }) {
-        // 根据传入的 template prop 计算当前应使用的模板组件
         const activeTemplateComponent = computed(() => {
             switch (props.template) {
                 case 'template1':
@@ -103,13 +103,10 @@ export default {
                     return Template2;
                 case 'template3':
                     return Template3;
-                // 移除 Template4 case
-                // case 'template4':
-                //     return Template4;
-                case 'template5': // 添加新模板 case
+                case 'template5':
                     return Template5;
                 default:
-                    return Template1; // 默认使用模板1
+                    return Template1;
             }
         });
 
@@ -145,79 +142,100 @@ export default {
         };
     },
     methods: {
-        // 新增：获取可导出卡片元素的辅助方法
+        getFormattedDate() {
+            const date = new Date();
+            const year = date.getFullYear().toString().slice(-2);
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            return `${year}${month}${day}`;
+        },
+
         _getExportableCardElement(containerElement) {
             if (!containerElement) {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
             }
-            const actualCard = containerElement.querySelector('.card');
+            const actualCard = containerElement.querySelector('.xhs-card') || containerElement.querySelector('.card');
             if (!actualCard) {
-                console.warn('在容器元素内找不到 .card 元素', containerElement);
+                console.warn('在容器元素内找不到 .xhs-card 或 .card 元素', containerElement);
             }
             return actualCard;
         },
 
-        // 修改：使用辅助方法
         async exportSingleCard(cardElement, fileName) {
+            if (!this.topicId) {
+                alert('无法获取主题ID，无法导出。');
+                return;
+            }
             try {
-                const actualCard = this._getExportableCardElement(cardElement); // 使用辅助函数
+                const actualCard = this._getExportableCardElement(cardElement);
                 if (!actualCard) {
-                    throw new Error("找不到可导出的卡片元素 (.card)");
+                    throw new Error("找不到可导出的卡片元素(.xhs-card 或 .card)");
                 }
                 await exportCardAsImage(actualCard, fileName);
-                alert(`成功导出 ${fileName}`);
+                alert(`成功导出 ${fileName}.png`);
             } catch (error) {
                 console.error('导出失败:', error);
                 alert('导出失败: ' + error.message);
             }
         },
 
-        // 修改：使用辅助方法
-        async exportAllCards() {
-            try {
-                const cardsToExport = [];
+        _getAllExportableElements() {
+            const elements = [];
+            const coverCardContainer = this.$refs.coverCard;
+            const coverCardElement = this._getExportableCardElement(coverCardContainer);
+            if (coverCardElement) {
+                elements.push({ element: coverCardElement, type: 'cover', index: -1 });
+            }
 
-                // 获取封面卡片元素
-                const coverCardContainer = this.$refs.coverCard;
-                const coverCardElement = this._getExportableCardElement(coverCardContainer); // 使用辅助函数
-                if (coverCardElement) {
-                    cardsToExport.push(coverCardElement);
-                }
-
-                // 获取内容卡片元素
-                this.content.contentCards.forEach((_, index) => {
-                    // 修改：直接访问 setup 返回的 ref 数组
-                    const contentCardContainer = this.contentCardRefs?.[index]; 
-                    const contentCardElement = this._getExportableCardElement(contentCardContainer); // 使用辅助函数
-                    if (contentCardElement) {
-                        cardsToExport.push(contentCardElement);
-                    } else {
-                        // 添加日志帮助调试
-                        console.warn(`在导出全部卡片时，未找到索引 ${index} 的内容卡片的可导出元素 (.card)。容器元素:`, contentCardContainer);
-                    }
-                });
-
-                if (cardsToExport.length === 0) {
-                    alert("没有可导出的卡片元素。");
-                    return;
-                }
-
-                // 添加日志：如果只找到封面卡片
-                if (cardsToExport.length === 1 && coverCardElement) {
-                    console.warn("只找到了封面卡片用于导出，请检查内容卡片的 ref 获取或模板内是否存在 .card 元素。");
-                }
-
-                const result = await exportCardsAsImages(cardsToExport, this.content.title);
-
-                if (result.success) {
-                    alert(result.message);
+            this.content.contentCards.forEach((_, index) => {
+                const contentCardContainer = this.contentCardRefs?.[index];
+                const contentCardElement = this._getExportableCardElement(contentCardContainer);
+                if (contentCardElement) {
+                    elements.push({ element: contentCardElement, type: 'content', index: index });
                 } else {
-                    alert('导出出错: ' + result.message);
+                    console.warn(`无法为索引 ${index} 的内容卡片找到可导出元素。`);
                 }
-            } catch (error) {
-                console.error('批量导出失败:', error);
-                alert('批量导出失败: ' + error.message);
+            });
+            return elements;
+        },
+
+        async exportAllAsImages() {
+            if (!this.topicId) {
+                alert('无法获取主题ID，无法导出。');
+                return;
+            }
+            const elementsToExport = this._getAllExportableElements();
+            if (elementsToExport.length === 0) {
+                alert("没有可导出的卡片。");
+                return;
+            }
+            console.log(`准备导出 ${elementsToExport.length} 张图片...`);
+            try {
+                await exportCardsAsImages(elementsToExport, this.topicId, this.getFormattedDate());
+                alert('所有图片导出完成！');
+            } catch(error) {
+                console.error('批量导出图片失败:', error);
+                alert('批量导出图片失败: ' + error.message);
+            }
+        },
+
+        async exportAllAsZip() {
+            if (!this.topicId) {
+                alert('无法获取主题ID，无法导出。');
+                return;
+            }
+            const elementsToExport = this._getAllExportableElements();
+            if (elementsToExport.length === 0) {
+                alert("没有可导出的卡片。");
+                return;
+            }
+            console.log(`准备打包 ${elementsToExport.length} 张图片...`);
+            try {
+                await exportCardsAsZip(elementsToExport, this.topicId, this.getFormattedDate());
+            } catch(error) {
+                console.error('打包下载失败:', error);
+                alert('打包下载失败: ' + error.message);
             }
         },
 
@@ -241,8 +259,5 @@ export default {
 <style scoped>
 .card-container {
     position: relative;
-    /* width: 320px; */ /* 移除冗余宽度，由模板内部 w-80 控制 */
 }
-
-/* Markdown 样式现在由各自的模板组件处理 */
 </style>
