@@ -8,7 +8,7 @@
 
 1.  **主题元数据加载**：从 `src/content/topicsMeta.js` 加载所有选题的元信息（标题、描述）。
 2.  **动态内容加载与检测**：选择选题后，从对应的 `src/content/topicXX_content.js` 文件动态加载详细内容。`TopicSelector` 会检测文件是否存在以及 `localStorage` 状态。
-3.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template3`, `Template5` - 支持 3:4 和 9:16 等比例)。
+3.  **卡片样式模板选择**：提供多种基础卡片样式模板供选择 (`Template1`, `Template2`, `Template5` - 支持 3:4 和 9:16 等比例)。用户可以在预览区选择不同的模板，实时查看效果。
 4.  **可视化内容编辑**：
     *   实时编辑全局页眉/页脚、封面标题/副标题、卡片标题/内容、主文案。
     *   内容卡片支持拖拽排序 (`vuedraggable`)。
@@ -106,7 +106,7 @@ npm run build
     *   为每个选题 ID 创建对应的 `src/content/topicXX_content.js` 文件，包含详细的卡片内容和主文案。
 2.  **启动应用**：运行 `npm run dev`。
 3.  **选择选题**：在应用首页（`TopicSelector`）点击要制作的选题卡片，应用将加载对应的 `topicXX_content.js`。
-4.  **选择样式**：在编辑页面（`CardConfig`）的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板3`, `模板5`)。
+4.  **选择样式**：在编辑页面（`CardConfig`）的卡片配置区选择卡片样式模板 (`模板1`, `模板2`, `模板5`)。
 5.  **编辑与预览**：
     *   在 `CardConfig` 中调整卡片内容（可使用 Markdown 和 LaTeX），并在右侧 `CardPreview` 中实时预览选定样式下的效果。
     *   可添加、删除、拖拽排序内容卡片，显隐页眉页脚。
@@ -153,8 +153,7 @@ npm run build
 │   ├── templates/		# 卡片样式模板组件
 │   │   ├── Template1.vue   # 模板1实现 (3:4)
 │   │   ├── Template2.vue   # 模板2实现 (3:4)
-│   │   ├── Template3.vue   # 模板3实现 (3:4)
-│   │   └── Template5.vue   # 模板5实现 (9:16)
+│   │   ├── Template5.vue   # 模板5实现 (9:16)
 │   ├── utils/		# 通用工具函数 (无状态逻辑)
 │   │   ├── cardExport.js   # 卡片导出逻辑 (html2canvas, file-saver, jszip)
 │   │   └── markdownRenderer.js # Markdown & LaTeX 渲染逻辑 (markdown-it, katex)
@@ -178,7 +177,7 @@ npm run build
     *   点击想要使用的选题卡片，应用会加载对应的 `topicXX_content.js` 文件，并进入编辑页面。
 
 2.  **选择卡片样式**：
-    *   在编辑页左侧的配置面板中，点击"选择模板"下的样式预览图（模板1/2/3/5）来切换卡片的视觉风格。
+    *   在编辑页左侧的配置面板中，点击"选择模板"下的样式预览图（模板1/2/5）来切换卡片的视觉风格。
 
 3.  **编辑卡片内容**：
     *   修改整体标题、封面副标题、各内容卡片的标题和内容。
@@ -256,8 +255,8 @@ npm run build
     *   [x] 主题模板加载与内容绑定
         *   [x] 重构内容加载逻辑，使用 `topicsMeta.js` 和独立的 `topicXX_content.js` 文件。
         *   [x] 解决动态导入在开发环境下的路径解析和 Vite 分析问题 (使用 `import.meta.glob`)。
-    *   [x] 基础卡片样式模板 (`Template1`, `Template2`, `Template3`)
-    *   [x] 新增卡片样式模板 (`Template5` - 9:16 宽高比)
+    *   [x] 基础卡片样式模板 (`Template1`, `Template2`)
+    *   [x] 添加模板5 (`Template5`)
     *   [x] 图片导出功能 (`html2canvas`, `file-saver`)
     *   [x] 文案复制功能
     *   [x] Markdown 与 LaTeX 渲染 (`markdown-it`, `katex`)
@@ -298,9 +297,8 @@ npm run build
 3.  **Props 规范**: 
     *   **必需 Props**: 必须接收以下核心 Props，并进行类型和必要性校验：
         *   `type: { type: String, required: true, validator: (value) => ['cover', 'content'].includes(value) }` 用于区分卡片类型。
-        *   `content: { type: Object, required: true }` 用于接收核心内容数据。
-        *   `title: { type: String, default: '' }` (主要用于封面)。
-        *   `headerText: { type: String, default: '' }`。
+        *   `cardData: { type: Object, required: true }` 用于统一接收卡片数据（封面卡片对象 `coverCard` 或内容卡片对象 `contentCards[i]`）。
+        *   `headerText: { type: String, default: '' }`。 
         *   `footerText: { type: String, default: '' }`。
         *   `isHeaderVisible: { type: Boolean, default: true }`。
         *   `isFooterVisible: { type: Boolean, default: true }`。
@@ -310,47 +308,48 @@ npm run build
 4.  **内容处理**: 
     *   必须使用 `type` Prop 结合 `v-if`/`v-else` 来处理封面 (`cover`) 和内容 (`content`) 两种卡片类型的不同渲染逻辑。
     *   **标题、副标题与正文渲染 (Markdown/LaTeX 支持)**: 
-        *   **封面标题 (`title`)**, **封面副标题 (`content.subtitle`)**, **内容卡片标题 (`content.title`)** 和 **内容卡片正文 (`content.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
-        *   实现方式：必须通过 Vue 的**计算属性 (computed property)** 调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数对相应的文本进行处理，并将结果绑定到模板中对应元素的 `v-html` 指令上。
+        *   **封面标题 (`cardData.title`)**, **封面副标题 (`cardData.subtitle`)**, **内容卡片标题 (`cardData.title`)** 和 **内容卡片正文 (`cardData.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
+        *   实现方式：必须通过 Vue 的**计算属性 (computed property)** 调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数对 `cardData` 中相应的文本进行处理，并将结果绑定到模板中对应元素的 `v-html` 指令上。
         *   **注意**: 当使用 `v-html` 渲染由 Markdown 生成的 HTML 时，如果 Markdown 源文本仅包含一行文本，`markdown-it` 默认会将其包裹在一个 `<p>` 标签内。这可能会引入不必要的垂直边距。为避免此问题，建议在模板组件的 `<style scoped>` 中添加针对渲染容器的 `:deep(p) { margin: 0; }` 样式规则来重置段落边距。
         ```javascript
-        // 示例：渲染标题、副标题和正文
+        // 示例：在 setup 函数中处理 cardData
         import { computed } from 'vue';
         import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
         
         export default {
           props: {
-            type: String,
-            title: String, // 封面标题
-            content: Object // 包含 content.subtitle, content.title, content.body
+            type: String, // 'cover' or 'content'
+            cardData: Object, // 包含 title, subtitle (cover) 或 title, body (content)
             // ... 其他 props
           },
           setup(props) {
             const renderedCoverTitle = computed(() => {
-              return props.title ? renderMarkdownAndLaTeX(props.title) : '';
+              return props.type === 'cover' && props.cardData?.title
+                     ? renderMarkdownAndLaTeX(props.cardData.title)
+                     : '';
             });
             
-            const renderedCoverSubtitle = computed(() => { // 新增或修改
-              return props.type === 'cover' && props.content && props.content.subtitle
-                     ? renderMarkdownAndLaTeX(props.content.subtitle)
+            const renderedCoverSubtitle = computed(() => {
+              return props.type === 'cover' && props.cardData?.subtitle
+                     ? renderMarkdownAndLaTeX(props.cardData.subtitle)
                      : '';
             });
 
             const renderedContentTitle = computed(() => {
-              return props.type === 'content' && props.content && props.content.title 
-                     ? renderMarkdownAndLaTeX(props.content.title) 
+              return props.type === 'content' && props.cardData?.title 
+                     ? renderMarkdownAndLaTeX(props.cardData.title) 
                      : '';
             });
 
             const renderedMarkdownBody = computed(() => {
-              return props.type === 'content' && props.content && props.content.body 
-                     ? renderMarkdownAndLaTeX(props.content.body) 
+              return props.type === 'content' && props.cardData?.body 
+                     ? renderMarkdownAndLaTeX(props.cardData.body) 
                      : '';
             });
 
             return { 
               renderedCoverTitle, 
-              renderedCoverSubtitle, // 确保返回
+              renderedCoverSubtitle,
               renderedContentTitle, 
               renderedMarkdownBody 
             };

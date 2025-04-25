@@ -49,11 +49,8 @@ export default {
             required: true,
             validator: (value) => ['cover', 'content'].includes(value)
         },
-        title: { // 封面标题
-            type: String,
-            default: ''
-        },
-        content: { // 包含 subtitle (封面) 或 title, body (内容)
+        // 统一接收卡片数据对象
+        cardData: {
             type: Object,
             required: true
         },
@@ -75,35 +72,32 @@ export default {
         }
     },
     setup(props) {
-        // 计算属性用于渲染标题和正文
         const renderedCoverTitle = computed(() => {
-            return props.title ? renderMarkdownAndLaTeX(props.title) : '';
+            return props.type === 'cover' && props.cardData && props.cardData.title
+                   ? renderMarkdownAndLaTeX(props.cardData.title)
+                   : '';
         });
-
-        const renderedContentTitle = computed(() => {
-            return props.type === 'content' && props.content && props.content.title 
-                    ? renderMarkdownAndLaTeX(props.content.title) 
-                    : '';
-        });
-
-        const renderedMarkdownBody = computed(() => {
-            // 修正：确保访问 content.body
-            return props.type === 'content' && props.content && props.content.body 
-                    ? renderMarkdownAndLaTeX(props.content.body) 
-                    : '';
-        });
-
         const renderedCoverSubtitle = computed(() => {
-            return props.type === 'cover' && props.content && props.content.subtitle
-                   ? renderMarkdownAndLaTeX(props.content.subtitle)
+            return props.type === 'cover' && props.cardData && props.cardData.subtitle
+                   ? renderMarkdownAndLaTeX(props.cardData.subtitle)
+                   : '';
+        });
+        const renderedContentTitle = computed(() => {
+            return props.type === 'content' && props.cardData && props.cardData.title
+                   ? renderMarkdownAndLaTeX(props.cardData.title)
+                   : '';
+        });
+        const renderedMarkdownBody = computed(() => {
+            return props.type === 'content' && props.cardData && props.cardData.body
+                   ? renderMarkdownAndLaTeX(props.cardData.body)
                    : '';
         });
 
         return {
             renderedCoverTitle,
+            renderedCoverSubtitle,
             renderedContentTitle,
-            renderedMarkdownBody,
-            renderedCoverSubtitle
+            renderedMarkdownBody
         };
     }
 }
@@ -184,5 +178,9 @@ export default {
 }
 .markdown-body {
     /* overflow-y-auto allows scrolling */
+}
+
+.cover-subtitle :deep(p) {
+    margin: 0;
 }
 </style> 

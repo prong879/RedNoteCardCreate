@@ -19,14 +19,14 @@
                      }">
                     <!-- 封面卡片内容 -->
                     <template v-if="type === 'cover'">
-                        <h1 class="text-4xl font-bold mb-4 whitespace-pre-line text-left text-white rendered-title" v-html="renderedCoverTitle"></h1>
+                        <h1 v-if="renderedCoverTitle" class="text-4xl font-bold mb-4 whitespace-pre-line text-left text-white rendered-title" v-html="renderedCoverTitle"></h1>
                         <div v-if="renderedCoverSubtitle" class="cover-subtitle text-xl opacity-90 mt-2 whitespace-pre-line" v-html="renderedCoverSubtitle"></div>
                     </template>
                     
                     <!-- 内容卡片内容 -->
                     <template v-else>
-                        <h3 class="text-xl font-bold mb-4 whitespace-pre-line pt-2 rendered-title" v-html="renderedContentTitle"></h3>
-                        <div class="markdown-body flex-grow overflow-y-hidden pr-1" v-html="renderedMarkdown"></div>
+                        <h3 v-if="renderedContentTitle" class="text-xl font-bold mb-4 whitespace-pre-line pt-2 rendered-title" v-html="renderedContentTitle"></h3>
+                        <div v-if="renderedMarkdownBody" class="markdown-body flex-grow overflow-y-hidden pr-1" v-html="renderedMarkdownBody"></div>
                     </template>
                 </div>
 
@@ -54,24 +54,19 @@ export default {
             required: true,
             validator: (value) => ['cover', 'content'].includes(value)
         },
-        // 标题内容
-        title: {
-            type: String,
-            default: ''
-        },
-        // 内容对象 (cover: {subtitle}, content: {title, body})
-        content: {
+        // 统一接收卡片数据对象 (coverCard 或 contentCard)
+        cardData: {
             type: Object,
             required: true
         },
         // 页眉和页脚文本
         headerText: {
             type: String,
-            default: ''
+            default: '@园丁小区詹姆斯'
         },
         footerText: {
             type: String,
-            default: ''
+            default: '持续更新\\n你一定能学会时间序列分析'
         },
         // 控制页眉页脚可见性
         isHeaderVisible: {
@@ -83,26 +78,42 @@ export default {
             default: true
         }
     },
-    computed: {
+    setup(props) {
         // 计算渲染后的 Markdown 和 LaTeX 内容
-        renderedMarkdown() {
-            // 只有在 content.body 存在时才进行渲染
-            return this.content && this.content.body ? renderMarkdownAndLaTeX(this.content.body) : '';
-        },
-        // 新增：计算渲染后的封面标题
-        renderedCoverTitle() {
-            return this.title ? renderMarkdownAndLaTeX(this.title) : '';
-        },
-        // 新增：计算渲染后的内容卡片标题
-        renderedContentTitle() {
-             return this.content && this.content.title ? renderMarkdownAndLaTeX(this.content.title) : '';
-        },
-        renderedCoverSubtitle() {
-            // 确保只在 cover 类型且 subtitle 存在时渲染
-            return this.type === 'cover' && this.content && this.content.subtitle
-                   ? renderMarkdownAndLaTeX(this.content.subtitle)
+        const renderedCoverTitle = computed(() => {
+            // 从 cardData 获取封面标题
+            return props.type === 'cover' && props.cardData && props.cardData.title
+                   ? renderMarkdownAndLaTeX(props.cardData.title)
                    : '';
-        }
+        });
+
+        const renderedCoverSubtitle = computed(() => {
+            // 从 cardData 获取封面副标题
+            return props.type === 'cover' && props.cardData && props.cardData.subtitle
+                   ? renderMarkdownAndLaTeX(props.cardData.subtitle)
+                   : '';
+        });
+
+        const renderedContentTitle = computed(() => {
+            // 从 cardData 获取内容卡片标题
+            return props.type === 'content' && props.cardData && props.cardData.title
+                   ? renderMarkdownAndLaTeX(props.cardData.title)
+                   : '';
+        });
+
+        const renderedMarkdownBody = computed(() => {
+            // 从 cardData 获取内容卡片正文
+            return props.type === 'content' && props.cardData && props.cardData.body
+                   ? renderMarkdownAndLaTeX(props.cardData.body)
+                   : '';
+        });
+
+        return {
+            renderedCoverTitle,
+            renderedCoverSubtitle,
+            renderedContentTitle,
+            renderedMarkdownBody
+        };
     }
 }
 </script>

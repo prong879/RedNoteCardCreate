@@ -1,7 +1,6 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
-import Template3 from '../templates/Template3.vue';
 import Template5 from '../templates/Template5.vue';
 
 export function useTemplatePreviewScaling(contentRef, emit) {
@@ -9,14 +8,12 @@ export function useTemplatePreviewScaling(contentRef, emit) {
     const templatesInfo = ref([
         { id: 'template1', name: '模板1', aspectRatio: '3/4' },
         { id: 'template2', name: '模板2', aspectRatio: '3/4' },
-        { id: 'template3', name: '模板3', aspectRatio: '3/4' },
         { id: 'template5', name: '模板5', aspectRatio: '16/9' } // 注意：实际比例可能需要根据Template5确认
     ]);
 
     const templateComponentMap = {
         template1: Template1,
         template2: Template2,
-        template3: Template3,
         template5: Template5
     };
 

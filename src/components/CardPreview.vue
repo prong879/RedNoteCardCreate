@@ -15,8 +15,7 @@
                 <div class="card-container flex-shrink-0" ref="coverCardContainer">
                     <div ref="coverCard">
                         <component :is="activeTemplateComponent" type="cover"
-                            :title="content.coverCard.title"
-                            :content="content.coverCard"
+                            :cardData="content.coverCard" 
                             :headerText="content.headerText || ''"
                             :footerText="content.footerText || ''"
                             :isHeaderVisible="content.coverCard.showHeader !== false"
@@ -35,7 +34,7 @@
                 <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0" :ref="el => { if (el) contentCardRefs[index] = el }">
                     <div>
                         <component :is="activeTemplateComponent" type="content"
-                             :content="card"
+                             :cardData="card" 
                              :headerText="content.headerText || ''"
                              :footerText="content.footerText || ''"
                              :isHeaderVisible="card.showHeader !== false"
@@ -83,12 +82,12 @@ import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToCli
 // 导入所有模板组件
 import Template1 from '../templates/Template1.vue';
 import Template2 from '../templates/Template2.vue';
-import Template3 from '../templates/Template3.vue';
+// import Template3 from '../templates/Template3.vue';
 import Template5 from '../templates/Template5.vue';
 
 export default {
     name: 'CardPreview',
-    components: { Template1, Template2, Template3, Template5 },
+    components: { Template1, Template2, /* Template3, */ Template5 },
     props: {
         template: {
             type: String,
@@ -115,8 +114,7 @@ export default {
                     return Template1;
                 case 'template2':
                     return Template2;
-                case 'template3':
-                    return Template3;
+                // case 'template3':
                 case 'template5':
                     return Template5;
                 default:
@@ -273,7 +271,7 @@ export default {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
             }
-            let actualCard = containerElement.querySelector('.template1') || containerElement.querySelector('.template2') || containerElement.querySelector('.template3') || containerElement.querySelector('.template5');
+            let actualCard = containerElement.querySelector('.template1') || containerElement.querySelector('.template2') || containerElement.querySelector('.template5');
              if (!actualCard || !actualCard.classList.contains('card')) {
                 actualCard = containerElement.querySelector('.card') || containerElement.querySelector('.xhs-card');
              }

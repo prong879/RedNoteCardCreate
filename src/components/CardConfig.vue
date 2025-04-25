@@ -15,7 +15,10 @@
                      <div v-for="(template, index) in templatesInfo" :key="template.id" @click="selectTemplate(template.id)" :ref="el => { if (el) templateItemRefs[index] = el }" class="template-item flex flex-col items-center p-1 border rounded-lg cursor-pointer transition-all" :class="{ 'border-xhs-pink border-2': selectedTemplate === template.id, 'border-gray-200': selectedTemplate !== template.id }">
                         <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50']">
                             <div :ref="el => { if (el) scalingDivRefs[index] = el }" style="transform-origin: top left; width: 320px;">
-                                <component :is="getTemplateComponent(template.id)" type="cover" :title="previewCoverContent.title" :content="previewCoverContent" />
+                                <component 
+                                    :is="getTemplateComponent(template.id)" 
+                                    type="cover" 
+                                    :cardData="previewCoverContent" />
                             </div>
                         </div>
                         <span class="text-xs mt-auto">{{ template.name }}</span>
@@ -125,10 +128,8 @@
 <script>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, onBeforeUpdate } from 'vue';
 import draggable from 'vuedraggable';
-// 移除模板组件的直接导入，因为它们在 useTemplatePreviewScaling 中处理
 // import Template1 from '../templates/Template1.vue';
 // import Template2 from '../templates/Template2.vue';
-// import Template3 from '../templates/Template3.vue';
 // import Template5 from '../templates/Template5.vue';
 
 // 导入组合式函数
