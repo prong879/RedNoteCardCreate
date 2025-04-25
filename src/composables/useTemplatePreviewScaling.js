@@ -13,7 +13,7 @@ export function useTemplatePreviewScaling(contentRef, emit) {
     const templatesInfo = ref([
         { id: 'template1', name: '模板1', aspectRatio: '3/4' },
         { id: 'template2', name: '模板2', aspectRatio: '3/4' },
-        { id: 'template5', name: '模板5', aspectRatio: '9/16' }
+        { id: 'template5', name: '模板5', aspectRatio: '16/9' }
     ]);
 
     // 使用 shallowRef 替代 ref
@@ -49,8 +49,7 @@ export function useTemplatePreviewScaling(contentRef, emit) {
                 const scale = Math.min(1, safeContainerWidth / BASE_CARD_WIDTH);
                 scalingDivRefs.value[index].style.transform = `scale(${scale})`;
 
-                // --- TEMPORARILY COMMENT OUT HEIGHT CALCULATION ---
-                /*
+                // --- RESTORE HEIGHT CALCULATION WITH CHECK --- 
                 // 计算并设置容器高度 (确保使用 find 来安全查找)
                 try {
                     const templateInfo = templatesInfo.value.find(t => t.id === templatesInfo.value[index]?.id);
@@ -61,23 +60,38 @@ export function useTemplatePreviewScaling(contentRef, emit) {
                             const hRatio = parseFloat(parts[1]);
                             if (wRatio > 0 && hRatio > 0) {
                                 const originalHeight = (hRatio / wRatio) * BASE_CARD_WIDTH;
-                                const scaledHeight = originalHeight * scale;
-                                previewContainer.style.height = `${scaledHeight}px`;
+                                const calculatedHeight = originalHeight * scale;
+
+                                // 获取当前高度 (需要处理空字符串或非像素值的情况)
+                                const currentHeightStyle = previewContainer.style.height || '';
+                                const currentHeightPx = parseFloat(currentHeightStyle.replace('px', ''));
+
+                                // 仅在高度变化大于 1px 时更新，避免循环
+                                if (isNaN(currentHeightPx) || Math.abs(calculatedHeight - currentHeightPx) > 1) {
+                                    previewContainer.style.height = `${calculatedHeight}px`;
+                                }
                             } else {
-                                previewContainer.style.height = 'auto'; // Fallback
+                                if (previewContainer.style.height !== 'auto') {
+                                    previewContainer.style.height = 'auto'; // Fallback
+                                }
                             }
                         } else {
-                            previewContainer.style.height = 'auto'; // Fallback
+                            if (previewContainer.style.height !== 'auto') {
+                                previewContainer.style.height = 'auto'; // Fallback
+                            }
                         }
                     } else {
-                        previewContainer.style.height = 'auto'; // Fallback
+                        if (previewContainer.style.height !== 'auto') {
+                            previewContainer.style.height = 'auto'; // Fallback
+                        }
                     }
                 } catch (e) {
                     console.error("Error calculating preview height:", e);
-                    previewContainer.style.height = 'auto'; // Fallback on error
+                    if (previewContainer.style.height !== 'auto') {
+                        previewContainer.style.height = 'auto'; // Fallback on error
+                    }
                 }
-                */
-                // --- END OF COMMENTED OUT BLOCK ---
+                // --- END OF RESTORED BLOCK ---
             }
         });
     };
