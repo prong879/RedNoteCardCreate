@@ -28,11 +28,11 @@
         <h3 class="text-lg font-medium mt-4 mb-2 px-6">卡片编辑区</h3>
 
         <!-- 2. 中间滚动区域: 卡片配置列表 (封面 + 内容) -->
-        <div class="overflow-y-auto px-3 mx-6 h-96 custom-scrollbar bg-gray-50 border rounded-lg mb-6">
+        <div ref="editorScrollContainer" class="overflow-y-auto px-3 mx-6 h-96 custom-scrollbar bg-gray-50 border rounded-lg mb-6">
             <!-- 调整内边距，因为外层 div 加了 p-3 -->
             <div class="pt-3">
                 <!-- 封面卡片配置 -->
-                <div class="p-3 mb-4 border bg-white rounded-lg space-y-2 shadow-md">
+                <div ref="coverCardConfigSection" class="p-3 mb-4 border bg-white rounded-lg space-y-2 shadow-md">
                     <!-- 修改：添加顶部行，包含标签和按钮 -->
                     <div class="flex justify-between items-center mb-2">
                         <span class="font-medium">封面卡片</span>
@@ -57,7 +57,11 @@
                     @end="onDragEnd"
                 >
                     <template #item="{element: card, index}">
-                        <div class="mb-4 p-3 border bg-white rounded-lg space-y-2 shadow-md" :id="`config-card-${index}`">
+                        <div 
+                            :ref="el => { if (el) contentCardConfigSections[index] = el }" 
+                            class="mb-4 p-3 border bg-white rounded-lg space-y-2 shadow-md" 
+                            :id="`config-card-${index}`"
+                        >
                             <!-- 添加拖拽句柄 -->
                             <div class="flex justify-between items-center mb-2">
                                 <div class="flex items-center">
@@ -109,7 +113,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, onBeforeUpdate } from 'vue';
 import draggable from 'vuedraggable';
 // 移除模板组件的直接导入，因为它们在 useTemplatePreviewScaling 中处理
 // import Template1 from '../templates/Template1.vue';
@@ -139,6 +143,10 @@ export default {
         topicId: {
             type: String,
             default: null
+        },
+        focusedIndex: {
+            type: Number,
+            default: null
         }
     },
     emits: [
@@ -151,6 +159,9 @@ export default {
     setup(props, { emit }) {
         // 获取根元素的引用
         const cardConfigRoot = ref(null);
+        const editorScrollContainer = ref(null); // 引用中间滚动区域
+        const coverCardConfigSection = ref(null); // 引用封面卡片配置区域
+        const contentCardConfigSections = ref([]); // 引用内容卡片配置区域数组
 
         // 1. 使用 useCardManagement 管理内容状态和操作
         const {
@@ -183,6 +194,47 @@ export default {
         // 组件挂载后调整所有文本域高度
         onMounted(() => {
             nextTick(adjustAllTextareas);
+        });
+
+        // 监听 focusedIndex prop 的变化以滚动编辑器
+        watch(() => props.focusedIndex, (newIndex) => {
+            console.log('[CardConfig] Watcher triggered. Received focusedIndex:', newIndex);
+            if (newIndex === null) {
+                // 聚焦封面卡片
+                const targetElement = coverCardConfigSection.value;
+                const container = editorScrollContainer.value;
+                console.log('[CardConfig] Scrolling to cover card. Target:', targetElement, 'Container:', container);
+                if (targetElement && container) {
+                    // 恢复使用 scrollIntoView
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest'
+                    });
+                } else {
+                    console.warn("[CardConfig] 无法找到封面卡片配置元素或容器进行滚动", {target: targetElement, container: container});
+                }
+            } else if (typeof newIndex === 'number' && newIndex >= 0) {
+                // 聚焦内容卡片
+                nextTick(() => { // 确保 DOM 更新完毕
+                    const targetElement = contentCardConfigSections.value[newIndex];
+                    const container = editorScrollContainer.value;
+                    console.log(`[CardConfig] Scrolling to content card ${newIndex}. Target:`, targetElement, 'Container:', container);
+                    if (targetElement && container) {
+                        // 恢复使用 scrollIntoView
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest'
+                        });
+                    } else {
+                        console.warn(`[CardConfig] 无法找到索引 ${newIndex} 的内容卡片配置元素或容器进行滚动`, {target: targetElement, container: container, allRefs: contentCardConfigSections.value});
+                    }
+                });
+            }
+        });
+
+        // 在模板更新前清空内容卡片 ref 数组
+        onBeforeUpdate(() => {
+             contentCardConfigSections.value = [];
         });
 
         // --- 保留在组件内的简单事件处理器 ---
@@ -226,6 +278,9 @@ export default {
             cardConfigRoot,
             templateItemRefs,
             scalingDivRefs,
+            editorScrollContainer, // 暴露滚动容器 ref
+            coverCardConfigSection, // 暴露封面卡片配置 ref
+            contentCardConfigSections, // 暴露内容卡片配置 ref 数组
             // From useCardManagement
             content,
             addCard,

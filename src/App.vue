@@ -29,6 +29,7 @@
                   :selectedTemplate="selectedTemplate"
                   :cardContent="cardContent"
                   :topicId="currentTopicId"
+                  :focused-index="focusedEditorIndex"
                   @update:template="selectedTemplate = $event"
                   @update:content="updateCardContent"
                   @return-to-topics="showTopicSelector = true"
@@ -45,6 +46,7 @@
                   :topicId="currentTopicId"
                   :focusedIndex="focusedPreviewIndex"
                   @reset-focus="focusedPreviewIndex = null"
+                  @preview-scrolled-to-index="handlePreviewScrolled"
                 />
               </div>
             </div>
@@ -83,6 +85,7 @@ export default {
     const currentTopicId = ref(null)
     
     const focusedPreviewIndex = ref(null);
+    const focusedEditorIndex = ref(null);
     
     // 加载主题
     const loadTopic = async ({ key: topicId }) => {
@@ -171,6 +174,12 @@ export default {
       focusedPreviewIndex.value = index;
     };
     
+    // 新增：处理预览滚动事件
+    const handlePreviewScrolled = (index) => {
+      console.log('App received preview scroll event for editor index:', index);
+      focusedEditorIndex.value = index; 
+    };
+    
     return {
       showTopicSelector,
       selectedTemplate,
@@ -180,7 +189,9 @@ export default {
       updateCardContent,
       generateContentJsFile,
       focusedPreviewIndex,
-      handleFocusPreviewCard
+      handleFocusPreviewCard,
+      focusedEditorIndex,
+      handlePreviewScrolled
     }
   }
 }

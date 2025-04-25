@@ -8,45 +8,59 @@
             </div>
         </div>
 
-        <div ref="previewScrollContainer" class="flex overflow-x-auto gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <!-- 封面卡片 -->
-            <div class="card-container flex-shrink-0">
-                <div ref="coverCard">
-                    <component :is="activeTemplateComponent" type="cover"
-                        :title="content.coverCard.title"
-                        :content="content.coverCard"
-                        :headerText="content.headerText || ''"
-                        :footerText="content.footerText || ''"
-                        :isHeaderVisible="content.coverCard.showHeader !== false"
-                        :isFooterVisible="content.coverCard.showFooter !== false"/>
+        <!-- 添加相对定位的容器 -->
+        <div class="relative preview-container-wrapper">
+            <div ref="previewScrollContainer" @scroll="handleScroll" class="flex overflow-x-auto scroll-smooth gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <!-- 封面卡片 -->
+                <div class="card-container flex-shrink-0" ref="coverCardContainer">
+                    <div ref="coverCard">
+                        <component :is="activeTemplateComponent" type="cover"
+                            :title="content.coverCard.title"
+                            :content="content.coverCard"
+                            :headerText="content.headerText || ''"
+                            :footerText="content.footerText || ''"
+                            :isHeaderVisible="content.coverCard.showHeader !== false"
+                            :isFooterVisible="content.coverCard.showFooter !== false"/>
+                    </div>
+                    <div class="mt-2 text-center text-sm text-xhs-gray">
+                        封面卡片
+                        <button @click="exportSingleCard($refs.coverCard, `${topicId}_封面_${getFormattedDate()}`)"
+                            class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
+                            导出
+                        </button>
+                    </div>
                 </div>
-                <div class="mt-2 text-center text-sm text-xhs-gray">
-                    封面卡片
-                    <button @click="exportSingleCard($refs.coverCard, `${topicId}_封面_${getFormattedDate()}`)"
-                        class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
-                        导出
-                    </button>
+
+                <!-- 内容卡片 -->
+                <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0" :ref="el => { if (el) contentCardRefs[index] = el }">
+                    <div>
+                        <component :is="activeTemplateComponent" type="content"
+                             :content="card"
+                             :headerText="content.headerText || ''"
+                             :footerText="content.footerText || ''"
+                             :isHeaderVisible="card.showHeader !== false"
+                             :isFooterVisible="card.showFooter !== false"/>
+                    </div>
+                    <div class="mt-2 text-center text-sm text-xhs-gray">
+                        内容卡片 {{ index + 1 }}
+                        <button @click="exportSingleCard(contentCardRefs[index], `${topicId}_内容${String(index + 1).padStart(2, '0')}_${getFormattedDate()}`)"
+                            class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
+                            导出
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- 内容卡片 -->
-            <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0" :ref="el => { if (el) contentCardRefs[index] = el }">
-                <div>
-                    <component :is="activeTemplateComponent" type="content"
-                         :content="card"
-                         :headerText="content.headerText || ''"
-                         :footerText="content.footerText || ''"
-                         :isHeaderVisible="card.showHeader !== false"
-                         :isFooterVisible="card.showFooter !== false"/>
-                </div>
-                <div class="mt-2 text-center text-sm text-xhs-gray">
-                    内容卡片 {{ index + 1 }}
-                    <button @click="exportSingleCard(contentCardRefs[index], `${topicId}_内容${String(index + 1).padStart(2, '0')}_${getFormattedDate()}`)"
-                        class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
-                        导出
-                    </button>
-                </div>
-            </div>
+            <!-- 左滚动按钮 -->
+            <button v-show="showLeftScroll" @click="scrollLeft"
+                class="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-gray-800/40 text-white p-2 rounded-full hover:bg-gray-800/60 focus:outline-none transition-opacity ml-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <!-- 右滚动按钮 -->
+            <button v-show="showRightScroll" @click="scrollRight"
+                class="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-gray-800/40 text-white p-2 rounded-full hover:bg-gray-800/60 focus:outline-none transition-opacity mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+            </button>
         </div>
 
         <div class="mt-6">
@@ -63,7 +77,7 @@
 </template>
 
 <script>
-import { computed, ref, watch, onBeforeUpdate, nextTick } from 'vue';
+import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted, onUpdated, onUnmounted } from 'vue';
 import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard } from '../utils/cardExport';
 
 // 导入所有模板组件
@@ -93,7 +107,7 @@ export default {
             default: null
         }
     },
-    emits: ['reset-focus'],
+    emits: ['reset-focus', 'preview-scrolled-to-index'],
     setup(props, { emit }) {
         const activeTemplateComponent = computed(() => {
             switch (props.template) {
@@ -111,7 +125,10 @@ export default {
         });
 
         const previewScrollContainer = ref(null);
+        const coverCardContainer = ref(null);
         const contentCardRefs = ref([]);
+        const showLeftScroll = ref(false);
+        const showRightScroll = ref(false);
 
         onBeforeUpdate(() => {
             contentCardRefs.value = [];
@@ -135,10 +152,111 @@ export default {
             }
         });
 
+        const getAllCardElements = () => {
+            const cover = coverCardContainer.value;
+            const contents = contentCardRefs.value || [];
+            const elements = [];
+            if (cover) elements.push(cover);
+            elements.push(...contents.filter(el => el));
+            return elements;
+        };
+
+        const findCurrentCardIndex = () => {
+            const container = previewScrollContainer.value;
+            if (!container) return -1;
+            const containerCenter = container.scrollLeft + container.clientWidth / 2;
+            const cards = getAllCardElements();
+            let minIndex = -1;
+            let minDistance = Infinity;
+
+            cards.forEach((card, index) => {
+                if (!card) return;
+                const cardCenter = card.offsetLeft + card.clientWidth / 2;
+                const distance = Math.abs(cardCenter - containerCenter);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    minIndex = index;
+                }
+            });
+            return minIndex;
+        };
+
+        const checkScrollButtons = () => {
+            const el = previewScrollContainer.value;
+            if (!el) return;
+            showLeftScroll.value = el.scrollLeft > 1;
+            showRightScroll.value = el.scrollLeft < el.scrollWidth - el.clientWidth - 1;
+        };
+
+        const handleScroll = () => {
+            checkScrollButtons();
+        };
+
+        const scrollLeft = () => {
+            const cards = getAllCardElements();
+            const currentIndex = findCurrentCardIndex();
+            const targetIndex = currentIndex - 1;
+
+            if (targetIndex >= 0 && targetIndex < cards.length) {
+                const targetElement = cards[targetIndex];
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                    const emitIndex = targetIndex === 0 ? null : targetIndex - 1;
+                    emit('preview-scrolled-to-index', emitIndex);
+                    emit('reset-focus');
+                }
+            }
+        };
+
+        const scrollRight = () => {
+            const cards = getAllCardElements();
+            const currentIndex = findCurrentCardIndex();
+            const targetIndex = currentIndex + 1;
+
+            if (targetIndex >= 0 && targetIndex < cards.length) {
+                const targetElement = cards[targetIndex];
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                    const emitIndex = targetIndex === 0 ? null : targetIndex - 1;
+                    emit('preview-scrolled-to-index', emitIndex);
+                    emit('reset-focus');
+                }
+            }
+        };
+
+        onMounted(() => {
+            nextTick(checkScrollButtons);
+            window.addEventListener('resize', checkScrollButtons);
+        });
+        onUpdated(() => {
+             nextTick(checkScrollButtons);
+        });
+        watch(() => props.content.contentCards.length, () => {
+            nextTick(checkScrollButtons);
+        });
+
+        onUnmounted(() => {
+          window.removeEventListener('resize', checkScrollButtons);
+        });
+
         return {
             activeTemplateComponent,
             previewScrollContainer,
-            contentCardRefs
+            coverCardContainer,
+            contentCardRefs,
+            handleScroll,
+            scrollLeft,
+            scrollRight,
+            showLeftScroll,
+            showRightScroll,
         };
     },
     methods: {
@@ -155,9 +273,13 @@ export default {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
             }
-            const actualCard = containerElement.querySelector('.xhs-card') || containerElement.querySelector('.card');
+            let actualCard = containerElement.querySelector('.template1') || containerElement.querySelector('.template2') || containerElement.querySelector('.template3') || containerElement.querySelector('.template5');
+             if (!actualCard || !actualCard.classList.contains('card')) {
+                actualCard = containerElement.querySelector('.card') || containerElement.querySelector('.xhs-card');
+             }
+
             if (!actualCard) {
-                console.warn('在容器元素内找不到 .xhs-card 或 .card 元素', containerElement);
+                console.warn('在容器元素内找不到可导出的卡片元素 (如 .card, .xhs-card 或模板根元素)', containerElement);
             }
             return actualCard;
         },
@@ -170,7 +292,7 @@ export default {
             try {
                 const actualCard = this._getExportableCardElement(cardElement);
                 if (!actualCard) {
-                    throw new Error("找不到可导出的卡片元素(.xhs-card 或 .card)");
+                    throw new Error("找不到可导出的卡片元素");
                 }
                 await exportCardAsImage(actualCard, fileName);
                 alert(`成功导出 ${fileName}.png`);
@@ -186,6 +308,8 @@ export default {
             const coverCardElement = this._getExportableCardElement(coverCardContainer);
             if (coverCardElement) {
                 elements.push({ element: coverCardElement, type: 'cover', index: -1 });
+            } else {
+                 console.warn('无法为封面卡片找到可导出元素。', coverCardContainer);
             }
 
             this.content.contentCards.forEach((_, index) => {
@@ -194,9 +318,10 @@ export default {
                 if (contentCardElement) {
                     elements.push({ element: contentCardElement, type: 'content', index: index });
                 } else {
-                    console.warn(`无法为索引 ${index} 的内容卡片找到可导出元素。`);
+                    console.warn(`无法为索引 ${index} 的内容卡片找到可导出元素。`, contentCardContainer);
                 }
             });
+             console.log("All exportable elements found:", elements.length, elements);
             return elements;
         },
 
@@ -259,5 +384,20 @@ export default {
 <style scoped>
 .card-container {
     position: relative;
+}
+
+.preview-container-wrapper {
+    position: relative;
+}
+
+.preview-container-wrapper button[class*="absolute"] {
+    opacity: 0.6;
+}
+.preview-container-wrapper button[class*="absolute"]:hover {
+    opacity: 0.9;
+}
+
+.scroll-smooth {
+  scroll-behavior: smooth;
 }
 </style>
