@@ -372,3 +372,57 @@ npm run build
     *   **样式可维护性**: 避免过于复杂或嵌套过深的 CSS 规则。鼓励使用 CSS 变量提高可配置性。
     *   **响应式设计**: 鼓励考虑不同屏幕尺寸的显示效果，使用 Tailwind 的响应式修饰符。
     *   **内容溢出**: 应妥善处理内容可能溢出的情况（特别是 `card-content` 或 `markdown-body`
+
+## Markdown 内容转换为 JS 数据
+
+为了更方便地创作和管理选题内容，项目提供了一个 Node.js 脚本，可以将特定格式的 Markdown 文件转换为应用所需的 `src/content/topicXX_content.js` 数据文件。
+
+**1. 安装依赖**: 
+
+确保你已经在项目根目录安装了 `gray-matter` 依赖：
+
+```bash
+npm install gray-matter --save-dev
+# 或
+yarn add gray-matter --dev
+```
+
+**2. 编写 Markdown 源文件**: 
+
+在 `src/markdown/` 目录下创建或修改 Markdown 文件（例如 `topic01.md`）。文件格式约定如下：
+
+*   **YAML Front Matter**: 文件开头使用 `---` 包裹，定义元数据：
+    *   `topicId`: (必需) 选题的唯一 ID。
+    *   `headerText`: (可选) 全局页眉。
+    *   `footerText`: (可选) 全局页脚 (支持 `\n` 换行)。
+    *   `mainText`: (可选) 小红书主文案 (使用 `|` 或 `>` 支持多行)。
+    *   `coverShowHeader`: (可选, 默认 `true`) 封面页眉显隐。
+    *   `coverShowFooter`: (可选, 默认 `true`) 封面页脚显隐。
+    *   `contentDefaultShowHeader`: (可选, 默认 `true`) 内容卡片页眉显隐默认值。
+    *   `contentDefaultShowFooter`: (可选, 默认 `true`) 内容卡片页脚显隐默认值。
+*   **卡片分隔**: 使用 `---` (单独一行) 分隔封面卡片和各个内容卡片。
+*   **封面卡片内容**: Front Matter 后的第一块内容。
+    *   第一个一级标题 (`# `) 作为封面标题。
+    *   标题后的第一个非空段落（或多行）作为封面副标题。
+*   **内容卡片内容**: `---` 分隔后的每一块内容。
+    *   第一个任意级别标题 (`#`, `##`...) 作为卡片标题。
+    *   标题后的所有内容作为卡片正文 (`body`)。
+    *   可在卡片内容任意位置使用 HTML 注释覆盖默认显隐：`<!-- cardShowHeader: false -->` 或 `<!-- cardShowFooter: true -->`。
+
+*请参考 `src/markdown/topic01.md` 查看具体示例。*
+
+**3. 运行转换脚本**: 
+
+在项目根目录打开终端，运行以下命令：
+
+```bash
+node scripts/generateContent.js src/markdown/your_topic_file.md
+```
+
+将 `src/markdown/your_topic_file.md` 替换为你要转换的 Markdown 文件的实际路径。
+
+脚本成功运行后，会根据 Markdown 文件中的 `topicId` 在 `src/content/` 目录下生成或覆盖对应的 `topicXX_content.js` 文件。
+
+**注意**: 运行脚本会**覆盖**已存在的同名 `_content.js` 文件，请谨慎操作。
+
+## 具体使用步骤
