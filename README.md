@@ -301,26 +301,73 @@ npm run build
 
 4.  **内容处理**: 
     *   必须使用 `type` Prop 结合 `v-if`/`v-else` 来处理封面 (`cover`) 和内容 (`content`) 两种卡片类型的不同渲染逻辑。
-    *   内容卡片的 Markdown/LaTeX 渲染必须通过计算属性调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数，并将结果绑定到 `v-html`。
+    *   **标题与正文渲染 (Markdown/LaTeX 支持)**: 
+        *   **封面标题 (`title`)**, **内容卡片标题 (`content.title`)** 和 **内容卡片正文 (`content.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
+        *   实现方式：必须通过 Vue 的**计算属性 (computed property)** 调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数对相应的文本进行处理，并将结果绑定到模板中对应元素的 `v-html` 指令上。
+        *   **注意**: 当使用 `v-html` 渲染由 Markdown 生成的 HTML 时，如果 Markdown 源文本仅包含一行文本，`markdown-it` 默认会将其包裹在一个 `<p>` 标签内。这可能会引入不必要的垂直边距。为避免此问题，建议在模板组件的 `<style scoped>` 中添加针对渲染容器的 `:deep(p) { margin: 0; }` 样式规则来重置段落边距。
         ```javascript
+        // 示例：渲染标题和正文
+        import { computed } from 'vue';
         import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
         
         export default {
-          // ... props
-          computed: {
-            renderedMarkdown() {
-              // 确保 content 和 content.body 存在
-              return this.content && this.content.body ? renderMarkdownAndLaTeX(this.content.body) : '';
-            }
+          props: {
+            type: String,
+            title: String, // 封面标题
+            content: Object // 包含 content.title, content.body
+            // ... 其他 props
+          },
+          setup(props) {
+            const renderedCoverTitle = computed(() => {
+              return props.title ? renderMarkdownAndLaTeX(props.title) : '';
+            });
+
+            const renderedContentTitle = computed(() => {
+              return props.type === 'content' && props.content && props.content.title 
+                     ? renderMarkdownAndLaTeX(props.content.title) 
+                     : '';
+            });
+
+            const renderedMarkdownBody = computed(() => {
+              return props.type === 'content' && props.content && props.content.body 
+                     ? renderMarkdownAndLaTeX(props.content.body) 
+                     : '';
+            });
+
+            return { 
+              renderedCoverTitle, 
+              renderedContentTitle, 
+              renderedMarkdownBody 
+            };
           }
+          // ...
         }
         ```
-    *   普通文本（页眉、页脚、标题等）应使用 `{{ }}` 插值，并添加 `whitespace-pre-line` 类以支持换行。
+    *   **普通纯文本渲染**: 对于页眉 (`headerText`)、页脚 (`footerText`)、封面副标题 (`content.subtitle`) 等**确定始终为纯文本**的内容，应使用 `{{ }}` 插值，并为其容器元素添加 `whitespace-pre-line` CSS 类以支持换行。
 
 5.  **样式规范**: 
     *   **主要使用 Tailwind CSS**: 优先使用 Tailwind 的原子类进行布局和样式设置。
     *   **Scoped CSS**: 特定于模板的复杂样式（如特殊背景、字体效果）或需要覆盖子组件/第三方库（如 KaTeX）样式时，使用 `<style scoped>`。
-    *   **深度选择器**: 在 `<style scoped>` 中修改子组件或第三方库样式时，**必须**使用 `:deep()` 深度选择器，以确保样式正确应用且不影响其他组件。例如：`.markdown-body :deep(.katex) { /* KaTeX 样式覆盖 */ }`
+    *   **深度选择器 (`:deep()`)**: 
+        *   在 `<style scoped>` 中修改**子组件**或**第三方库（如 KaTeX）**的样式时，**必须**使用 `:deep()` 深度选择器，以确保样式正确应用且不影响其他组件。
+        *   对于通过 `v-html` 渲染的 **Markdown 内容**，也**必须**使用 `:deep()` 为常见的 HTML 元素（如列表 `<ul>`, `<ol>`, `<li>`，也可考虑代码块 `<pre>`, `<code>` 等）提供基础的、符合模板风格的样式，以保证可读性和一致性。例如：
+        ```css
+        /* 示例：在 scoped CSS 中为 Markdown 列表添加样式 */
+        .markdown-body :deep(ul) {
+          list-style-type: disc;
+          margin-left: 1.5rem; /* 根据需要调整 */
+          padding-left: 1rem;  /* 根据需要调整 */
+          margin-top: 0.5rem;
+          margin-bottom: 0.5rem;
+        }
+        .markdown-body :deep(ol) {
+          list-style-type: decimal;
+          /* 其他样式类似 ul */
+        }
+        .markdown-body :deep(li) {
+          margin-bottom: 0.25rem; /* 调整列表项间距 */
+        }
+        ```
     *   **避免全局污染**: 禁止在模板组件内定义未加 `scoped` 的全局样式。
     *   **样式可维护性**: 避免过于复杂或嵌套过深的 CSS 规则。鼓励使用 CSS 变量提高可配置性。
     *   **响应式设计**: 鼓励考虑不同屏幕尺寸的显示效果，使用 Tailwind 的响应式修饰符。
