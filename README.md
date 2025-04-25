@@ -121,7 +121,15 @@ npm run build
 
 ```
 .                       # 项目根目录
-├── public/             # 静态资源 (如图标)
+├── .git/               # Git 版本控制目录
+├── .vscode/            # VSCode 编辑器配置
+├── docs/               # 项目文档
+│   ├── 【文字版】时间序列数据.md
+│   ├── 写作要点分析.md
+│   └── 选题库.md
+├── node_modules/       # 项目依赖
+├── public/             # 静态资源 (如图标) - (注：当前未列出，但通常存在于 Vite 项目)
+├── scripts/            # Node.js 脚本 (如 Markdown 转换脚本)
 ├── src/
 │   ├── assets/         # 静态资源 (样式)
 │   │   └── styles/
@@ -156,11 +164,12 @@ npm run build
 ├── README.md           # 项目说明文档 (本文件)
 ├── tailwind.config.js  # Tailwind CSS 配置文件
 ├── vite.config.js      # Vite 配置文件
-├── 解决方案概要.md   # 解决方案设计文档
-├── 第01期-什么是时间序列.md # 示例或内容源文件
-├── 写作要点分析.md     # 示例或内容源文件
-├── 选题库.md           # 示例或内容源文件
-└── 【文字版】时间序列数据.md # 示例或内容源文件
+├── 解决方案概要.md     # 解决方案设计文档
+├── 第01期-什么是时间序列.md # 示例或内容源文件 (Markdown 格式)
+├── 写作要点分析.md     # 示例或内容源文件 (Markdown 格式)
+├── 选题库.md           # 示例或内容源文件 (Markdown 格式)
+├── 【文字版】时间序列数据.md # 示例或内容源文件 (Markdown 格式)
+└── windows安装BroserToolsMCP.md # BrowserToolsMCP 安装说明 (Windows)
 ```
 
 ## 具体使用步骤
@@ -375,7 +384,7 @@ npm run build
 
 ## Markdown 内容转换为 JS 数据
 
-为了更方便地创作和管理选题内容，项目提供了一个 Node.js 脚本，可以将特定格式的 Markdown 文件转换为应用所需的 `src/content/topicXX_content.js` 数据文件。
+为了更方便地创作和管理选题内容，项目提供了一个 Node.js 脚本 (`scripts/convertMarkdown.js`)，可以将特定格式的 Markdown 文件转换为应用所需的 `src/content/topicXX_content.js` 数据文件。
 
 **1. 安装依赖**: 
 
@@ -389,7 +398,7 @@ yarn add gray-matter --dev
 
 **2. 编写 Markdown 源文件**: 
 
-在 `src/markdown/` 目录下创建或修改 Markdown 文件。推荐文件名与 `topicId` 一致 (例如 `topic01.md`)。文件格式约定如下：
+**将 Markdown 源文件直接放置在项目根目录下**，或者根据 `scripts/convertMarkdown.js` 脚本的实际读取逻辑调整存放位置。推荐文件名与 `topicId` 一致 (例如 `topic01.md`)。文件格式约定如下：
 
 *   **YAML Front Matter (文件开头的 `---` 包裹部分)**:
     *   `topicId`: (**必需**) 字符串，选题的唯一 ID，决定 JS 文件名和导出变量名。
@@ -439,12 +448,12 @@ yarn add gray-matter --dev
 *   **转换指定文件**: 
     ```bash
     npm run zhuanhuan -- <topicId>
-    # 示例 (转换 src/markdown/topic02.md):
+    # 示例 (转换项目根目录下的 topic02.md):
     npm run zhuanhuan -- topic02 
     ```
     *   **参数**: 
         *   `--`: **必需**的分隔符，用于区分 npm 命令和脚本参数。
-        *   `<topicId>`: **必需**，要转换的 Markdown 文件对应的 `topicId` (脚本会自动查找 `src/markdown/<topicId>.md`)。
+        *   `<topicId>`: **必需**，要转换的 Markdown 文件对应的 `topicId` (脚本会自动查找项目根目录下的 `<topicId>.md`)。
 
 *   **转换所有文件**: 
     ```bash
@@ -452,7 +461,7 @@ yarn add gray-matter --dev
     ```
     *   **参数**: 
         *   `--`: **必需**的分隔符。
-        *   `all`: **必需** (不区分大小写)，指示脚本转换 `src/markdown/` 目录下的所有 `.md` 文件。
+        *   `all`: **必需** (不区分大小写)，指示脚本转换项目根目录下的所有 `.md` 文件。
 
 **（可选）创建新 Markdown 文件**: 
 
@@ -467,7 +476,7 @@ npm run xinwenan -- topic03 "如何选择合适的模型"
     *   `<topicId>`: **必需**，新选题的唯一 ID (只允许字母、数字、下划线、短横线)。
     *   `<主标题>`: **必需**，新选题的主标题 (可以包含空格，如果标题包含特殊 shell 字符，建议用引号包裹)。
 
-这将在 `src/markdown/` 目录下创建 `<topicId>.md`，并自动填入 `topicId` 和 `title`。
+这将在**项目根目录下**创建 `<topicId>.md`，并自动填入 `topicId` 和 `title`。
 
 
 **注意**: 
