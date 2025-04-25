@@ -2,21 +2,25 @@
     <div class="topic-selector mb-8">
         <h2 class="text-xl font-semibold mb-4">选择内容选题</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div v-for="topic in topics" :key="topic.id"
-                class="topic-card relative p-4 bg-white border border-gray-200 rounded-lg cursor-pointer shadow-md hover:shadow-lg transition-all flex flex-col">
+            <div v-for="(topic, index) in topics" :key="topic.id"
+                class="topic-card relative p-4 bg-white border border-gray-200 rounded-lg cursor-pointer shadow-md hover:shadow-lg transition-all flex flex-col overflow-hidden">
+                <div class="absolute top-0 right-1 font-serif italic text-gray-200 opacity-50 z-0 select-none">
+                    <span class="text-5xl">{{ getOrdinal(index + 1).number }}</span>
+                    <span class="text-xl align-bottom ml-[-0.1em]">{{ getOrdinal(index + 1).suffix }}</span>
+                </div>
                 <div v-if="savedTopicInfo[topic.id]?.cardCount > 0"
-                     class="absolute top-2 right-2 bg-xhs-pink text-white text-xs font-bold px-1.5 py-0.5 rounded-full z-10">
+                     class="absolute bottom-4 right-4 bg-xhs-pink text-white text-xs font-bold px-1.5 py-0.5 rounded-full z-10">
                     {{ savedTopicInfo[topic.id]?.cardCount }} 张
                 </div>
-                <div class="flex-grow">
-                    <h3 class="font-medium mb-2 text-gray-800 pr-12">{{ topic.title }}</h3>
+                <div class="flex-grow z-10 relative">
+                    <h3 class="font-medium mb-2 text-gray-800 pr-16">{{ topic.title }}</h3>
                     <p class="text-sm text-gray-500 mb-4">{{ topic.description }}</p>
                 </div>
-                <div>
+                <div class="z-10 relative">
                     <button
                         @click="selectTopic(topic.id)"
-                        class="bg-xhs-pink hover:bg-xhs-pink-dark text-white font-bold py-1 px-3 rounded text-sm mr-2">
-                        选择
+                        class="bg-xhs-pink hover:bg-xhs-pink-dark text-white font-bold py-1 px-6 rounded text-sm mr-2">
+                        选择话题
                     </button>
                     <button
                         @click="generatePrompt(topic)"
@@ -105,6 +109,15 @@ onMounted(async () => {
 const selectTopic = (topicId) => {
     emit('select-topic', { key: topicId });
 };
+
+// 序数词格式化函数 - 返回对象
+function getOrdinal(n) {
+    if (typeof n !== 'number' || n < 1) return { number: n, suffix: '' }; // 处理无效输入
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    const suffix = s[(v - 20) % 10] || s[v] || s[0];
+    return { number: n, suffix: suffix };
+}
 
 // 定义 Prompt 模板 (使用反引号允许多行字符串)
 const promptTemplate = `# 指令：生成小红书知识卡片 Markdown 文案
