@@ -16,7 +16,7 @@
                         <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50']">
                             <div :ref="el => { if (el) scalingDivRefs[index] = el }" style="transform-origin: top left; width: 320px;">
                                 <component 
-                                    :is="getTemplateComponent(template.id)" 
+                                    :is="asyncTemplateComponentsMap[template.id]" 
                                     type="cover" 
                                     :cardData="previewCoverContent" />
                             </div>
@@ -198,7 +198,7 @@ export default {
             previewCoverContent,
             templateItemRefs,
             scalingDivRefs,
-            getTemplateComponent,
+            asyncTemplateComponentsMap,
             selectTemplate,
             // updateScale // 通常不需要手动调用
         } = useTemplatePreviewScaling(content, emit);
@@ -337,7 +337,7 @@ export default {
             // From useTemplatePreviewScaling
             templatesInfo,
             previewCoverContent,
-            getTemplateComponent,
+            asyncTemplateComponentsMap,
             selectTemplate,
             // Local handlers
             handleTextareaInput,
