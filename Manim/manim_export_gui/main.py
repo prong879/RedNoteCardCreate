@@ -186,7 +186,7 @@ class ManimGUI(ctk.CTk):
             else:
                 print(f"找到 .venv 目录，但在其中未找到预期的 Python 可执行文件: {potential_python}")
         else:
-             print(f"在当前工作目录 {cwd} 未找到 .venv 目录，使用默认解释器。")
+            print(f"在当前工作目录 {cwd} 未找到 .venv 目录，使用默认解释器。")
 
 
         self.python_path.set(preferred_python)
@@ -248,7 +248,7 @@ class ManimGUI(ctk.CTk):
                 self.clipboard_append(log_content)
                 self._update_output_log("\n--- 日志已复制到剪贴板 ---\n")
         except Exception as e:
-             messagebox.showerror("复制错误", f"无法复制日志: {e}")
+            messagebox.showerror("复制错误", f"无法复制日志: {e}")
 
     def _clear_log(self):
         """清空日志文本框的内容"""
@@ -281,7 +281,7 @@ class ManimGUI(ctk.CTk):
             self.selected_scene.set("选择场景")
             self.render_button.configure(state="disabled")
             if script: # 如果路径存在但文件不存在
-                 messagebox.showerror("脚本错误", f"选择的脚本文件不存在: {script}")
+                messagebox.showerror("脚本错误", f"选择的脚本文件不存在: {script}")
             return
 
         self._clear_log()
@@ -292,9 +292,9 @@ class ManimGUI(ctk.CTk):
             options = ["全部场景 (-a)"] + scenes
             self.scene_menu.configure(values=options, state="normal")
             if len(scenes) == 1:
-                 self.selected_scene.set(scenes[0])
+                self.selected_scene.set(scenes[0])
             else:
-                 self.selected_scene.set("全部场景 (-a)")
+                self.selected_scene.set("全部场景 (-a)")
             self._update_output_log(f"找到场景: {', '.join(scenes)}\n")
             self.render_button.configure(state="normal")
         else:
@@ -317,7 +317,7 @@ class ManimGUI(ctk.CTk):
             except Exception as e:
                 print(f"更新日志时发生未知错误: {e}")
         if self.winfo_exists():
-             self.after(0, append_text)
+            self.after(0, append_text)
 
     def _start_render(self):
         if self.is_rendering:
@@ -341,19 +341,19 @@ class ManimGUI(ctk.CTk):
             messagebox.showerror("错误", "请指定 Python 解释器路径。")
             return
         if not os.path.exists(selected_py_path) and not shutil.which(selected_py_path): # 检查路径是否存在或是否在 PATH 中
-             messagebox.showerror("错误", f"指定的 Python 解释器路径无效或找不到: {selected_py_path}")
-             return
+            messagebox.showerror("错误", f"指定的 Python 解释器路径无效或找不到: {selected_py_path}")
+            return
         if scene == "选择场景" or scene == "未找到场景":
-             messagebox.showerror("错误", "请选择要渲染的场景。")
-             return
+            messagebox.showerror("错误", "请选择要渲染的场景。")
+            return
         # (可选) 检查输出目录是否存在，如果不存在可以尝试创建或提示
         if output_path and not os.path.isdir(output_path):
             try:
                 os.makedirs(output_path, exist_ok=True)
                 self._update_output_log(f"创建输出目录: {output_path}\n")
             except OSError as e:
-                 messagebox.showerror("错误", f"无法创建输出目录: {output_path}\n错误: {e}")
-                 return
+                messagebox.showerror("错误", f"无法创建输出目录: {output_path}\n错误: {e}")
+                return
 
 
         # --- 清空日志 ---
@@ -392,13 +392,13 @@ class ManimGUI(ctk.CTk):
             if preview_flag == "-p": preview_flag = "-f"
             if transparent and "-t" not in command: command.append("-t")
         elif transparent:
-             command.append("-t")
-             output_suffix = ".mov"
-             if preview_flag == "-p": preview_flag = "-f"
+            command.append("-t")
+            output_suffix = ".mov"
+            if preview_flag == "-p": preview_flag = "-f"
 
         # 添加预览标志
         if preview_flag and preview_flag != "none":
-             command.append(preview_flag)
+            command.append(preview_flag)
 
         # 脚本文件路径
         command.append(script)
@@ -423,8 +423,8 @@ class ManimGUI(ctk.CTk):
         def output_callback_wrapper(line):
             self._update_output_log(line)
             if "--- 渲染进程结束" in line:
-                 if self.winfo_exists():
-                      self.after(100, on_render_complete)
+                if self.winfo_exists():
+                    self.after(100, on_render_complete)
 
         run_manim_command(command, output_callback_wrapper)
 
@@ -452,20 +452,20 @@ class ManimGUI(ctk.CTk):
         except: pass
 
         for widget in widgets_to_toggle + browse_buttons:
-             # 特殊处理场景菜单和渲染按钮的启用条件
-             if widget == self.scene_menu:
-                  # 只有在脚本有效且解析到场景时才启用
-                  script_valid = self.script_path.get() and os.path.exists(self.script_path.get())
-                  scenes_found = self.selected_scene.get() not in ["选择场景", "未找到场景"]
-                  widget.configure(state="normal" if enabled and script_valid and scenes_found else "disabled")
-             elif widget == self.render_button:
-                 # 只有在脚本、Python路径、场景都有效时才启用
-                 script_valid = self.script_path.get() and os.path.exists(self.script_path.get())
-                 python_valid = self.python_path.get() and (os.path.exists(self.python_path.get()) or shutil.which(self.python_path.get()))
-                 scene_valid = self.selected_scene.get() not in ["选择场景", "未找到场景"]
-                 widget.configure(state="normal" if enabled and script_valid and python_valid and scene_valid else "disabled")
-             else:
-                  widget.configure(state=state)
+            # 特殊处理场景菜单和渲染按钮的启用条件
+            if widget == self.scene_menu:
+                # 只有在脚本有效且解析到场景时才启用
+                script_valid = self.script_path.get() and os.path.exists(self.script_path.get())
+                scenes_found = self.selected_scene.get() not in ["选择场景", "未找到场景"]
+                widget.configure(state="normal" if enabled and script_valid and scenes_found else "disabled")
+            elif widget == self.render_button:
+                # 只有在脚本、Python路径、场景都有效时才启用
+                script_valid = self.script_path.get() and os.path.exists(self.script_path.get())
+                python_valid = self.python_path.get() and (os.path.exists(self.python_path.get()) or shutil.which(self.python_path.get()))
+                scene_valid = self.selected_scene.get() not in ["选择场景", "未找到场景"]
+                widget.configure(state="normal" if enabled and script_valid and python_valid and scene_valid else "disabled")
+            else:
+                widget.configure(state=state)
 
 
 if __name__ == "__main__":
