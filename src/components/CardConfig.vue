@@ -114,7 +114,7 @@
              <!-- 小红书主文案 -->
              <div class="mb-6">
                  <h3 class="text-lg font-medium mb-2">小红书主文案</h3>
-                 <textarea v-model="content.mainText" class="w-full px-3 py-2 border rounded-lg" placeholder="输入小红书笔记主文案" rows="6"></textarea>
+                 <textarea v-model="content.mainText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="输入小红书笔记主文案" rows="6"></textarea>
              </div>
             <!-- 操作按钮 -->
              <div class="pt-4 border-t border-gray-200 flex gap-4">
