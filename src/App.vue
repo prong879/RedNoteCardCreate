@@ -37,6 +37,7 @@
                   :focused-preview-index="focusedPreviewIndex"
                   @reset-focus="focusedPreviewIndex = null"
                   @preview-scrolled-to-index="handlePreviewScrolled"
+                  @update:mainText="updateMainText"
                 />
               </div>
             </div>
@@ -175,6 +176,13 @@ export default {
       focusedEditorIndex.value = index; 
     };
     
+    // 新增：处理主文案更新事件
+    const updateMainText = (newText) => {
+      if (cardContent.value) { // 确保 cardContent 已加载
+        cardContent.value.mainText = newText;
+      }
+    };
+    
     return {
       showTopicSelector,
       selectedTemplate,
@@ -187,7 +195,8 @@ export default {
       handleFocusPreviewCard,
       focusedEditorIndex,
       handlePreviewScrolled,
-      currentTopicTitle
+      currentTopicTitle,
+      updateMainText
     }
   }
 }

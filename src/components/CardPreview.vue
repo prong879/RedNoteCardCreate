@@ -63,10 +63,15 @@
         </div>
 
         <div class="mt-6">
-            <h3 class="text-lg font-medium mb-2">主文案预览</h3>
-            <div class="p-4 bg-gray-50 rounded-lg whitespace-pre-line">
-                {{ content.mainText }}
-            </div>
+            <h3 class="text-lg font-medium mb-2">主文案编辑</h3>
+            <textarea 
+                ref="mainTextareaRef" 
+                v-model="mainTextModel" 
+                class="w-full p-4 bg-gray-50 rounded-lg border border-gray-200 dynamic-textarea hide-scrollbar"
+                placeholder="在此处编辑小红书主文案..."
+                rows="6"
+                @input="handleTextareaInput" 
+            ></textarea>
             <button @click="copyMainText"
                 class="mt-2 px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors">
                 复制主文案
@@ -81,6 +86,8 @@ import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToCli
 
 // 导入新的模板加载器
 import { useTemplateLoader } from '../composables/useTemplateLoader';
+// 导入文本域自动高度 hook
+import { useTextareaAutoHeight } from '../composables/useTextareaAutoHeight';
 
 export default {
     name: 'CardPreview',
@@ -102,10 +109,16 @@ export default {
             default: null
         }
     },
-    emits: ['reset-focus', 'preview-scrolled-to-index'],
+    emits: ['reset-focus', 'preview-scrolled-to-index', 'update:mainText'],
     setup(props, { emit }) {
         // 使用新的加载器
         const { getAsyncTemplateComponent } = useTemplateLoader();
+        // 获取根元素的引用，用于自动高度调整
+        const cardPreviewRoot = ref(null);
+        // 新增：为 textarea 添加 ref
+        const mainTextareaRef = ref(null);
+        // 使用文本域自动高度 hook
+        const { adjustSingleTextarea, adjustAllTextareas } = useTextareaAutoHeight(cardPreviewRoot);
 
         // 修改 activeTemplateComponent 计算属性以使用加载器
         const activeTemplateComponent = computed(() => {
@@ -118,9 +131,32 @@ export default {
         const showLeftScroll = ref(false);
         const showRightScroll = ref(false);
 
+        // 计算属性用于 v-model 绑定主文案
+        const mainTextModel = computed({
+            get: () => props.content.mainText || '',
+            set: (newValue) => {
+                emit('update:mainText', newValue);
+            }
+        });
+
+        // 处理文本域输入事件以调整高度
+        const handleTextareaInput = (event) => {
+            adjustSingleTextarea(event.target);
+            // v-model 已经通过 computed setter 触发了事件，这里只需调整高度
+        };
+
         onBeforeUpdate(() => {
             contentCardRefs.value = [];
         });
+
+        // 监听主文案内容变化，调整高度
+        watch(() => props.content.mainText, (newText) => {
+            nextTick(() => {
+                if (mainTextareaRef.value) {
+                    adjustSingleTextarea(mainTextareaRef.value);
+                }
+            });
+        }, { immediate: false }); // 不立即执行，等待挂载后调整
 
         watch(() => props.focusedPreviewIndex, (newIndex) => {
             if (newIndex !== null && newIndex >= 0) {
@@ -223,6 +259,13 @@ export default {
         onMounted(() => {
             nextTick(checkScrollButtons);
             window.addEventListener('resize', checkScrollButtons);
+            // 初始调整主文案 textarea 高度
+            nextTick(() => {
+                // 使用 ref 进行初始调整
+                if (mainTextareaRef.value) {
+                    adjustSingleTextarea(mainTextareaRef.value);
+                }
+            });
         });
         onUpdated(() => {
              nextTick(checkScrollButtons);
@@ -245,6 +288,10 @@ export default {
             scrollRight,
             showLeftScroll,
             showRightScroll,
+            mainTextModel,
+            handleTextareaInput,
+            cardPreviewRoot,
+            mainTextareaRef,
         };
     },
     methods: {
@@ -368,14 +415,14 @@ export default {
 
         async copyMainText() {
             try {
-                const result = await copyTextToClipboard(this.content.mainText);
+                const result = await copyTextToClipboard(this.content.mainText || '');
                 if (result.success) {
                     alert('主文案已复制到剪贴板！');
                 } else {
                     alert(result.message);
                 }
             } catch (error) {
-                console.error('复制失败:', error);
+                console.error('复制主文案时出错:', error);
                 alert('复制失败: ' + error.message);
             }
         }
@@ -401,5 +448,17 @@ export default {
 
 .scroll-smooth {
   scroll-behavior: smooth;
+}
+
+.dynamic-textarea {
+    resize: none;
+    overflow-y: hidden;
+}
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
 }
 </style>
