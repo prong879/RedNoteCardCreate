@@ -25,8 +25,8 @@
                     
                     <!-- 内容卡片内容 -->
                     <template v-else>
-                        <h3 v-if="renderedContentTitle" class="text-xl font-bold mb-4 whitespace-pre-line pt-2 rendered-title" v-html="renderedContentTitle"></h3>
-                        <div v-if="renderedMarkdownBody" class="markdown-body flex-grow overflow-y-hidden pr-1" v-html="renderedMarkdownBody"></div>
+                        <h3 v-if="renderedContentTitle" class="text-xl font-bold mb-2 whitespace-pre-line pt-2 rendered-title" v-html="renderedContentTitle"></h3>
+                        <div v-if="renderedMarkdownBody" class="markdown-body text-base flex-grow overflow-y-hidden pr-1" v-html="renderedMarkdownBody"></div>
                     </template>
                 </div>
 
@@ -139,9 +139,9 @@ export default {
 /* Markdown 列表样式 */
 .markdown-body :deep(ul) {
     list-style-type: disc;
-    margin-left: 1.5rem;
-    margin-top: 0.25rem;
-    margin-bottom: 0.25rem;
+    margin-left: 1rem;
+    margin-top: 0.20rem;
+    margin-bottom: 0.20rem;
     padding-left: 1rem;
 }
 
@@ -154,7 +154,7 @@ export default {
 }
 
 .markdown-body :deep(li) {
-    margin-bottom: 0.10rem;
+    margin-bottom: 0rem;
 }
 
 /* 新增：控制正文普通段落的间距 */
