@@ -1,5 +1,3 @@
-# 最终成品输出对应的参考prompt：manim -qh -s -t --media_dir media Manim/topic01_timeseries_examples.py TimeSeriesExamples8x9
-
 from manim import *
 import numpy as np
 

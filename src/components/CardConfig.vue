@@ -1,56 +1,55 @@
 <template>
     <div ref="cardConfigRoot" class="card-config flex flex-col h-full">
-        <!-- 1. 顶部固定区域: 返回按钮, 模板选择 -->
-        <div class="flex-shrink-0 px-6 pt-6 pb-4 border-b">
-            <!-- Flex布局, 子元素两端对齐, 垂直居中, 下外边距1rem -->
+        <!-- 顶部区域: 包含标题和返回按钮 -->
+        <div class="flex-shrink-0 px-6 pt-6">
             <div class="flex justify-between items-center mb-4">
                  <h2 class="text-xl font-semibold">卡片配置</h2>
                  <button @click="$emit('return-to-topics')" class="px-4 py-1 border border-xhs-gray text-xhs-gray rounded-lg text-sm hover:border-xhs-pink hover:text-xhs-pink transition-colors bg-white">← 返回选择主题</button>
             </div>
-            <!-- 选择模板 -->
-            <div class="mb-2">
-                 <h3 class="text-lg font-medium mb-2">选择模板</h3>
-                 <div class="grid grid-cols-3 gap-4 items-start max-h-60 overflow-y-auto pr-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <!-- Template items ... -->
-                     <div v-for="(template, index) in templatesInfo" :key="template.id" @click="selectTemplate(template.id)" :ref="el => { if (el) templateItemRefs[index] = el }" class="template-item flex flex-col items-center p-1 border rounded-lg cursor-pointer transition-all" :class="{ 'border-xhs-pink border-2': selectedTemplate === template.id, 'border-gray-200': selectedTemplate !== template.id }">
-                        <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50']">
-                            <div :ref="el => { if (el) scalingDivRefs[index] = el }" style="transform-origin: top left; width: 320px;">
-                                <component 
-                                    :is="asyncTemplateComponentsMap[template.id]" 
-                                    type="cover" 
-                                    :cardData="previewCoverContent" />
-                            </div>
-                        </div>
-                        <span class="text-xs mt-auto">{{ template.name }}</span>
-                    </div>
-                 </div>
-            </div>
         </div>
 
-        <!-- 新增：中间区域标题 -->
-        <h3 class="text-lg font-medium mt-4 mb-2 px-6">卡片编辑区</h3>
+        <!-- 卡片编辑区标题和下载按钮容器 -->
+        <div class="flex justify-between items-center mb-2 px-6">
+            <h3 class="text-lg font-medium">卡片编辑区</h3>
+            <!-- Moved download button here -->
+            <button @click="$emit('save-content')" class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">生成 JS 文件</button>
+        </div>
 
-        <!-- 2. 中间滚动区域: 卡片配置列表 (封面 + 内容) -->
+        <!-- 卡片编辑滚动区 -->
         <div ref="editorScrollContainer" class="overflow-y-auto px-3 mx-6 h-96 custom-scrollbar bg-gray-50 border rounded-lg mb-6">
-            <!-- 调整内边距，因为外层 div 加了 p-3 -->
+            <!-- 增加内边距 pt-3 是因为滚动容器加了 px-3 -->
             <div class="pt-3">
                 <!-- 封面卡片配置 -->
-                <div ref="coverCardConfigSection" class="p-3 mb-4 border bg-white rounded-lg space-y-2 shadow-md">
-                    <!-- 修改：添加顶部行，包含标签和按钮 -->
+                <div ref="coverCardConfigSection" class="p-3 mb-4 border bg-white rounded-lg space-y-2 shadow-xl">
+                    <!-- 封面卡片顶部操作栏 -->
                     <div class="flex justify-between items-center mb-2">
                         <span class="font-medium">封面卡片</span>
-                        <!-- 移动按钮到这里 -->
+                        <!-- 页眉/页脚显隐切换按钮 -->
                         <div class="flex items-center space-x-1 md:space-x-2">
+                             <!-- 新增: 封面卡片定位按钮 -->
+                             <button @click="focusPreview(null)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors">
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                 </svg>
+                             </button>
                              <button @click="toggleVisibility('coverCard', 'showHeader')" :class="getButtonClass(content.coverCard.showHeader)" class="text-xs px-2 py-0.5 rounded transition-colors"> {{ content.coverCard.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
                              <button @click="toggleVisibility('coverCard', 'showFooter')" :class="getButtonClass(content.coverCard.showFooter)" class="text-xs px-2 py-0.5 rounded transition-colors"> {{ content.coverCard.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
                         </div>
                     </div>
-                    <!-- 封面标题和副标题 -->
+                    <!-- 封面标题和副标题编辑 -->
                     <textarea v-model="content.coverCard.title" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="输入封面标题" rows="1"></textarea>
                     <textarea v-model="content.coverCard.subtitle" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar" placeholder="输入副标题" rows="2"></textarea>
                 </div>
 
-                <!-- 内容卡片配置 - 使用 draggable 包裹 -->
+                <!-- 新增：在第一个卡片前添加插入点 -->
+                <div class="insert-point h-5 flex items-center justify-center my-2">
+                    <button @click="insertCard(0)" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-xhs-pink hover:text-xhs-pink flex items-center justify-center text-sm bg-white bg-opacity-70 backdrop-blur-sm opacity-0 hover:opacity-100 transition-all duration-200 ease-in-out">
+                        + 新卡片
+                    </button>
+                </div>
+
+                <!-- 内容卡片配置 (使用 vuedraggable 实现拖拽排序) -->
                 <draggable 
                     v-model="content.contentCards" 
                     item-key="index" 
@@ -62,15 +61,16 @@
                 >
                     <template #item="{element: card, index}">
                         <div class="card-item-group group">
-                            <!-- 原卡片编辑区 -->
+                            <!-- 单个卡片编辑区域 -->
                             <div 
                                 :ref="el => { if (el) contentCardConfigSections[index] = el }" 
-                                class="p-3 border bg-white rounded-lg space-y-2 shadow-md relative z-10" 
+                                class="p-3 border bg-white rounded-lg space-y-2 shadow-xl relative z-10" 
                                 :id="`config-card-${index}`"
                             >
-                                <!-- 添加拖拽句柄 -->
+                                <!-- 卡片顶部操作栏 -->
                                 <div class="flex justify-between items-center mb-2">
                                     <div class="flex items-center">
+                                        <!-- 拖拽句柄 -->
                                         <span class="drag-handle cursor-move mr-2 text-gray-400 hover:text-gray-600" title="拖拽排序">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -78,6 +78,7 @@
                                         </span>
                                         <span class="font-medium">卡片 {{ index + 1 }}</span>
                                     </div>
+                                    <!-- 卡片操作按钮 -->
                                     <div class="flex items-center space-x-1 md:space-x-2">
                                          <button @click="focusPreview(index)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /> </svg> </button>
                                          <button @click="toggleVisibility('contentCard', 'showHeader', index)" :class="getButtonClass(card.showHeader)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
@@ -85,10 +86,11 @@
                                          <button @click="removeCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="content.contentCards.length > 1"> 删除 </button>
                                     </div>
                                 </div>
+                                <!-- 卡片标题和内容编辑 -->
                                 <textarea v-model="card.title" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
-                                <textarea v-model="card.body" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="4"></textarea>
+                                <textarea v-model="card.body" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="6"></textarea>
                             </div>
-                            <!-- 插入点按钮 -->
+                            <!-- 插入点按钮 (悬停时可见) -->
                             <div class="insert-point h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 ease-in-out my-2">
                                 <button @click="insertCard(index + 1)" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-xhs-pink hover:text-xhs-pink flex items-center justify-center text-sm bg-white bg-opacity-70 backdrop-blur-sm">
                                     + 新卡片
@@ -97,11 +99,28 @@
                         </div>
                     </template>
                 </draggable>
-                <!-- <button @click="addCard" class="w-full py-2 border border-solid border-xhs-pink rounded-lg text-xhs-pink bg-white hover:bg-xhs-pink hover:text-white transition-colors shadow-sm">添加卡片</button> -->
             </div>
         </div>
 
-        <!-- 3. 底部固定区域: 全局页眉/页脚, 主文案, 操作按钮 -->
+        <!-- 模板选择区 -->
+        <div class="px-6 mb-6">
+             <h3 class="text-lg font-medium mb-2">选择模板</h3>
+             <div class="grid grid-cols-3 gap-4 items-start max-h-60 overflow-y-auto pr-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                 <div v-for="(template, index) in templatesInfo" :key="template.id" @click="selectTemplate(template.id)" :ref="el => { if (el) templateItemRefs[index] = el }" class="template-item flex flex-col items-center p-1 border rounded-lg cursor-pointer transition-all" :class="{ 'border-xhs-pink border-2': selectedTemplate === template.id, 'border-gray-200': selectedTemplate !== template.id }">
+                    <div :class="['preview-container', 'w-full', 'overflow-hidden', 'mb-1', 'bg-gray-50']">
+                        <div :ref="el => { if (el) scalingDivRefs[index] = el }" style="transform-origin: top left; width: 320px;">
+                            <component 
+                                :is="asyncTemplateComponentsMap[template.id]" 
+                                type="cover" 
+                                :cardData="previewCoverContent" />
+                        </div>
+                    </div>
+                    <span class="text-xs mt-auto">{{ template.name }}</span>
+                </div>
+             </div>
+        </div>
+
+        <!-- 底部固定区域: 全局设置和操作按钮 -->
         <div class="flex-grow overflow-y-auto px-6 pt-4 pb-6 border-t custom-scrollbar">
              <!-- 全局页眉/页脚配置 -->
              <div class="mb-6">
@@ -111,15 +130,12 @@
                       <textarea v-model="content.footerText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页脚 (所有卡片生效)" rows="1"></textarea>
                   </div>
              </div>
-             <!-- 小红书主文案 -->
-             <div class="mb-6">
-                 <h3 class="text-lg font-medium mb-2">小红书主文案</h3>
-                 <textarea v-model="content.mainText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="输入小红书笔记主文案" rows="6"></textarea>
-             </div>
-            <!-- 操作按钮 -->
+            <!-- 操作按钮 - Download button removed -->
              <div class="pt-4 border-t border-gray-200 flex gap-4">
+                 <!-- Button removed from here 
                   <button @click="$emit('save-content')" class="flex-1 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">生成 JS 文件供下载</button>
-                  <button @click="copyMainText" class="flex-1 py-2 bg-xhs-pink text-white rounded-lg hover:bg-opacity-90 transition-colors">复制主文案</button>
+                  -->
+                  <!-- If no buttons left, this div might be removable or need style adjustment -->
              </div>
         </div>
     </div>
@@ -128,9 +144,7 @@
 <script>
 import { ref, onMounted, onBeforeUnmount, watch, nextTick, onBeforeUpdate } from 'vue';
 import draggable from 'vuedraggable';
-// import Template1 from '../templates/Template1.vue';
-// import Template2 from '../templates/Template2.vue';
-// import Template5 from '../templates/Template5.vue';
+// 移除已注释的模板导入
 
 // 导入组合式函数
 import { useCardManagement } from '../composables/useCardManagement';
@@ -168,31 +182,33 @@ export default {
         'focus-preview-card'
     ],
     setup(props, { emit }) {
-        // 获取根元素的引用
-        const cardConfigRoot = ref(null);
-        const editorScrollContainer = ref(null); // 引用中间滚动区域
-        const coverCardConfigSection = ref(null); // 引用封面卡片配置区域
-        const contentCardConfigSections = ref([]); // 引用内容卡片配置区域数组
+        // --- Refs --- 
+        const cardConfigRoot = ref(null);           // 组件根元素引用
+        const editorScrollContainer = ref(null);    // 编辑区滚动容器引用
+        const coverCardConfigSection = ref(null); // 封面卡片配置区域引用
+        const contentCardConfigSections = ref([]);  // 内容卡片配置区域引用数组
 
-        // 1. 使用 useCardManagement 管理内容状态和操作
+        // --- Composition API Hooks --- 
+
+        // 1. 管理卡片内容状态和操作 (增删改、显隐切换、拖拽)
         const {
             content,
-            addCard: addCardInternal, // 重命名以避免与下面的包装函数冲突
+            addCard: addCardInternal, // 内部添加卡片函数，避免与导出函数重名
             removeCard,
             toggleVisibility,
             getButtonClass,
             onDragEnd,
             updateContent,
-            createEmptyCard // 从 useCardManagement 获取创建空卡片的方法
+            createEmptyCard // 用于创建空卡片对象
         } = useCardManagement(props, emit);
 
-        // 2. 使用 useTextareaAutoHeight 管理文本域高度
+        // 2. 管理 Textarea 自动高度
         const {
             adjustSingleTextarea,
             adjustAllTextareas
         } = useTextareaAutoHeight(cardConfigRoot);
 
-        // 3. 使用 useTemplatePreviewScaling 管理模板预览
+        // 3. 管理模板选择、预览缩放和动态加载
         const {
             templatesInfo,
             previewCoverContent,
@@ -200,23 +216,25 @@ export default {
             scalingDivRefs,
             asyncTemplateComponentsMap,
             selectTemplate,
-            // updateScale // 通常不需要手动调用
+            // updateScale // 通常由 useTemplatePreviewScaling 内部管理，无需手动调用
         } = useTemplatePreviewScaling(content, emit);
         
-        // 定义拖拽选项以优化滚动
+        // vuedraggable 拖拽选项配置
         const dragOptions = {
-          scroll: true, // 明确启用滚动
-          scrollSensitivity: 120, // 大幅增大触发滚动的敏感区域 (原 50, 默认 30)
-          scrollSpeed: 15,      // 保持稍微加快的滚动速度 (默认 10)
-          forceFallback: true, // 某些情况下可以提高兼容性
+          scroll: true,             // 启用容器内滚动
+          scrollSensitivity: 120,   // 触发滚动的敏感区域像素 (增大以更容易触发滚动)
+          scrollSpeed: 15,          // 滚动速度
+          forceFallback: true,      // 可能提高某些环境下的兼容性
         };
 
-        // 组件挂载后调整所有文本域高度
+        // --- Lifecycle and Watchers --- 
+
+        // 组件挂载后，调整所有现有文本域的高度
         onMounted(() => {
             nextTick(adjustAllTextareas);
         });
 
-        // 监听 focusedEditorIndex prop 的变化以滚动编辑器到容器顶部
+        // 监听外部触发的编辑器聚焦事件 (来自预览区滚动)
         watch(() => props.focusedEditorIndex, (newIndex) => {
             console.log('[CardConfig] Watcher triggered. Received focusedEditorIndex:', newIndex);
             const container = editorScrollContainer.value;
@@ -225,41 +243,36 @@ export default {
                 return;
             }
 
-            let targetElement;
-            // 确定目标元素
-            if (newIndex === null) {
-                // 聚焦封面卡片
-                targetElement = coverCardConfigSection.value;
+            let targetElement; // 确定目标元素
+            if (newIndex === null) { 
+                targetElement = coverCardConfigSection.value; // 聚焦封面
                 console.log('[CardConfig] Scrolling to cover card. Target:', targetElement);
             } else if (typeof newIndex === 'number' && newIndex >= 0) {
-                // 聚焦内容卡片
-                // 确保在 DOM 更新后获取 ref
-                targetElement = contentCardConfigSections.value[newIndex];
+                targetElement = contentCardConfigSections.value[newIndex]; // 聚焦指定内容卡片
                 console.log(`[CardConfig] Scrolling to content card ${newIndex}. Target:`, targetElement);
             } else {
-                // 无效索引，不执行滚动
-                console.warn('[CardConfig] Received invalid index, skipping scroll:', newIndex);
+                console.warn('[CardConfig] Received invalid index, skipping scroll:', newIndex); // 无效索引
                 return;
             }
 
-            // 确保目标元素存在后再执行滚动
+            // 确保目标元素已渲染且可用
             if (targetElement) {
-                nextTick(() => { // 使用 nextTick 确保元素已渲染且位置信息准确
+                nextTick(() => { // 使用 nextTick 保证 DOM 更新和位置计算准确
                     const containerRect = container.getBoundingClientRect();
                     const targetRect = targetElement.getBoundingClientRect();
-                    // 计算目标元素顶部相对于容器顶部的偏移量
+                    // 计算目标元素相对于滚动容器顶部的偏移量
                     const offsetRelativeToContainer = targetRect.top - containerRect.top;
                     // 计算容器需要滚动到的目标 scrollTop 值
                     const desiredScrollTop = container.scrollTop + offsetRelativeToContainer;
 
-                    // 平滑滚动到计算出的位置
+                    // 平滑滚动到目标位置
                     container.scrollTo({
                         top: desiredScrollTop,
                         behavior: 'smooth'
                     });
                 });
             } else {
-                // 如果目标元素未找到，打印警告
+                // 滚动目标元素未找到警告
                 if (newIndex === null) {
                     console.warn("[CardConfig] 无法找到封面卡片配置元素进行滚动", {container: container});
                 } else {
@@ -268,83 +281,64 @@ export default {
             }
         });
 
-        // 在模板更新前清空内容卡片 ref 数组
+        // 在组件更新前 (如卡片增删导致 v-for 重新渲染)，清空内容卡片的 ref 数组
         onBeforeUpdate(() => {
              contentCardConfigSections.value = [];
         });
 
-        // --- 保留在组件内的简单事件处理器 ---
+        // --- Methods --- 
 
-        // 插入新卡片到指定索引
+        // 在指定索引处插入新卡片
         const insertCard = (index) => {
-            const newCard = createEmptyCard(); // 使用导入的方法创建新卡片
+            const newCard = createEmptyCard(); // 创建一个空卡片对象
             content.value.contentCards.splice(index, 0, newCard);
-            updateContent(); // 触发内容更新
-            // 在 DOM 更新后调整所有文本域高度
-            nextTick(adjustAllTextareas);
+            updateContent(); // 通知父组件内容已更新
+            nextTick(adjustAllTextareas); // DOM 更新后调整所有文本域高度
         };
 
-        // 包装 addCard 以便传入 adjustAllTextareas 回调
+        // 包装内部的 addCardInternal，以便在添加后调整文本域高度
         const addCard = () => {
             addCardInternal(adjustAllTextareas);
         };
 
-        // 处理文本域输入事件：调整高度并触发内容更新
+        // 处理任意 textarea 的输入事件
         const handleTextareaInput = (event) => {
-            adjustSingleTextarea(event.target);
-            updateContent(); // 确保修改通过 v-model 绑定后，通知父组件
+            adjustSingleTextarea(event.target); // 调整当前输入框高度
+            updateContent(); // v-model 会自动更新数据，这里确保父组件也收到更新事件
         };
 
-        // 复制主文案
-        const copyMainText = () => {
-             const textToCopy = content.value?.mainText || '';
-             if (!textToCopy) {
-                 alert("主文案为空，无法复制。");
-                 return;
-             }
-            navigator.clipboard.writeText(textToCopy)
-                .then(() => {
-                    alert('主文案已复制到剪贴板！');
-                })
-                .catch(err => {
-                    console.error('无法复制文本: ', err);
-                    alert('复制失败: ' + err.message);
-                });
-        };
-
-        // 定位预览卡片
+        // 触发预览区滚动到指定卡片的事件
         const focusPreview = (index) => {
             emit('focus-preview-card', index);
         };
 
-        // 返回 setup 需要暴露给模板的所有内容
+        // --- Return --- 
+        // 暴露给模板使用的 ref、计算属性和方法
         return {
             // Refs
             cardConfigRoot,
             templateItemRefs,
             scalingDivRefs,
-            editorScrollContainer, // 暴露滚动容器 ref
-            coverCardConfigSection, // 暴露封面卡片配置 ref
-            contentCardConfigSections, // 暴露内容卡片配置 ref 数组
-            // From useCardManagement
+            editorScrollContainer, 
+            coverCardConfigSection, 
+            contentCardConfigSections, 
+            // 内容和管理 (From useCardManagement)
             content,
-            addCard, // 使用包装后的 addCard
+            addCard, // 使用包装后的添加函数
             removeCard,
             toggleVisibility,
             getButtonClass,
             onDragEnd,
-            // From useTextareaAutoHeight (no direct exposure needed)
-            // From useTemplatePreviewScaling
+            // 模板预览 (From useTemplatePreviewScaling)
             templatesInfo,
             previewCoverContent,
             asyncTemplateComponentsMap,
             selectTemplate,
-            // Local handlers
+            // 本地方法
             handleTextareaInput,
-            copyMainText,
             focusPreview,
-            dragOptions, // 暴露 dragOptions
-            insertCard, // 暴露插入函数
+            dragOptions,
+            insertCard,
         };
     },
 }
@@ -359,8 +353,8 @@ export default {
     display: none;
 }
 .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
 }
 .space-y-2 > :not([hidden]) ~ :not([hidden]) {
     --tw-space-y-reverse: 0;
@@ -386,15 +380,16 @@ export default {
   background-color: rgba(107, 114, 128, 0.7);
 }
 .custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent; /* Firefox */
 }
 
+/* vuedraggable 拖拽时的占位符样式 */
 .ghost-card {
     opacity: 0.5;
-    background: #f7fafc;
-    border: 1px dashed #cbd5e0;
+    background: #f7fafc; /* light gray */
+    border: 1px dashed #cbd5e0; /* gray-300 */
 }
 
-/* .drag-handle is used as a selector for vuedraggable, styled with Tailwind */
+/* .drag-handle 类仅用作 vuedraggable 的 handle 选择器，其样式由 Tailwind 直接应用 */
 </style>
