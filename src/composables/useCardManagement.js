@@ -1,54 +1,78 @@
 import { ref, watch, nextTick } from 'vue';
 
+// 新增：创建默认空卡片对象
+const createEmptyCard = () => ({
+    title: '新卡片标题',
+    body: '在这里输入卡片内容...',
+    showHeader: true, // 或根据 contentDefaultShowHeader/Footer 决定
+    showFooter: true
+});
+
 export function useCardManagement(props, emit) {
-    const content = ref({});
+    const content = ref({ contentCards: [] }); // 初始化确保 contentCards 是数组
 
     // 深拷贝初始 props.cardContent 到本地 ref
     watch(() => props.cardContent, (newVal) => {
-        // 使用 JSON 方法进行深拷贝，兼容性好，适用于当前数据结构
-        // 注意：此方法无法处理 Date, RegExp, Map, Set, Function 等特殊类型
-        // 移除 structuredClone 尝试和浅拷贝后备
-        if (newVal && typeof newVal === 'object') { // 确保 newVal 是一个对象且不为 null
+        if (newVal && typeof newVal === 'object') {
             try {
                 content.value = JSON.parse(JSON.stringify(newVal));
+                // 确保 contentCards 始终是数组
+                if (!Array.isArray(content.value.contentCards)) {
+                    content.value.contentCards = [];
+                }
             } catch (e) {
                 console.error('深拷贝 cardContent 失败 (JSON.parse/stringify): ', e, '原始值:', newVal);
-                // 拷贝失败时，至少给一个空对象，避免后续操作出错
-                content.value = {};
+                content.value = { contentCards: [] }; // 保证结构基本正确
             }
         } else {
-            // 如果 newVal 不是有效对象 (可能是 null, undefined, 或非对象类型)
-            content.value = {}; // 或者根据需要设置为其他默认值
+            content.value = { contentCards: [] };
         }
-        // 初始加载时不一定需要立即emit updateContent
     }, { deep: true, immediate: true });
 
     // 通知父组件内容已更新
     const updateContent = () => {
-        emit('update:content', { ...content.value });
-    };
-
-    // 添加新卡片
-    const addCard = (adjustAllTextareasCallback) => {
+        // 在发送更新前，确保 contentCards 仍然是数组
         if (!Array.isArray(content.value.contentCards)) {
+            console.warn('Content.contentCards is not an array before emitting update. Fixing.');
             content.value.contentCards = [];
         }
-        content.value.contentCards.push({
-            title: '新卡片标题',
-            body: '在这里输入卡片内容...',
-            showHeader: true,
-            showFooter: true
-        });
-        updateContent();
-        // 添加卡片后，需要重新计算文本域高度
-        nextTick(adjustAllTextareasCallback);
+        emit('update:content', JSON.parse(JSON.stringify(content.value))); // 仍然使用深拷贝发送，避免父组件意外修改内部状态
+    };
+
+    // 修改：添加/插入新卡片到指定索引
+    // 移除 adjustAllTextareasCallback 参数，由调用方处理 UI 更新
+    const addCard = (index, cardData = null) => {
+        if (!Array.isArray(content.value.contentCards)) {
+            console.error('无法添加卡片：content.contentCards 不是数组！');
+            content.value.contentCards = []; // 尝试修复
+        }
+        const newCard = cardData || createEmptyCard(); // 如果没提供数据，则使用默认
+
+        // 确保 index 是有效数字，如果无效或未提供，则默认添加到末尾
+        const insertIndex = (typeof index === 'number' && index >= 0 && index <= content.value.contentCards.length)
+            ? index
+            : content.value.contentCards.length; // 默认添加到末尾
+
+        try {
+            content.value.contentCards.splice(insertIndex, 0, newCard);
+            console.log(`Card added at index: ${insertIndex}`, content.value.contentCards);
+            updateContent(); // 更新父组件
+        } catch (error) {
+            console.error(`Error splicing card at index ${insertIndex}:`, error);
+            // 可以在这里添加一些错误恢复逻辑，比如确保 contentCards 仍然是数组
+            if (!Array.isArray(content.value.contentCards)) {
+                content.value.contentCards = [];
+            }
+        }
     };
 
     // 删除卡片
     const removeCard = (index) => {
-        if (Array.isArray(content.value.contentCards) && content.value.contentCards.length > 1) {
+        if (Array.isArray(content.value.contentCards) && content.value.contentCards.length > 1 && index >= 0 && index < content.value.contentCards.length) {
             content.value.contentCards.splice(index, 1);
             updateContent();
+        } else {
+            console.warn(`无法删除卡片索引 ${index}：数组长度不足或索引无效。`);
         }
     };
 
@@ -57,23 +81,29 @@ export function useCardManagement(props, emit) {
         let card;
         if (cardType === 'coverCard') {
             card = content.value.coverCard;
-        } else if (cardType === 'contentCard' && index !== null && content.value.contentCards && content.value.contentCards[index]) {
+        } else if (cardType === 'contentCard' && index !== null && Array.isArray(content.value.contentCards) && content.value.contentCards[index]) {
             card = content.value.contentCards[index];
         }
 
         if (card) {
-            // 确保属性存在且初始化为布尔值
             if (typeof card[field] !== 'boolean') {
-                card[field] = true; // 默认为 true
+                // 参考全局默认值来初始化可能更健壮
+                const defaultVal = (field === 'showHeader')
+                    ? content.value.contentDefaultShowHeader !== false // 默认为 true
+                    : content.value.contentDefaultShowFooter !== false; // 默认为 true
+                card[field] = defaultVal;
             }
             card[field] = !card[field];
+        } else {
+            console.warn(`无法切换可见性: cardType=${cardType}, field=${field}, index=${index}`);
         }
         updateContent();
     };
 
     // 获取可见性切换按钮的样式类
     const getButtonClass = (isVisible) => {
-        const visible = typeof isVisible === 'boolean' ? isVisible : true; // 默认视为可见
+        // 处理 isVisible 可能为 undefined 的情况
+        const visible = isVisible === true; // 只有显式为 true 才认为是可见
         return visible
             ? 'border border-gray-400 text-gray-600 bg-gray-100 hover:bg-gray-200'
             : 'border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200';
@@ -86,11 +116,12 @@ export function useCardManagement(props, emit) {
 
     return {
         content,
-        addCard,
+        addCard, // 导出修改后的 addCard
         removeCard,
         toggleVisibility,
         getButtonClass,
         onDragEnd,
-        updateContent // 暴露 updateContent 以便文本域输入时调用
+        updateContent, // 暴露 updateContent 以便文本域输入时调用
+        createEmptyCard // 导出 createEmptyCard
     };
 } 

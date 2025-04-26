@@ -130,8 +130,9 @@ npm run build
 │   ├── 【文字版】时间序列数据.md
 │   ├── 写作要点分析.md
 │   └── 选题库.md
-├── media/		# 媒体资源 (图片, 动画)
-│   └── ...
+├── Manim/			# Manim 可视化脚本与资源
+│   ├── media/		# Manim 生成的媒体文件 (图片/视频)
+│   └── *.py        # Manim 动画生成 Python 脚本
 ├── node_modules/		# 项目依赖
 ├── public/			# 静态资源 (如图标) - (注：当前未列出，但通常存在于 Vite 项目)
 ├── scripts/			# Node.js 脚本 (如 Markdown 转换脚本)
@@ -535,29 +536,66 @@ npm run xinwenan -- topic03 "如何选择合适的模型"
 
 在与 AI 助手协作生成新的选题内容时，应参考或使用此模板，以确保输出格式的准确性。
 
+其中，该 Prompt 指导 AI 在生成的 Markdown 文件对应卡片下方，使用 `<!-- 插图建议: ... -->` HTML 注释格式，提供关于如何创建可视化素材的**简洁建议**，而不是生成详细的、可直接执行的 Manim 代码 Prompt。
+
 ## 媒体资源管理规范
 
 为了更好地管理项目中用于辅助说明的图片、动画等媒体资源（例如使用 Manim 生成的可视化内容），请遵循以下规范：
 
 1.  **存储位置**:
-    *   所有媒体资源应统一存放在项目根目录下的 `media/` 文件夹中。
+    *   所有媒体资源应统一存放在项目根目录下的 `Manim/media/` 文件夹中。
 
-2.  **内部组织**:
-    *   在 `media/` 文件夹内部，应按照其对应的文档内容或功能模块创建子目录进行组织。例如，对于 `docs/选题库.md` 的辅助媒体，应创建如下结构：
+2.  **文件命名**: 
+    *   媒体文件名应清晰地描述其内容或功能，以便快速理解。推荐使用下划线分隔单词。
+    *   例如：
+        *   `time_series_definition_animation.mp4`
+        *   `time_order_importance_comparison.png`
+        *   `stationarity_check_flowchart.png`
+
+3.  **版本控制**: 
+    *   大型媒体文件（如高清视频）可能会显著增加 Git 仓库的体积。请根据项目实际情况考虑是否将 `Manim/media/` 目录或其中的大型文件添加到 `.gitignore` 中，或考虑使用 Git LFS (Large File Storage) 进行管理。
+
+## Manim 中文支持配置 (Manim Community Edition)
+
+如果计划使用 Manim 社区版 (ManimCE) 生成包含中文的可视化素材（如通过 `knowledge_card_prompt.md` 中生成的 Prompt 指令），需要确保 ManimCE 环境已正确配置中文支持。以下配置和代码示例适用于存放在 `Manim/` 目录下的 Python 脚本 (`.py` 文件)。
+
+1.  **安装与环境**:
+    *   确保已安装完整的 TeX 发行版 (如 TeX Live 或 MiKTeX)，且包含 `xelatex` 编译器。
+    *   确保操作系统已安装所需的中文字体 (如 "微软雅黑 Microsoft YaHei", "思源黑体 Source Han Sans CN", "等线 DengXian" 等)，并且 LaTeX 能够找到它们。
+
+2.  **ManimCE 脚本配置 (在 `Manim/*.py` 文件中)**:
+    *   **对于 `Text` 对象 (纯文本)**: 在 Python 脚本开头设置全局字体：
+        ```python
+        from manim import *
+        config.font = "Microsoft YaHei" # 替换为你选择的已安装中文字体
         ```
-        media/
-        ├── 1_基础入门与核心概念/
-        ├── 2_主流模型介绍/
-        ├── 3_核心检验方法/
-        ├── 4_波动率模型/
-        └── 5_实践与拓展/
+    *   **对于 `Tex` / `MathTex` 对象 (LaTeX 渲染)**: (关键) 需要修改 TeX 模板以使用 `xelatex` 并加载中文字体。推荐配置如下：
+        ```python
+        from manim import *
+        import os # 用于处理换行符
+
+        # 创建自定义 TeX 模板
+        my_template = TexTemplate(
+            tex_compiler="xelatex",       # 使用 xelatex
+            output_format=".xdv",         # xelatex 对应的输出格式
+        )
+
+        # 在 LaTeX 导言区添加中文支持 (确保字体已安装)
+        my_template.add_to_preamble(
+            r"\usepackage{ctex}" + os.linesep +         # 加载 ctex 宏包
+            r"\setCJKmainfont{Microsoft YaHei}" + os.linesep # 设置 CJK 主字体
+            # 可选: \setCJKsansfont{思源黑体 CN} 等
+        )
+
+        # 应用配置好的模板到全局
+        config.tex_template = my_template
+
+        # --- 之后 Tex 和 MathTex 对象即可正确渲染中文 ---
+        # 示例:
+        # class MyScene(Scene):
+        #     def construct(self):
+        #         chinese_tex = Tex("你好，世界！ $E=mc^2$")
+        #         self.play(Write(chinese_tex))
         ```
 
-3.  **文件命名**:
-    *   媒体文件名应具有清晰的描述性，建议采用 `编号_关键词` 的格式，以便快速理解其内容。例如：
-        *   `01_什么是时间序列.mp4`
-        *   `05_平稳性对比.png`
-        *   `12_ACF_PACF拖尾截尾.gif`
-
-4.  **版本控制**:
-    *   大型媒体文件（如高清视频）可能会显著增加 Git 仓库的体积。请根据项目实际情况考虑是否将 `media/` 目录或其中的大型文件添加到 `.gitignore` 中，或考虑使用 Git LFS (Large File Storage) 进行管理。
+**总结**: 确保 LaTeX 环境和字体就绪，并在 `Manim/` 目录下的 Python 脚本中，根据需要配置 ManimCE 的 `config.font` (针对 `Text`) 和 `config.tex_template` (针对 `Tex`/`MathTex`)。

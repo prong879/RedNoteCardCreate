@@ -85,12 +85,12 @@ export default {
         const renderedContentTitle = computed(() => {
             return props.type === 'content' && props.cardData && props.cardData.title
                    ? renderMarkdownAndLaTeX(props.cardData.title)
-                   : '';
+                    : '';
         });
         const renderedMarkdownBody = computed(() => {
             return props.type === 'content' && props.cardData && props.cardData.body
                    ? renderMarkdownAndLaTeX(props.cardData.body)
-                   : '';
+                    : '';
         });
 
         return {
