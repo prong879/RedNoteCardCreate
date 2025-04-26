@@ -140,8 +140,8 @@ export default {
 .markdown-body :deep(ul) {
     list-style-type: disc;
     margin-left: 1.5rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
     padding-left: 1rem;
 }
 
@@ -155,6 +155,12 @@ export default {
 
 .markdown-body :deep(li) {
     margin-bottom: 0.10rem;
+}
+
+/* 新增：控制正文普通段落的间距 */
+.markdown-body :deep(p) {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
 }
 
 /* 新增：移除渲染后标题内 p 标签的默认边距 */

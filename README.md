@@ -130,14 +130,20 @@ npm run build
 │   ├── 【文字版】时间序列数据.md
 │   ├── 写作要点分析.md
 │   └── 选题库.md
-├── Manim/			# Manim 可视化脚本与资源
-│   ├── media/		# Manim 生成的媒体文件 (图片/视频)
+├── Manim/			# Manim 可视化脚本
 │   └── *.py        # Manim 动画生成 Python 脚本
+├── media/                  # Manim 默认输出目录，存放最终媒体资源
+│   ├── images/
+│   │   └── topic01_timeseries_examples/ # 按脚本和场景分类 (Manim 默认)
+│   │       └── TimeSeriesExamples8x9.png
+│   │
+│   ├── videos/
+│   └── texts/
 ├── node_modules/		# 项目依赖
 ├── public/			# 静态资源 (如图标) - (注：当前未列出，但通常存在于 Vite 项目)
 ├── scripts/			# Node.js 脚本 (如 Markdown 转换脚本)
 ├── src/
-│   ├── assets/		# 静态资源 (样式)
+│   ├── assets/		# Vue 应用静态资源 (如 CSS)
 │   │   └── styles/
 │   │       └── index.css # 主要样式文件 (引入Tailwind)
 │   ├── components/		# Vue 组件 (视图层)
@@ -543,17 +549,23 @@ npm run xinwenan -- topic03 "如何选择合适的模型"
 为了更好地管理项目中用于辅助说明的图片、动画等媒体资源（例如使用 Manim 生成的可视化内容），请遵循以下规范：
 
 1.  **存储位置**:
-    *   所有媒体资源应统一存放在项目根目录下的 `Manim/media/` 文件夹中。
+    *   所有**最终使用**的媒体资源（通常由 Manim 生成）统一存放在项目**根目录下的 `media/` 文件夹**中。Manim 会根据脚本和场景名称自动在此目录下创建子文件夹（如 `media/images/topic01_timeseries_examples/`）。
+    *   **注意**: 此 `media/` 目录与 Vue 应用的 `src/assets/` 目录不同，后者用于存放 CSS、字体等前端构建资源。
 
 2.  **文件命名**: 
-    *   媒体文件名应清晰地描述其内容或功能，以便快速理解。推荐使用下划线分隔单词。
-    *   例如：
-        *   `time_series_definition_animation.mp4`
-        *   `time_order_importance_comparison.png`
-        *   `stationarity_check_flowchart.png`
+    *   Manim 生成的文件名默认基于其 **Scene 类名**（例如 `TimeSeriesExamples8x9.png`）。
+    *   为了更好地与知识卡片内容关联和复用，**推荐**在 Manim 输出后，根据 AI Prompt 中建议的命名规则手动或通过脚本将其**重命名**为：`[topicId]_[content_description]_[optional_remarks].<extension>`。
+        *   `[topicId]`: 对应的选题 ID。
+        *   `[content_description]`: 使用小写英文或拼音加下划线描述内容。
+        *   `[optional_remarks]`: 可选的备注信息。
+        *   `<extension>`: 文件扩展名 (如 `.png`, `.mp4`)。
+    *   例如，将 Manim 生成的 `media/images/topic01_timeseries_examples/TimeSeriesExamples8x9.png` 重命名为 `media/topic01_components_overview.png` （或者按需移动到 `media/` 根目录或保留在子目录中，只要确保最终引用路径正确即可）。
 
-3.  **版本控制**: 
-    *   大型媒体文件（如高清视频）可能会显著增加 Git 仓库的体积。请根据项目实际情况考虑是否将 `Manim/media/` 目录或其中的大型文件添加到 `.gitignore` 中，或考虑使用 Git LFS (Large File Storage) 进行管理。
+3.  **尺寸比例**: 
+    *   制作插图时，考虑到小红书展示效果及页眉页脚的存在，优先推荐使用 **8:9 (宽比高)** 的宽高比进行 Manim 场景配置。
+
+4.  **版本控制**: 
+    *   项目根目录下的 `media/` 目录通常包含大量二进制文件，会显著增加 Git 仓库体积。**强烈建议**将 `media/` 目录添加到 `.gitignore` 文件中，不纳入版本控制，或考虑使用 Git LFS (Large File Storage) 进行管理。
 
 ## Manim 中文支持配置 (Manim Community Edition)
 
