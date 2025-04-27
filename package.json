@@ -6,9 +6,8 @@
         "dev": "vite",
         "build": "vite build",
         "serve": "vite preview",
-        "generate": "node scripts/generateContent.js",
-        "xinwenan": "node scripts/newTopic.js",
-        "zhuanhuan": "node scripts/generateContent.js"
+        "xinwenan": "node scripts/create_md_Template.js",
+        "zhuanhuan": "node scripts/md_To_JS_Content.js"
     },
     "dependencies": {
         "@agentdeskai/browser-tools-mcp": "^1.2.0",
