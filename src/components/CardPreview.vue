@@ -83,6 +83,8 @@
 <script>
 import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted, onUpdated, onUnmounted } from 'vue';
 import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard } from '../utils/cardExport';
+// 导入 vue-toastification
+import { useToast } from "vue-toastification";
 
 // 导入新的模板加载器
 import { useTemplateLoader } from '../composables/useTemplateLoader';
@@ -119,6 +121,8 @@ export default {
         const mainTextareaRef = ref(null);
         // 使用文本域自动高度 hook
         const { adjustSingleTextarea, adjustAllTextareas } = useTextareaAutoHeight(cardPreviewRoot);
+        // 获取 toast 实例
+        const toast = useToast();
 
         // 修改 activeTemplateComponent 计算属性以使用加载器
         const activeTemplateComponent = computed(() => {
@@ -292,6 +296,8 @@ export default {
             handleTextareaInput,
             cardPreviewRoot,
             mainTextareaRef,
+            toast,
+            contentCardRefs
         };
     },
     methods: {
@@ -336,7 +342,7 @@ export default {
                                 : cardElementRefOrActualElement;    // 如果是 DOM 元素 Ref 或直接元素
             
             if (!this.topicId) {
-                alert('无法获取主题ID，无法导出。');
+                this.toast.error('无法获取主题ID，无法导出。');
                 return;
             }
             try {
@@ -345,15 +351,15 @@ export default {
                     throw new Error("找不到可导出的卡片元素");
                 }
                 await exportCardAsImage(actualCardToExport, fileName);
-                alert(`成功导出 ${fileName}.png`);
+                this.toast.success(`成功导出 ${fileName}.png`);
             } catch (error) {                console.error('导出失败:', error);
-                alert('导出失败: ' + error.message);
+                this.toast.error('导出失败: ' + error.message);
             }
         },
 
         _getAllExportableElements() {
             const elements = [];
-            const coverCardContainer = this.$refs.coverCardContainer; // 使用容器的 ref
+            const coverCardContainer = this.$refs.coverCardContainer;
             const coverCardElement = this._getExportableCardElement(coverCardContainer);
             if (coverCardElement) {
                 elements.push({ element: coverCardElement, type: 'cover', index: -1 });
@@ -362,7 +368,8 @@ export default {
             }
 
             this.content.contentCards.forEach((_, index) => {
-                const contentCardContainer = this.$refs.contentCardRefs?.[index]; // 使用容器的 ref
+                // 通过 this.contentCardRefs 访问 setup 返回的 ref
+                const contentCardContainer = this.contentCardRefs[index]; 
                 const contentCardElement = this._getExportableCardElement(contentCardContainer);
                 if (contentCardElement) {
                     elements.push({ element: contentCardElement, type: 'content', index: index });
@@ -376,40 +383,42 @@ export default {
 
         async exportAllAsImages() {
             if (!this.topicId) {
-                alert('无法获取主题ID，无法导出。');
+                this.toast.error('无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = this._getAllExportableElements();
             if (elementsToExport.length === 0) {
-                alert("没有可导出的卡片。");
+                this.toast.warning("没有可导出的卡片。");
                 return;
             }
             console.log(`准备导出 ${elementsToExport.length} 张图片...`);
             try {
                 await exportCardsAsImages(elementsToExport, this.topicId, this.getFormattedDate());
-                alert('所有图片导出完成！');
+                this.toast.success('所有图片导出完成！');
             } catch(error) {
                 console.error('批量导出图片失败:', error);
-                alert('批量导出图片失败: ' + error.message);
+                this.toast.error('批量导出图片失败: ' + error.message);
             }
         },
 
         async exportAllAsZip() {
             if (!this.topicId) {
-                alert('无法获取主题ID，无法导出。');
+                this.toast.error('无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = this._getAllExportableElements();
             if (elementsToExport.length === 0) {
-                alert("没有可导出的卡片。");
+                this.toast.warning("没有可导出的卡片。");
                 return;
             }
             console.log(`准备打包 ${elementsToExport.length} 张图片...`);
             try {
+                const zipFileName = `${this.topicId}_${this.getFormattedDate()}.zip`;
                 await exportCardsAsZip(elementsToExport, this.topicId, this.getFormattedDate());
+                this.toast.success(`打包文件 ${zipFileName} 已开始下载！`);
             } catch(error) {
                 console.error('打包下载失败:', error);
-                alert('打包下载失败: ' + error.message);
+                this.toast.error('打包下载失败: ' + error.message);
             }
         },
 
@@ -417,13 +426,13 @@ export default {
             try {
                 const result = await copyTextToClipboard(this.content.mainText || '');
                 if (result.success) {
-                    alert('主文案已复制到剪贴板！');
+                    this.toast.success('主文案已复制到剪贴板！');
                 } else {
-                    alert(result.message);
+                    this.toast.error(result.message);
                 }
             } catch (error) {
                 console.error('复制主文案时出错:', error);
-                alert('复制失败: ' + error.message);
+                this.toast.error('复制失败: ' + error.message);
             }
         }
     }

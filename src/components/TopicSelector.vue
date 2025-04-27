@@ -1,6 +1,26 @@
 <template>
     <div class="topic-selector mb-8">
-        <h2 class="text-xl font-semibold mb-4">选择内容选题</h2>
+        <!-- 修改：将标题和开关放在同一行 -->
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold">选择内容选题</h2>
+            
+            <!-- 切换Prompt按钮可见性的开关 -->
+            <div class="flex items-center">
+                <label for="prompt-toggle" class="mr-2 text-sm font-medium text-gray-700">显示 "生成Prompt" 按钮:</label>
+                <button
+                    id="prompt-toggle"
+                    @click="togglePromptButtons"
+                    :class="[showPromptButtons ? 'bg-green-500' : 'bg-gray-300', 'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500']"
+                    role="switch"
+                    :aria-checked="showPromptButtons.toString()">
+                    <span
+                        aria-hidden="true"
+                        :class="[showPromptButtons ? 'translate-x-5' : 'translate-x-0', 'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200']">
+                    </span>
+                </button>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div v-for="(topic, index) in topics" :key="topic.id"
                 class="topic-card relative p-4 bg-white border border-gray-200 rounded-lg cursor-pointer shadow-md hover:shadow-2xl hover:scale-105 transition-all flex flex-col overflow-hidden">
@@ -22,7 +42,9 @@
                         class="bg-xhs-pink hover:bg-xhs-pink-dark text-white font-bold py-1 px-6 rounded text-sm mr-2">
                         选择话题
                     </button>
+                    <!-- 修改：添加 v-show 指令 -->
                     <button
+                        v-show="showPromptButtons"
                         @click="generatePrompt(topic)"
                         class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
                         生成Prompt
@@ -44,6 +66,12 @@ const toast = useToast();
 
 const topics = ref(topicsMeta);
 const savedTopicInfo = reactive({});
+const showPromptButtons = ref(true); // 新增：控制 Prompt 按钮可见性的状态
+
+// 新增：切换 Prompt 按钮可见性的方法
+const togglePromptButtons = () => {
+    showPromptButtons.value = !showPromptButtons.value;
+};
 
 // 使用 import.meta.glob 获取所有 content 文件信息
 // 注意：路径是相对于当前文件的，所以是 '../content/'
