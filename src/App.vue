@@ -50,6 +50,7 @@
 
 <script>
 import { ref } from 'vue'
+import { useToast } from "vue-toastification";
 import CardConfig from './components/CardConfig.vue'
 import CardPreview from './components/CardPreview.vue'
 import TopicSelector from './components/TopicSelector.vue'
@@ -63,6 +64,9 @@ export default {
     TopicSelector
   },
   setup() {
+    // 新增：获取 toast 实例
+    const toast = useToast();
+    
     // 控制是否显示主题选择器
     const showTopicSelector = ref(true);
     
@@ -139,7 +143,8 @@ export default {
     // Generate and download the JS content file
     const generateContentJsFile = () => {
       if (!currentTopicId.value) {
-        alert("请先选择一个选题！");
+        // 修改：使用 toast.error 替换 alert
+        toast.error("请先选择一个选题！");
         return;
       }
       const topicId = currentTopicId.value;
@@ -161,8 +166,10 @@ export default {
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
       
-      alert(`已生成 ${filename} 文件供下载。
-请手动将其移动到项目的 'src/content/' 目录下替换旧文件。`);
+      // 修改：使用 toast.success 替换 alert，并调整提示信息
+      toast.success(`已生成 ${filename} 文件供下载。请手动将其移动到项目的 'src/content/' 目录下替换旧文件。`, {
+          timeout: 8000 // 延长提示显示时间
+      });
     };
     
     const handleFocusPreviewCard = (index) => {

@@ -24,7 +24,8 @@ dist-ssr
 *.sw? 
 
 
-\media
+\media_final
 \.venv
+\成品卡片
 
 docs/时间序列数据讲义.md
