@@ -101,7 +101,7 @@ function convertFile(inputFilePath) {
         }
 
         // 处理卡片内容
-        const cardContents = markdownContentForCards.split(/\r?\n---\r?\n/);
+        const cardContents = markdownContentForCards.split(/(?:\r?\n\s*){1,}---\s*(?:\r?\n\s*)*/);
         console.log(`  - 内容分割: 找到 ${cardContents.length} 个部分 (含封面)`);
 
         // 健全性检查

@@ -2,222 +2,227 @@
 // 用于存储选题的核心信息，与具体每次编辑的内容分开
 
 export const topicsMeta = [
-    // 一、 基础入门与核心概念
     {
         id: 'topic01',
+        title: '【期末速成】这，可能是最"说人话"的计量速成',
+        description: '系列课程介绍与导论'
+    },
+    // 一、 基础入门与核心概念
+    {
+        id: 'topic02',
         title: '【小白入门】什么是时间序列数据？',
         description: '核心：用生活实例解释定义，如图股价、气温变化'
     },
     {
-        id: 'topic02',
+        id: 'topic03',
         title: '时间序列 VS 截面数据 VS 面板数据：三者的区别？',
         description: '核心：用简洁图表或实例清晰对比三者关键不同点'
     },
     {
-        id: 'topic03',
+        id: 'topic04',
         title: '为什么金融分析离不开时间序列？',
         description: '核心：强调预测、风险管理等实际应用价值，引发共鸣'
     },
     {
-        id: 'topic04',
+        id: 'topic05',
         title: '【核心】时间序列分析到底在分析啥？',
         description: '核心：引出并通俗解释"自相关性"是核心灵魂'
     },
     {
-        id: 'topic05',
+        id: 'topic06',
         title: '什么是"平稳性"？为什么它这么重要？',
         description: '核心：用生动比喻解释"可预测性"，如"脾气稳定的人"'
     },
     {
-        id: 'topic06',
+        id: 'topic07',
         title: '强平稳 vs 弱平稳：有啥不一样？',
         description: '核心：简单区分，重点解释"弱平稳"为何够用且重要 - 均值方差稳定即可预测'
     },
     {
-        id: 'topic07',
+        id: 'topic08',
         title: '肉眼看图识平稳：你的数据"稳"吗？',
         description: '核心：结合典型图例，教用户直观判断趋势和波动'
     },
     {
-        id: 'topic08',
+        id: 'topic09',
         title: '什么是"白噪声"？为什么我们不希望序列是白噪声？',
         description: '核心：解释其"完全随机、无规律、无法预测"的特点'
     },
     {
-        id: 'topic09',
+        id: 'topic10',
         title: '"随机游走"是什么？和白噪声是一回事吗？',
         description: '核心：用"醉汉走路"比喻解释随机游走，并指出其与白噪声的关键区别 - 非平稳'
     },
     {
-        id: 'topic10',
+        id: 'topic11',
         title: '数据不平稳怎么办？"差分"大法来帮忙！',
         description: '核心：解释差分的操作意义 - 消除趋势，获得平稳性，引入I阶单整概念'
     },
     {
-        id: 'topic11',
+        id: 'topic12',
         title: '【图解】自相关(ACF) vs 偏自相关(PACF)：帮你揪出数据的"记忆"',
         description: '核心：通俗解释两者分别看直接/间接影响，强调图形化理解'
     },
     {
-        id: 'topic12',
+        id: 'topic13',
         title: 'ACF/PACF图怎么看？拖尾 vs 截尾是什么意思？',
         description: '核心：结合典型ACF/PACF图形，教用户识别关键模式"截尾"和"拖尾"'
     },
 
     // 二、 主流模型介绍
     {
-        id: 'topic13',
+        id: 'topic14',
         title: '【模型初识】AR模型：今天的我由昨天的我决定？',
         description: '核心：解释"自回归"思想 - 用历史值预测当前值，避免数学细节'
     },
     {
-        id: 'topic14',
+        id: 'topic15',
         title: 'AR模型的"P"是什么意思？如何判断阶数？',
         description: '核心：解释P代表滞后阶数，结合ACF/PACF图简述判断依据 - PACF截尾'
     },
     {
-        id: 'topic15',
+        id: 'topic16',
         title: '【模型初识】MA模型：我受"意外事件"（噪声）影响？',
         description: '核心：解释"移动平均"思想 - 用历史误差预测当前值，避免数学细节'
     },
     {
-        id: 'topic16',
+        id: 'topic17',
         title: 'MA模型的"q"是什么意思？如何判断阶数？',
         description: '核心：解释q代表误差阶数，结合ACF/PACF图简述判断依据 - ACF截尾'
     },
     {
-        id: 'topic17',
+        id: 'topic18',
         title: 'AR vs MA：什么时候用哪个？',
         description: '核心：根据ACF/PACF的"拖尾/截尾"特征，总结选择依据'
     },
     {
-        id: 'topic18',
+        id: 'topic19',
         title: '【强强联合】ARMA模型：既看过去的我，也看过去的"意外"',
         description: '核心：解释其结合了AR和MA的思想，适用于更复杂情况'
     },
     {
-        id: 'topic19',
+        id: 'topic20',
         title: 'ARMA(p,q)怎么定阶？',
         description: '核心：说明定阶重要性，简介AIC/BIC越小越好原则，不展示公式计算'
     },
     {
-        id: 'topic20',
+        id: 'topic21',
         title: 'ARIMA模型：ARMA加上"差分"是什么操作？',
         description: '核心：解释I(d)代表差分阶数，用于处理非平稳序列'
     },
     {
-        id: 'topic21',
+        id: 'topic22',
         title: '模型选择困难症？AIC/BIC来帮忙',
         description: '核心：强调AIC/BIC是常用选择标准，看哪个模型的值更小'
     },
 
     // 三、 核心检验方法
     {
-        id: 'topic22',
+        id: 'topic23',
         title: '【必会检验】如何科学判断序列平稳性？单位根检验来了！',
         description: '核心：强调检验目的 - 判断平稳性，结果解读 - 主要看P值是否小于0.05'
     },
     {
-        id: 'topic23',
+        id: 'topic24',
         title: 'DF检验 vs ADF检验：有啥区别？',
         description: '核心：简单说明ADF是DF的扩展，能处理更复杂情况，不必深究'
     },
     {
-        id: 'topic24',
+        id: 'topic25',
         title: '单位根检验的原假设是什么？P值怎么看？',
         description: '核心：清晰说明原假设=不平稳，P值小于显著性水平则拒绝原假设=平稳'
     },
     {
-        id: 'topic25',
+        id: 'topic26',
         title: '【模型诊断】残差是"白噪声"吗？为什么要检验它？',
         description: '核心：解释检验目的 - 判断模型是否充分提取信息，残差无规律才好'
     },
     {
-        id: 'topic26',
+        id: 'topic27',
         title: '白噪声检验：BP检验和LB检验怎么看？',
         description: '核心：介绍两者用途相似，结果解读 - 主要看P值是否大于0.05，大于则认为是白噪声'
     },
     {
-        id: 'topic27',
+        id: 'topic28',
         title: '【多序列】什么是"协整"？一起涨跌就是它？',
         description: '核心：用生活实例解释长期均衡关系，如收入与消费'
     },
     {
-        id: 'topic28',
+        id: 'topic29',
         title: '协整检验：EG两步法 vs Johansen检验',
         description: '核心：简单提及两种方法适用场景不同，不展开具体步骤'
     },
     {
-        id: 'topic29',
+        id: 'topic30',
         title: '【探究关系】格兰杰因果检验：谁是因？谁是果？',
         description: '核心：解释其"预测性"因果关系，而非哲学因果，强调结果解读'
     },
     {
-        id: 'topic30',
+        id: 'topic31',
         title: '格兰杰因果检验结果怎么解读？',
         description: '核心：结合P值说明如何判断A是否是B的格兰杰原因'
     },
 
     // 四、 波动率模型
     {
-        id: 'topic31',
+        id: 'topic32',
         title: '【金融必看】什么是"波动集群"现象？',
         description: '核心：用股价/收益率图展示"大波动接大波动"的直观现象'
     },
     {
-        id: 'topic32',
+        id: 'topic33',
         title: '为什么同方差假设在金融里不适用？',
         description: '核心：解释金融数据波动时大时小的特点，引出条件异方差'
     },
     {
-        id: 'topic33',
+        id: 'topic34',
         title: 'ARCH模型：用过去的"波动"预测未来的"波动"',
         description: '核心：解释模型基本思想 - 当前波动与历史误差平方有关'
     },
     {
-        id: 'topic34',
+        id: 'topic35',
         title: '如何检验ARCH效应？（LM检验/BP/LB检验）',
         description: '核心：强调检验目的 - 判断是否存在波动集群，结果解读 - 看P值'
     },
     {
-        id: 'topic35',
+        id: 'topic36',
         title: 'GARCH模型：ARCH的升级版，考虑了波动的"惯性"',
         description: '核心：解释GARCH项含义 - 当前波动也与历史波动有关'
     },
     {
-        id: 'topic36',
+        id: 'topic37',
         title: 'GARCH(p,q)模型：如何理解p和q？',
         description: '核心：简单解释p和q分别代表波动和误差的滞后阶数'
     },
     {
-        id: 'topic37',
+        id: 'topic38',
         title: 'ARCH/GARCH模型在金融风险管理中的应用',
         description: '核心：强调模型在度量和预测风险方面的实际价值'
     },
 
     // 五、 实践与拓展
     {
-        id: 'topic38',
+        id: 'topic39',
         title: '【工具篇】用Excel也能做简单的时间序列分析？',
         description: '核心：演示描述统计、移动平均、简单绘图等Excel基础操作'
     },
     {
-        id: 'topic39',
+        id: 'topic40',
         title: '【工具选择】学时间序列分析，选哪个工具好？(Python/R/Stata特点对比)',
         description: '核心：高层次对比各工具优劣势和适用场景，不涉及代码'
     },
     {
-        id: 'topic40',
+        id: 'topic41',
         title: '案例分析：用时间序列模型预测XX股票走势可能吗？',
         description: '核心：讨论模型局限性，强调预测非算命，需结合基本面等'
     },
     {
-        id: 'topic41',
+        id: 'topic42',
         title: '伪回归：看起来相关，实际是"假象"？',
         description: '核心：解释伪回归现象及危害，强调平稳性重要'
     },
     {
-        id: 'topic42',
+        id: 'topic43',
         title: '时间序列分析学习路径/书籍推荐',
         description: '核心：提供进阶学习资源，引导用户深入'
     }
