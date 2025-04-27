@@ -31,9 +31,15 @@ function sanitizeFilename(name) {
  * 导出单个卡片为图片
  * @param {HTMLElement} cardElement - 要导出的卡片元素 (.xhs-card 或 .card)
  * @param {string} rawFileName - 未清理的文件名 (不含扩展名)
+ * @param {string} format - 图片格式 ('png' or 'jpg')
  */
-export const exportCardAsImage = async (cardElement, rawFileName) => {
-    const fileName = sanitizeFilename(rawFileName); // 清理文件名
+export const exportCardAsImage = async (cardElement, rawFileName, format = 'png') => {
+    const fileName = sanitizeFilename(rawFileName);
+    const fileExtension = format === 'jpg' ? 'jpg' : 'png';
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    // 修改：JPG 质量固定为 1.0
+    const jpgQuality = 1.0;
+
     try {
         const options = {
             scale: 2, // 提高导出图片质量
@@ -42,7 +48,7 @@ export const exportCardAsImage = async (cardElement, rawFileName) => {
             logging: false, // 减少控制台噪音
         };
 
-        console.log(`准备导出图片: ${fileName}.png`);
+        console.log(`准备导出图片: ${fileName}.${fileExtension}`);
         const canvas = await html2canvas(cardElement, options);
 
         // 使用 Promise 包装 toBlob
@@ -50,20 +56,21 @@ export const exportCardAsImage = async (cardElement, rawFileName) => {
             canvas.toBlob((blob) => {
                 if (blob) {
                     try {
-                        saveAs(blob, `${fileName}.png`);
+                        // 修改：使用动态文件扩展名
+                        saveAs(blob, `${fileName}.${fileExtension}`);
                         resolve(true);
                     } catch (saveError) {
-                        console.error(`保存文件失败 (${fileName}.png):`, saveError);
+                        console.error(`保存文件失败 (${fileName}.${fileExtension}):`, saveError);
                         reject(saveError);
                     }
                 } else {
-                    console.error(`无法创建 Blob (${fileName}.png)`);
+                    console.error(`无法创建 Blob (${fileName}.${fileExtension})`);
                     reject(new Error('无法创建 Blob'));
                 }
-            }, 'image/png');
+            }, mimeType, format === 'jpg' ? jpgQuality : undefined);
         });
     } catch (error) {
-        console.error(`导出卡片失败 (${fileName}.png):`, error);
+        console.error(`导出卡片失败 (${fileName}.${fileExtension}):`, error);
         throw error; // 重新抛出错误，让调用者处理
     }
 };
@@ -73,8 +80,9 @@ export const exportCardAsImage = async (cardElement, rawFileName) => {
  * @param {Array<{element: HTMLElement, type: string, index: number}>} elementsToExport - 包含元素、类型和索引的对象数组
  * @param {string} topicId - 当前主题 ID
  * @param {string} dateString - YYMMDD 格式日期字符串
+ * @param {string} format - 图片格式 ('png' or 'jpg')
  */
-export const exportCardsAsImages = async (elementsToExport, topicId, dateString) => {
+export const exportCardsAsImages = async (elementsToExport, topicId, dateString, format = 'png') => {
     if (!elementsToExport || elementsToExport.length === 0) {
         throw new Error("没有元素需要导出。");
     }
@@ -91,10 +99,11 @@ export const exportCardsAsImages = async (elementsToExport, topicId, dateString)
         }
         const fileName = `${baseName}_${dateString}`;
         try {
-            await exportCardAsImage(item.element, fileName);
+            // 修改：移除 quality 参数
+            await exportCardAsImage(item.element, fileName, format);
             successCount++;
         } catch (error) {
-            errors.push({ fileName: `${fileName}.png`, error });
+            errors.push({ fileName: `${fileName}.${format}`, error });
         }
         // 可以选择添加短暂延时避免浏览器卡顿，但通常不需要
         // await new Promise(resolve => setTimeout(resolve, 100));
@@ -113,8 +122,9 @@ export const exportCardsAsImages = async (elementsToExport, topicId, dateString)
  * @param {Array<{element: HTMLElement, type: string, index: number}>} elementsToExport - 包含元素、类型和索引的对象数组
  * @param {string} topicId - 当前主题 ID
  * @param {string} dateString - YYMMDD 格式日期字符串
+ * @param {string} format - 图片格式 ('png' or 'jpg')
  */
-export const exportCardsAsZip = async (elementsToExport, topicId, dateString) => {
+export const exportCardsAsZip = async (elementsToExport, topicId, dateString, format = 'png') => {
     if (!elementsToExport || elementsToExport.length === 0) {
         throw new Error("没有元素需要导出。");
     }
@@ -125,8 +135,12 @@ export const exportCardsAsZip = async (elementsToExport, topicId, dateString) =>
         backgroundColor: null,
         logging: false,
     };
+    const fileExtension = format === 'jpg' ? 'jpg' : 'png';
+    const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+    // 修改：JPG 质量固定为 1.0
+    const jpgQuality = 1.0;
 
-    console.log(`开始生成 ${elementsToExport.length} 张图片用于打包...`);
+    console.log(`开始生成 ${elementsToExport.length} 张 ${format.toUpperCase()} 图片用于打包...`);
 
     // 使用 Promise.all 并行生成 Canvas 数据，但要注意浏览器性能
     const imagePromises = elementsToExport.map(async (item) => {
@@ -136,11 +150,13 @@ export const exportCardsAsZip = async (elementsToExport, topicId, dateString) =>
         } else {
             baseName = `${topicId}_内容${String(item.index + 1).padStart(2, '0')}`;
         }
-        const fileNameInZip = sanitizeFilename(`${baseName}_${dateString}`) + '.png';
+        // 修改：使用动态文件扩展名
+        const fileNameInZip = sanitizeFilename(`${baseName}_${dateString}`) + `.${fileExtension}`;
 
         try {
             const canvas = await html2canvas(item.element, options);
             return new Promise((resolve, reject) => {
+                // 修改：使用动态 mimeType 和 quality
                 canvas.toBlob((blob) => {
                     if (blob) {
                         resolve({ name: fileNameInZip, data: blob });
@@ -148,7 +164,7 @@ export const exportCardsAsZip = async (elementsToExport, topicId, dateString) =>
                         console.error(`无法为 ${fileNameInZip} 创建 Blob`);
                         reject(new Error(`无法为 ${fileNameInZip} 创建 Blob`));
                     }
-                }, 'image/png');
+                }, mimeType, format === 'jpg' ? jpgQuality : undefined);
             });
         } catch (error) {
             console.error(`生成图片失败 (${fileNameInZip}):`, error);

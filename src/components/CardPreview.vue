@@ -1,10 +1,17 @@
 <template>
-    <div class="card-preview">
+    <div class="card-preview" ref="cardPreviewRoot">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold">卡片预览</h2>
-            <div class="flex gap-2">
-                <button @click="exportAllAsImages" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">导出所有图片</button>
-                <button @click="exportAllAsZip" class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors">打包下载 (ZIP)</button>
+            <div class="flex gap-2 items-center">
+                <div class="flex items-center">
+                    <label for="format-select" class="mr-1 text-sm text-gray-600">格式:</label>
+                    <select id="format-select" v-model="selectedFormat" class="h-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <option value="png">PNG</option>
+                        <option value="jpg">JPG</option>
+                    </select>
+                </div>
+                <button @click="exportAllAsImages" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">全部导出</button>
+                <button @click="exportAllAsZip" class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors">打包下载</button>
             </div>
         </div>
 
@@ -123,6 +130,7 @@ export default {
         const { adjustSingleTextarea, adjustAllTextareas } = useTextareaAutoHeight(cardPreviewRoot);
         // 获取 toast 实例
         const toast = useToast();
+        const selectedFormat = ref('png');
 
         // 修改 activeTemplateComponent 计算属性以使用加载器
         const activeTemplateComponent = computed(() => {
@@ -297,6 +305,7 @@ export default {
             cardPreviewRoot,
             mainTextareaRef,
             toast,
+            selectedFormat,
             contentCardRefs
         };
     },
@@ -346,12 +355,13 @@ export default {
                 return;
             }
             try {
+                const format = this.selectedFormat;
                 const actualCardToExport = this._getExportableCardElement(cardElement);
                 if (!actualCardToExport) {
                     throw new Error("找不到可导出的卡片元素");
                 }
-                await exportCardAsImage(actualCardToExport, fileName);
-                this.toast.success(`成功导出 ${fileName}.png`);
+                await exportCardAsImage(actualCardToExport, fileName, format);
+                this.toast.success(`成功导出 ${fileName}.${format}`);
             } catch (error) {                console.error('导出失败:', error);
                 this.toast.error('导出失败: ' + error.message);
             }
@@ -391,15 +401,16 @@ export default {
                 this.toast.warning("没有可导出的卡片。");
                 return;
             }
-            console.log(`准备导出 ${elementsToExport.length} 张图片...`);
+            const format = this.selectedFormat;
+            console.log(`准备导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`);
 
             // 新增：显示加载提示
-            const loadingToastId = this.toast.info(`正在导出 ${elementsToExport.length} 张图片，请稍候...`, {
+            const loadingToastId = this.toast.info(`正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})，请稍候...`, {
                 timeout: false // 不自动关闭
             });
 
             try {
-                await exportCardsAsImages(elementsToExport, this.topicId, this.getFormattedDate());
+                await exportCardsAsImages(elementsToExport, this.topicId, this.getFormattedDate(), format);
                 // 修改：先关闭加载提示，再显示成功提示
                 this.toast.dismiss(loadingToastId);
                 this.toast.success('所有图片导出完成！');
@@ -421,16 +432,17 @@ export default {
                 this.toast.warning("没有可导出的卡片。");
                 return;
             }
-            console.log(`准备打包 ${elementsToExport.length} 张图片...`);
+            const format = this.selectedFormat;
+            console.log(`准备打包 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`);
 
             // 新增：显示加载提示
-            const loadingToastId = this.toast.info(`正在生成 ${elementsToExport.length} 张图片并打包，请稍候...`, {
+            const loadingToastId = this.toast.info(`正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包，请稍候...`, {
                 timeout: false // 不自动关闭
             });
 
             try {
                 const zipFileName = `${this.topicId}_${this.getFormattedDate()}.zip`;
-                await exportCardsAsZip(elementsToExport, this.topicId, this.getFormattedDate());
+                await exportCardsAsZip(elementsToExport, this.topicId, this.getFormattedDate(), format);
                 // 修改：先关闭加载提示，再显示成功提示
                 this.toast.dismiss(loadingToastId);
                 this.toast.success(`打包文件 ${zipFileName} 已开始下载！`);
