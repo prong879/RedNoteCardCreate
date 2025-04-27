@@ -392,11 +392,21 @@ export default {
                 return;
             }
             console.log(`准备导出 ${elementsToExport.length} 张图片...`);
+
+            // 新增：显示加载提示
+            const loadingToastId = this.toast.info(`正在导出 ${elementsToExport.length} 张图片，请稍候...`, {
+                timeout: false // 不自动关闭
+            });
+
             try {
                 await exportCardsAsImages(elementsToExport, this.topicId, this.getFormattedDate());
+                // 修改：先关闭加载提示，再显示成功提示
+                this.toast.dismiss(loadingToastId);
                 this.toast.success('所有图片导出完成！');
             } catch(error) {
                 console.error('批量导出图片失败:', error);
+                // 修改：先关闭加载提示，再显示错误提示
+                this.toast.dismiss(loadingToastId);
                 this.toast.error('批量导出图片失败: ' + error.message);
             }
         },
@@ -412,12 +422,22 @@ export default {
                 return;
             }
             console.log(`准备打包 ${elementsToExport.length} 张图片...`);
+
+            // 新增：显示加载提示
+            const loadingToastId = this.toast.info(`正在生成 ${elementsToExport.length} 张图片并打包，请稍候...`, {
+                timeout: false // 不自动关闭
+            });
+
             try {
                 const zipFileName = `${this.topicId}_${this.getFormattedDate()}.zip`;
                 await exportCardsAsZip(elementsToExport, this.topicId, this.getFormattedDate());
+                // 修改：先关闭加载提示，再显示成功提示
+                this.toast.dismiss(loadingToastId);
                 this.toast.success(`打包文件 ${zipFileName} 已开始下载！`);
             } catch(error) {
                 console.error('打包下载失败:', error);
+                // 修改：先关闭加载提示，再显示错误提示
+                this.toast.dismiss(loadingToastId);
                 this.toast.error('打包下载失败: ' + error.message);
             }
         },

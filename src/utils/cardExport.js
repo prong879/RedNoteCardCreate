@@ -182,11 +182,12 @@ export const exportCardsAsZip = async (elementsToExport, topicId, dateString) =>
         const content = await zip.generateAsync({ type: "blob" });
         saveAs(content, zipFileName);
         console.log(`成功生成并触发下载: ${zipFileName}`);
-        if (errors.length > 0) {
-            alert(`成功打包 ${successCount} 张图片，但有 ${errors.length} 张生成失败。请检查控制台获取详情。`);
-        } else {
-            alert(`成功打包 ${successCount} 张图片到 ${zipFileName}`);
-        }
+        // 移除 alert，提示信息由调用方 (CardPreview.vue) 通过 toast 处理
+        // if (errors.length > 0) {
+        //     alert(`成功打包 ${successCount} 张图片，但有 ${errors.length} 张生成失败。请检查控制台获取详情。`);
+        // } else {
+        //     alert(`成功打包 ${successCount} 张图片到 ${zipFileName}`);
+        // }
     } catch (zipError) {
         console.error(`生成 ZIP 文件失败 (${zipFileName}):`, zipError);
         throw zipError;
