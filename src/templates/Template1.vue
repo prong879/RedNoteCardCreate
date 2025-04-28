@@ -2,7 +2,7 @@
     <!-- 模板1 的根元素 -->
     <div class="template1">
         <!-- 卡片容器 -->
-        <div class="card w-80 aspect-[3/4] relative cover-card-bg">
+        <div class="card w-80 aspect-[3/4] relative cover-card-bg" data-exportable-card="true">
             <!-- 磨砂玻璃前景层 -->
             <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-4 text-white flex flex-col overflow-hidden">
                 <!-- 页眉区域 -->

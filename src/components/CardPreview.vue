@@ -323,24 +323,13 @@ export default {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
             }
-            // 修改查找逻辑以适应模板名称的变化或依赖模板根元素的类
-            // 查找根元素，而不是特定的模板类
-            // 假设所有模板的根元素都有 'card' 或 'xhs-card' 或类似标识
-            let actualCard = containerElement.querySelector('.card') || containerElement.querySelector('.xhs-card');
+            // 修改查找逻辑以使用 data-exportable-card 属性
+            let actualCard = containerElement.querySelector('[data-exportable-card="true"]');
             
-            // 如果模板没有通用类，可能需要更复杂的选择器，或者依赖于模板内部结构
-            // 备选方案：查找第一个直接子元素？ containerElement.children[0]
-            // 警告：这种方式非常脆弱，强烈建议所有模板根元素有共同的类
             if (!actualCard) {
-                 console.warn('在容器元素内找不到具有 .card 或 .xhs-card 类的可导出卡片元素', containerElement);
-                 // 尝试回退到查找第一个子元素
-                 actualCard = containerElement.children?.[0]; 
-                  if (actualCard) {
-                      console.warn('回退到使用第一个子元素进行导出，请确保模板结构稳定。');
-                  } else {
-                      console.error('无法定位到任何可导出的元素。');
-                  }
+                 console.error('在容器元素内找不到具有 [data-exportable-card="true"] 属性的可导出卡片元素。', containerElement);
             }
+
             return actualCard;
         },
 

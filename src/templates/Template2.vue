@@ -1,6 +1,6 @@
 <template>
     <div class="template2 xhs-card w-80 aspect-[3/4] flex flex-col overflow-hidden" 
-         :class="type === 'cover' ? 'cover-bg' : 'content-bg'">
+         :class="type === 'cover' ? 'cover-bg' : 'content-bg'" data-exportable-card="true">
         
         <!-- 页眉 -->
         <div v-if="isHeaderVisible" class="card-header flex-shrink-0 px-6 pt-4 text-xs text-center opacity-80">
