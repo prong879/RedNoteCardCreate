@@ -11,6 +11,12 @@ import Toast, { POSITION } from "vue-toastification";
 // 引入 vue-toastification 样式
 import "vue-toastification/dist/index.css";
 
+// 引入 Tailwind CSS 主文件 (修正路径)
+import './assets/styles/index.css';
+
+// 引入 Font Awesome CSS
+import '@fortawesome/fontawesome-free/css/all.css';
+
 const app = createApp(App);
 
 // 新增：创建 Pinia 实例
