@@ -2,7 +2,7 @@ export const test01_contentData = {
   "headerText": "@测试用户",
   "footerText": "测试页脚\n第二行",
   "coverCard": {
-    "title": "封面卡片标题 (Topic 02)",
+    "title": "封面卡片标题 (Test 01)",
     "subtitle": "这是封面的副标题。\n支持换行。",
     "showHeader": false,
     "showFooter": false

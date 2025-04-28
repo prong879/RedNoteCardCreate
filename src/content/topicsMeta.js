@@ -1,4 +1,5 @@
 // src/content/topicsMeta.js
+// Generated/Updated by script at 2025-04-28T09:49:30.170Z
 // 用于存储选题的核心信息，与具体每次编辑的内容分开
 
 export const topicsMeta = [
@@ -7,7 +8,6 @@ export const topicsMeta = [
         title: '【期末速成】这，可能是最"说人话"的计量速成',
         description: '系列课程介绍与导论'
     },
-    // 一、 基础入门与核心概念
     {
         id: 'topic02',
         title: '【小白入门】什么是时间序列数据？',
@@ -68,8 +68,6 @@ export const topicsMeta = [
         title: 'ACF/PACF图怎么看？拖尾 vs 截尾是什么意思？',
         description: '核心：结合典型ACF/PACF图形，教用户识别关键模式"截尾"和"拖尾"'
     },
-
-    // 二、 主流模型介绍
     {
         id: 'topic14',
         title: '【模型初识】AR模型：今天的我由昨天的我决定？',
@@ -115,8 +113,6 @@ export const topicsMeta = [
         title: '模型选择困难症？AIC/BIC来帮忙',
         description: '核心：强调AIC/BIC是常用选择标准，看哪个模型的值更小'
     },
-
-    // 三、 核心检验方法
     {
         id: 'topic23',
         title: '【必会检验】如何科学判断序列平稳性？单位根检验来了！',
@@ -162,8 +158,6 @@ export const topicsMeta = [
         title: '格兰杰因果检验结果怎么解读？',
         description: '核心：结合P值说明如何判断A是否是B的格兰杰原因'
     },
-
-    // 四、 波动率模型
     {
         id: 'topic32',
         title: '【金融必看】什么是"波动集群"现象？',
@@ -199,8 +193,6 @@ export const topicsMeta = [
         title: 'ARCH/GARCH模型在金融风险管理中的应用',
         description: '核心：强调模型在度量和预测风险方面的实际价值'
     },
-
-    // 五、 实践与拓展
     {
         id: 'topic39',
         title: '【工具篇】用Excel也能做简单的时间序列分析？',
@@ -229,6 +221,6 @@ export const topicsMeta = [
     {
         id: 'test01',
         title: '测试选题 (请忽略)',
-        description: '这是一个用于测试新功能的临时选题数据。'
+        description: '这是一个用于测试新功能的临时选题数据。测试编辑话题简介111111'
     }
-]; 
+];

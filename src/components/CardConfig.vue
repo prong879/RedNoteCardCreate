@@ -130,9 +130,13 @@
              <!-- 新增：选题描述显示区 -->
              <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">话题简介（用于选题界面展示）</h3>
-                  <div class="p-3 border bg-gray-50 rounded-lg space-y-2 text-sm text-gray-700 whitespace-pre-line">
-                      {{ content.topicDescription || '暂无描述' }}
-                  </div>
+                  <textarea 
+                    v-model="content.topicDescription" 
+                    @input="handleDescriptionInput"
+                    class="w-full p-3 border bg-white rounded-lg text-sm text-gray-700 dynamic-textarea hide-scrollbar" 
+                    placeholder="输入话题简介..."
+                    rows="3"
+                  ></textarea>
              </div>
              <!-- 全局页眉/页脚配置 -->
              <div class="mb-6">
@@ -317,6 +321,19 @@ export default {
             addCardInternal(adjustAllTextareas);
         };
 
+        // 处理描述输入事件
+        const handleDescriptionInput = (event) => {
+            // 确保 content 对象和 topicDescription 属性存在
+            if (content.value && typeof content.value === 'object') {
+                 // 直接修改 props 可能不是最佳实践，但 useCardManagement 设计上似乎允许
+                 // content.value.topicDescription = event.target.value;
+                 adjustSingleTextarea(event.target); // 调整高度
+                 updateContent(); // 触发更新事件，通知父组件
+            } else {
+                console.warn("Cannot update description: content object is not ready.");
+            }
+        };
+
         // 处理任意 textarea 的输入事件
         const handleTextareaInput = (event) => {
             adjustSingleTextarea(event.target); // 调整当前输入框高度
@@ -354,6 +371,7 @@ export default {
             isDevMode, // 确保这里返回的是 setup 函数中定义的 isDevMode
             // 本地方法
             handleTextareaInput,
+            handleDescriptionInput, // 暴露新的处理函数
             focusPreview,
             insertCard,
         };
