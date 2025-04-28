@@ -81,10 +81,11 @@ npm run build
 
 推荐的工作流程结合了 Markdown 编辑、AI 辅助和可视化编辑：
 
-1.  **定义选题**: 
-    *   手动编辑 `src/content/topicsMeta.js` 文件，添加新选题的 `id`, `title`, `description`。
-2.  **创建 Markdown 模板**: 
-    *   打开终端，在项目根目录下运行 `npm run xinwenan -- <你的topicId> '<你的主标题>'` 来创建对应的 `.md` 文件模板到 `src/markdown/` 目录。
+1.  **创建 Markdown 模板**: 
+    *   打开终端，在项目根目录下运行 `npm run xinwenan -- <你的topicId> '<你的主标题>'` 来创建对应的 `.md` 文件模板到 `src/markdown/` 目录。此脚本会自动包含基础的 Front Matter 字段（包括 `topicId`, `title`, `description`）。
+2.  **编辑 Markdown 源文件**: 
+    *   打开新创建的 `.md` 文件，在 YAML Front Matter 部分填写或修改 `title` 和 `description`。
+    *   参考 **"通过 Markdown 管理内容"** 部分的格式规范，编写封面卡片、内容卡片以及主文案。
 3.  **AI 辅助生成详细文案**: 
     *   选题页面提供了"生成prompt"按钮，一键生成针对该选题的文案撰写 Prompt（或手动根据 `src/prompts/knowledge_card_prompt.md` 模板）。
     *   使用 AI 助手（如 Gemini, ChatGPT）结合生成的 Prompt，在 `.md` 文件中填充详细的卡片内容（标题、正文）。
@@ -93,8 +94,11 @@ npm run build
     *   参考 `.md` 文件中的插图建议，使用 ManimCE (或其他工具) 创建图片或视频素材。
     *   (可选) 使用配套的 Manim GUI 应用（如适用）辅助导出，调整参数。
     *   建议将最终素材按规范命名并存放在项目根目录的 `media/` 下（参考 **"媒体资源管理规范"**）。
-5.  **转换 Markdown 为 JS 数据**: 
-    *   运行 `npm run zhuanhuan -- <你的topicId>` 或 `npm run zhuanhuan -- all`，将 `src/markdown/` 下的 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 数据文件。
+5.  **转换 Markdown 并更新元数据**: 
+    *   运行 `npm run zhuanhuan -- <你的topicId>` 或 `npm run zhuanhuan -- all`。
+    *   此脚本会：
+        *   将 `src/markdown/` 下的 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 数据文件。
+        *   **自动读取** `.md` 文件 Front Matter 中的 `topicId`, `title`, `description`，并**更新或添加**到 `src/content/topicsMeta.js` 文件中，无需手动编辑 `topicsMeta.js`。
 6.  **启动应用并选择选题**: 
     *   运行 `npm run dev` 启动应用。
     *   在首页选择你刚刚处理的选题卡片，进入编辑预览界面。
@@ -121,7 +125,7 @@ npm run build
 
 **1. 创建 Markdown 模板 (可选)**
 
-使用 `xinwenan` 命令快速创建标准格式的 `.md` 文件模板到 `src/markdown/` 目录。
+使用 `xinwenan` 命令快速创建标准格式的 `.md` 文件模板到 `src/markdown/` 目录。模板会自动包含必要的 Front Matter 字段。
 
 ```bash
 npm run xinwenan -- <topicId> <主标题>
@@ -137,9 +141,10 @@ npm run xinwenan -- topic03 '如何选择合适的模型'
 
 文件格式约定：
 
-*   **YAML Front Matter**: 文件开头 `---` 包裹的部分。
+*   **YAML Front Matter**: 文件开头 `---` 包裹的部分。**这是管理选题元数据的核心。**
     *   `topicId`: (必需) 字符串，唯一 ID。
-    *   `title`: (必需) 字符串，主标题。
+    *   `title`: (必需) 字符串，主标题。**`zhuanhuan` 脚本会用此标题更新 `topicsMeta.js`。**
+    *   `description`: (推荐) 字符串，选题的简介描述。**`zhuanhuan` 脚本会用此描述更新 `topicsMeta.js`。**
     *   `headerText`, `footerText`: (可选) 字符串，全局页眉/页脚。
     *   `coverShowHeader`, `coverShowFooter`: (可选, 默认 `true`) 布尔值，封面页眉/页脚显隐。
     *   `contentDefaultShowHeader`, `contentDefaultShowFooter`: (可选, 默认 `true`) 布尔值，内容卡片页眉/页脚默认显隐。
@@ -163,9 +168,9 @@ npm run xinwenan -- topic03 '如何选择合适的模型'
 
 *请参考 `src/markdown/topic00.md` 查看具体示例。*
 
-**3. 转换为 JS 数据文件**
+**3. 转换为 JS 数据文件并更新元数据**
 
-使用 `zhuanhuan` 命令将 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 文件。
+使用 `zhuanhuan` 命令将 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 文件，并**自动更新** `src/content/topicsMeta.js`。
 
 ```bash
 # 转换指定文件
@@ -175,7 +180,7 @@ npm run zhuanhuan -- <topicId>
 # 转换所有 .md 文件
 npm run zhuanhuan -- all
 ```
-*   转换脚本会**覆盖**已存在的同名 `_content.js` 文件。
+*   转换脚本会**覆盖**已存在的同名 `_content.js` 文件，并**更新或添加** `topicsMeta.js` 中对应的条目。
 
 ## 选题内容模板扩展 (直接使用 JS)
 
