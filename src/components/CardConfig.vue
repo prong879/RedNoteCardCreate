@@ -11,8 +11,13 @@
         <!-- 卡片编辑区标题和下载按钮容器 -->
         <div class="flex justify-between items-center mb-2 px-6">
             <h3 class="text-lg font-medium">卡片编辑区</h3>
-            <!-- Moved download button here -->
-            <button @click="$emit('save-content')" class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">生成 JS 文件</button>
+            <!-- 操作按钮组 -->
+            <div class="flex gap-2">
+              <!-- 本地保存按钮 (仅开发环境) -->
+              <button v-if="isDevMode" @click="$emit('save-locally')" class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors" title="仅开发环境：直接保存到本地 JS 文件">保存到本地</button>
+              <!-- 生成 JS 文件按钮 -->
+              <button @click="$emit('save-content')" class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">生成 JS 文件</button>
+            </div>
         </div>
 
         <!-- 卡片编辑滚动区 -->
@@ -122,6 +127,13 @@
 
         <!-- 底部固定区域: 全局设置和操作按钮 -->
         <div class="flex-grow overflow-y-auto px-6 pt-4 pb-6 border-t custom-scrollbar">
+             <!-- 新增：选题描述显示区 -->
+             <div class="mb-6">
+                  <h3 class="text-lg font-medium mb-2">话题简介（用于选题界面展示）</h3>
+                  <div class="p-3 border bg-gray-50 rounded-lg space-y-2 text-sm text-gray-700 whitespace-pre-line">
+                      {{ content.topicDescription || '暂无描述' }}
+                  </div>
+             </div>
              <!-- 全局页眉/页脚配置 -->
              <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">全局页眉/页脚</h3>
@@ -179,7 +191,8 @@ export default {
         'update:content',
         'return-to-topics',
         'save-content',
-        'focus-preview-card'
+        'focus-preview-card',
+        'save-locally'
     ],
     setup(props, { emit }) {
         // --- Refs --- 
@@ -218,6 +231,9 @@ export default {
             selectTemplate,
             // updateScale // 通常由 useTemplatePreviewScaling 内部管理，无需手动调用
         } = useTemplatePreviewScaling(content, emit);
+        
+        // 判断是否为开发模式 (这才是正确的 isDevMode 定义)
+        const isDevMode = import.meta.env.DEV;
         
         // vuedraggable 拖拽选项配置
         const dragOptions = {
@@ -334,10 +350,11 @@ export default {
             previewCoverContent,
             asyncTemplateComponentsMap,
             selectTemplate,
+            dragOptions,
+            isDevMode, // 确保这里返回的是 setup 函数中定义的 isDevMode
             // 本地方法
             handleTextareaInput,
             focusPreview,
-            dragOptions,
             insertCard,
         };
     },

@@ -24,6 +24,7 @@
                   @update:content="updateCardContent"
                   @return-to-topics="showTopicSelector = true"
                   @save-content="generateContentJsFile"
+                  @save-locally="saveContentLocally"
                   @focus-preview-card="handleFocusPreviewCard"
                 />
               </div>
@@ -91,30 +92,36 @@ export default {
       // 首先根据 topicId 查找 meta 信息并更新标题
       const meta = topicsMeta.find(t => t.id === topicId);
       currentTopicTitle.value = meta?.title || `未命名主题 (${topicId})`;
+      const topicDescription = meta?.description || '没有找到该选题的描述信息。'; // 获取描述
 
       try {
         // 修改动态导入路径: ../content/ -> ./content/
         const contentModule = await import(`./content/${topicId}_content.js`);
         
         if (contentModule && contentModule[`${topicId}_contentData`]) {
-          cardContent.value = { ...contentModule[`${topicId}_contentData`] };
+          // 加载时合并内容数据和描述
+          cardContent.value = {
+            ...contentModule[`${topicId}_contentData`],
+            topicDescription: topicDescription // 添加描述字段
+          };
           console.log('Successfully loaded content from file for', topicId);
         } else {
             console.warn(`Data export not found in ${topicId}_content.js, loading placeholder.`);
-            loadPlaceholderContent(topicId); 
+            loadPlaceholderContent(topicId, topicDescription); // 传递描述
         }
       } catch (error) {
         console.log(`Content file for ${topicId} not found or failed to load, loading placeholder. Error:`, error);
-        loadPlaceholderContent(topicId);
+        loadPlaceholderContent(topicId, topicDescription); // 传递描述
       }
       showTopicSelector.value = false;
     }
     
     // Load placeholder content
-    const loadPlaceholderContent = (topicId) => {
+    const loadPlaceholderContent = (topicId, description = '占位符描述') => {
       const meta = topicsMeta.find(t => t.id === topicId);
       const placeholderText = "请在此处输入文案...";
       cardContent.value = {
+        topicDescription: description, // 添加描述字段
         headerText: '', // 顶层页眉页脚
         footerText: '',
         coverCard: {
@@ -172,6 +179,55 @@ export default {
       });
     };
     
+    // 新增：保存内容到本地 JS 文件 (仅限开发环境)
+    const saveContentLocally = async () => {
+      if (!currentTopicId.value) {
+        toast.error("错误：无法获取当前主题 ID");
+        return;
+      }
+      if (!cardContent.value) {
+        toast.error("错误：没有内容可以保存");
+        return;
+      }
+      
+      const topicId = currentTopicId.value;
+      const contentData = cardContent.value;
+      const filename = `${topicId}_content.js`;
+
+      // 显示加载提示
+      const loadingToastId = toast.info(`正在保存内容到本地文件 ${filename}...`, {
+          timeout: false // 不自动关闭
+      });
+
+      try {
+        const response = await fetch('/api/save-content', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ topicId, contentData }),
+        });
+
+        // 关闭加载提示
+        toast.dismiss(loadingToastId);
+
+        const result = await response.json();
+
+        if (response.ok) {
+          toast.success(result.message || `成功保存到 ${filename}`);
+          console.log('[Save Locally] 保存成功:', result);
+        } else {
+          toast.error(`保存失败 (${response.status}): ${result.message || '未知错误'}`);
+          console.error('[Save Locally] 保存失败:', result);
+        }
+      } catch (error) {
+        // 关闭加载提示
+        toast.dismiss(loadingToastId);
+        toast.error(`保存时发生网络或解析错误: ${error.message}`);
+        console.error('[Save Locally] 请求或解析错误:', error);
+      }
+    };
+    
     const handleFocusPreviewCard = (index) => {
       console.log('App received focus event for index:', index);
       focusedPreviewIndex.value = index;
@@ -203,7 +259,8 @@ export default {
       focusedEditorIndex,
       handlePreviewScrolled,
       currentTopicTitle,
-      updateMainText
+      updateMainText,
+      saveContentLocally
     }
   }
 }

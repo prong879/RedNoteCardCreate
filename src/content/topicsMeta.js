@@ -225,5 +225,10 @@ export const topicsMeta = [
         id: 'topic43',
         title: '时间序列分析学习路径/书籍推荐',
         description: '核心：提供进阶学习资源，引导用户深入'
+    },
+    {
+        id: 'test01',
+        title: '测试选题 (请忽略)',
+        description: '这是一个用于测试新功能的临时选题数据。'
     }
 ]; 
