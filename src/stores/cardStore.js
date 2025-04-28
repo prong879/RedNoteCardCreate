@@ -499,15 +499,53 @@ export const useCardStore = defineStore('card', () => {
             return;
         }
 
-        saveCurrentContentToLocalStorage(); // 核心逻辑移动到辅助函数
-        toast.success(`主题 "${currentTopicTitle.value}" 的当前编辑内容已保存到浏览器本地存储。`);
+        // 1. 准备要保存的数据和文件名
+        const topicId = currentTopicId.value;
+        const filename = `${topicId}_content.js`;
 
-        // 移除 topicDescription，因为它不属于原始内容结构
+        // 从当前 store 中的内容准备要保存的对象，移除 topicDescription
         const contentToSave = { ...cardContent.value };
         delete contentToSave.topicDescription;
-        localStorage.setItem(`cardgen_topic_content_${currentTopicId.value}`, JSON.stringify(contentToSave));
-        console.log(`[Store] Saved current content for ${currentTopicId.value} to localStorage.`);
 
+        // 格式化为 JS 文件内容字符串
+        const fileContentString = `// src/content/${filename}\n// Updated at: ${new Date().toISOString()}\n\nexport const ${topicId}_contentData = ${JSON.stringify(contentToSave, null, 2)};\n`;
+
+        try {
+            // 2. 发送 POST 请求到 Vite 开发服务器的自定义端点
+            const response = await fetch('/api/save-local-content', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ filename: filename, content: fileContentString }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                toast.success(`主题 "${currentTopicTitle.value}" 的内容已成功更新到本地文件 ${filename}！`);
+                console.log(`[Store] Successfully saved content locally for ${topicId} via API.`);
+                // 可选：同时更新 localStorage 以防万一或用于其他目的
+                // saveCurrentContentToLocalStorage();
+            } else {
+                // 如果服务器返回错误信息，则抛出错误
+                throw new Error(result.message || '保存到本地文件失败，服务器未返回明确错误信息。');
+            }
+        } catch (error) {
+            // 网络错误或服务器端处理错误
+            console.error('[Store] Error saving content locally via API:', error);
+
+            // 检查是否是特定的文件名格式错误
+            if (error && error.message && error.message.includes('无效的文件名或类型')) {
+                toast.error(`保存失败：主题 ID (当前为 "${currentTopicId.value}") 必须以 "topic" 开头 (例如 "topic1", "topic2")。请检查或修改选题 ID。`, { timeout: 8000 }); // 增加显示时间
+            } else {
+                // 其他类型的错误，显示通用消息
+                toast.error(`保存到本地文件失败: ${error?.message || '未知错误'}`);
+            }
+            // 失败时，可以选择保存到 localStorage 作为回退 (保持注释状态)
+            // saveCurrentContentToLocalStorage();
+            // toast.warning('内容已保存到浏览器本地存储作为备份。请检查开发服务器控制台获取详细错误。');
+        }
     };
 
     // 更新选中的模板
