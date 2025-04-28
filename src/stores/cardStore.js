@@ -14,8 +14,10 @@ export const useCardStore = defineStore('card', () => {
     const currentTopicId = ref(null); // 当前主题ID
     const currentTopicTitle = ref(''); // 当前主题标题
     const showTopicSelector = ref(true); // 是否显示主题选择器
-    const focusedPreviewIndex = ref(null); // 预览区聚焦卡片索引
-    const focusedEditorIndex = ref(null); // 编辑区聚焦卡片索引
+    // 预览区聚焦卡片索引: null (无焦点), -1 (封面), 0+ (内容卡片索引)
+    const focusedPreviewIndex = ref(null);
+    // 编辑区聚焦卡片索引: null (无焦点), -1 (封面), 0+ (内容卡片索引)
+    const focusedEditorIndex = ref(null);
 
     // --- Getters ---
     // 使用 computed() 定义 getter
@@ -97,6 +99,88 @@ export const useCardStore = defineStore('card', () => {
         };
         console.log('[Store] Loaded placeholder content for', topicId);
     };
+
+    // --- Card Manipulation Actions ---
+
+    // 创建一个空卡片对象模板
+    const createEmptyCard = () => ({
+        title: "",
+        body: "",
+        showHeader: true,
+        showFooter: true
+    });
+
+    // 在指定索引处添加内容卡片
+    const addContentCard = (index) => {
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.warn('[Store Action] Cannot add card: contentCards array does not exist.');
+            return;
+        }
+        try {
+            const newCard = createEmptyCard();
+            // 确保索引在有效范围内
+            const safeIndex = Math.max(0, Math.min(index, cardContent.value.contentCards.length));
+            cardContent.value.contentCards.splice(safeIndex, 0, newCard);
+            console.log(`[Store Action] Content card added at index: ${safeIndex}`);
+        } catch (error) {
+            console.error('[Store Action] Error adding content card:', error);
+            toast.error('添加卡片时出错');
+        }
+    };
+
+    // 移除指定索引的内容卡片
+    const removeContentCard = (index) => {
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.warn('[Store Action] Cannot remove card: contentCards array does not exist.');
+            return;
+        }
+        if (index < 0 || index >= cardContent.value.contentCards.length) {
+            console.warn(`[Store Action] Cannot remove card: invalid index ${index}.`);
+            return;
+        }
+        if (cardContent.value.contentCards.length <= 1) {
+            toast.warning('至少需要保留一张内容卡片。');
+            return;
+        }
+        try {
+            cardContent.value.contentCards.splice(index, 1);
+            console.log(`[Store Action] Content card removed at index: ${index}`);
+        } catch (error) {
+            console.error('[Store Action] Error removing content card:', error);
+            toast.error('移除卡片时出错');
+        }
+    };
+
+    // 切换卡片（封面或内容）的可见性字段 (showHeader/showFooter)
+    const toggleCardVisibility = ({ cardType, field, index = null }) => {
+        if (!cardContent.value) {
+            console.warn('[Store Action] Cannot toggle visibility: cardContent is not loaded.');
+            return;
+        }
+        let target;
+        try {
+            if (cardType === 'coverCard' && cardContent.value.coverCard) {
+                target = cardContent.value.coverCard;
+            } else if (cardType === 'contentCard' && index !== null && cardContent.value.contentCards && index >= 0 && index < cardContent.value.contentCards.length) {
+                target = cardContent.value.contentCards[index];
+            } else {
+                console.warn(`[Store Action] Cannot find target for toggleVisibility:`, { cardType, field, index });
+                return;
+            }
+
+            if (target && (field === 'showHeader' || field === 'showFooter') && typeof target[field] === 'boolean') {
+                target[field] = !target[field];
+                console.log(`[Store Action] Toggled ${field} for ${cardType} ${index !== null ? 'index ' + index : ''} to ${target[field]}`);
+            } else {
+                console.warn(`[Store Action] Invalid field or target type for toggleVisibility:`, { target, field });
+            }
+        } catch (error) {
+            console.error('[Store Action] Error toggling visibility:', error);
+            toast.error('切换显隐状态时出错');
+        }
+    };
+
+    // --- Other Actions ---
 
     // 更新卡片部分内容
     const updateCardContent = (newContent) => {
@@ -197,22 +281,27 @@ export const useCardStore = defineStore('card', () => {
     };
 
     // 设置预览区聚焦
+    // index: null (无焦点请求), -1 (请求聚焦封面), 0+ (请求聚焦内容卡片)
     const setFocusedPreview = (index) => {
         console.log('[Store] Setting focused preview index:', index);
         focusedPreviewIndex.value = index;
     };
 
     // 设置编辑区聚焦 (由预览滚动触发)
+    // index: null (滚动结束时未聚焦任何卡片), -1 (封面卡片居中), 0+ (内容卡片居中)
     const setFocusedEditor = (index) => {
         console.log('[Store] Setting focused editor index:', index);
         focusedEditorIndex.value = index;
     };
 
-    // 重置焦点
+    // 重置焦点请求 (将预览焦点设为 null)
     const resetFocus = () => {
-        focusedPreviewIndex.value = null;
-        // focusedEditorIndex.value = null; // 编辑区焦点通常由用户点击触发，滚动触发后不应轻易重置
-        console.log('[Store] Focus reset');
+        // 注意: 此方法现在只重置 '预览请求' 状态 (focusedPreviewIndex)
+        // 编辑区的焦点状态 (focusedEditorIndex) 由实际滚动结果驱动
+        if (focusedPreviewIndex.value !== null) {
+            console.log('[Store] Resetting focused preview index to null.');
+            focusedPreviewIndex.value = null;
+        }
     };
 
     // 返回主题选择
@@ -239,6 +328,9 @@ export const useCardStore = defineStore('card', () => {
         currentTopicDescription,
         // Actions
         loadTopic,
+        addContentCard,
+        removeContentCard,
+        toggleCardVisibility,
         updateCardContent,
         updateMainText,
         updateTopicDescription,

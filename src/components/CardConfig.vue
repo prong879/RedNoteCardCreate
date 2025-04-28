@@ -31,14 +31,14 @@
                         <span class="font-medium">封面卡片</span>
                         <!-- 页眉/页脚显隐切换按钮 -->
                         <div class="flex items-center space-x-1 md:space-x-2">
-                             <button @click="store.setFocusedPreview(null)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors">
+                             <button @click="store.setFocusedPreview(-1)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors">
                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                      <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                  </svg>
                              </button>
-                             <button @click="toggleVisibility('coverCard', 'showHeader')" :class="getButtonClass(store.cardContent.coverCard.showHeader)" class="text-xs px-2 py-0.5 rounded transition-colors"> {{ store.cardContent.coverCard.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
-                             <button @click="toggleVisibility('coverCard', 'showFooter')" :class="getButtonClass(store.cardContent.coverCard.showFooter)" class="text-xs px-2 py-0.5 rounded transition-colors"> {{ store.cardContent.coverCard.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
+                             <button @click="store.toggleCardVisibility({ cardType: 'coverCard', field: 'showHeader' })" :class="getButtonClass(store.cardContent.coverCard.showHeader)" class="text-xs px-2 py-0.5 rounded transition-colors"> {{ store.cardContent.coverCard.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
+                             <button @click="store.toggleCardVisibility({ cardType: 'coverCard', field: 'showFooter' })" :class="getButtonClass(store.cardContent.coverCard.showFooter)" class="text-xs px-2 py-0.5 rounded transition-colors"> {{ store.cardContent.coverCard.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
                         </div>
                     </div>
                     <!-- 封面标题和副标题编辑 -->
@@ -48,7 +48,7 @@
 
                 <!-- 新增：在第一个卡片前添加插入点 -->
                 <div class="insert-point h-5 flex items-center justify-center my-2">
-                    <button @click="insertCard(0)" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-xhs-pink hover:text-xhs-pink flex items-center justify-center text-sm bg-white bg-opacity-70 backdrop-blur-sm opacity-0 hover:opacity-100 transition-all duration-200 ease-in-out">
+                    <button @click="store.addContentCard(0)" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-xhs-pink hover:text-xhs-pink flex items-center justify-center text-sm bg-white bg-opacity-70 backdrop-blur-sm opacity-0 hover:opacity-100 transition-all duration-200 ease-in-out">
                         + 新卡片
                     </button>
                 </div>
@@ -85,9 +85,9 @@
                                     <!-- 卡片操作按钮 -->
                                     <div class="flex items-center space-x-1 md:space-x-2">
                                          <button @click="store.setFocusedPreview(index)" title="定位预览" class="h-6 flex items-center justify-center text-xs px-2 rounded border border-blue-500 text-blue-600 bg-blue-100 hover:bg-blue-200 transition-colors"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /> <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /> </svg> </button>
-                                         <button @click="toggleVisibility('contentCard', 'showHeader', index)" :class="getButtonClass(card.showHeader)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
-                                         <button @click="toggleVisibility('contentCard', 'showFooter', index)" :class="getButtonClass(card.showFooter)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
-                                         <button @click="removeCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="store.cardContent.contentCards.length > 1"> 删除 </button>
+                                         <button @click="store.toggleCardVisibility({ cardType: 'contentCard', field: 'showHeader', index: index })" :class="getButtonClass(card.showHeader)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showHeader ? '隐藏页眉' : '显示页眉' }} </button>
+                                         <button @click="store.toggleCardVisibility({ cardType: 'contentCard', field: 'showFooter', index: index })" :class="getButtonClass(card.showFooter)" class="h-6 flex items-center justify-center text-xs px-2 rounded transition-colors"> {{ card.showFooter ? '隐藏页脚' : '显示页脚' }} </button>
+                                         <button @click="store.removeContentCard(index)" class="h-6 flex items-center justify-center text-red-500 text-xs border border-red-500 bg-red-100 px-2 rounded hover:bg-red-200 transition-colors" v-if="store.cardContent.contentCards.length > 1"> 删除 </button>
                                     </div>
                                 </div>
                                 <!-- 卡片标题和内容编辑 -->
@@ -96,7 +96,7 @@
                             </div>
                             <!-- 插入点按钮 (悬停时可见) -->
                             <div class="insert-point h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 ease-in-out my-2">
-                                <button @click="insertCard(index + 1)" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-xhs-pink hover:text-xhs-pink flex items-center justify-center text-sm bg-white bg-opacity-70 backdrop-blur-sm">
+                                <button @click="store.addContentCard(index + 1)" class="w-full h-full border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-xhs-pink hover:text-xhs-pink flex items-center justify-center text-sm bg-white bg-opacity-70 backdrop-blur-sm">
                                     + 新卡片
                                 </button>
                             </div>
@@ -190,65 +190,23 @@ export default {
 
         // --- Composition API Hooks --- 
 
-        // 1. 卡片管理逻辑 (直接操作 store)
-        // 创建一个空卡片对象模板
-        const createEmptyCard = () => ({
-            title: "",
-            body: "",
-            showHeader: true,
-            showFooter: true
-        });
-
-        // 添加卡片 (内部使用)
-        const addCardInternal = (index) => {
-            if (!store.cardContent || !store.cardContent.contentCards) return;
-            const newCard = createEmptyCard();
-            store.cardContent.contentCards.splice(index, 0, newCard);
-            // 注意: Pinia 通常会自动处理深层对象的响应式更新，
-            // 但如果是替换整个数组或对象，建议通过 action 或直接赋值 store.cardContent = newObject
-            // 这里 splice 是原地修改，应该能触发响应式
-            console.log('[CardConfig] Card added at index:', index);
-        };
-
-        // 移除卡片
-        const removeCard = (index) => {
-            if (!store.cardContent || !store.cardContent.contentCards) return;
-            if (store.cardContent.contentCards.length <= 1) {
-                // 可以加个提示，至少保留一张卡片
-                console.warn('[CardConfig] Cannot remove the last card.');
-                return;
-            }
-            store.cardContent.contentCards.splice(index, 1);
-            console.log('[CardConfig] Card removed at index:', index);
-        };
-
-        // 切换显隐
-        const toggleVisibility = (cardType, field, index = null) => {
-            if (!store.cardContent) return;
-            let target;
-            if (cardType === 'coverCard') {
-                target = store.cardContent.coverCard;
-            } else if (cardType === 'contentCard' && index !== null && store.cardContent.contentCards) {
-                target = store.cardContent.contentCards[index];
-            }
-            if (target && typeof target[field] === 'boolean') {
-                target[field] = !target[field];
-                console.log(`[CardConfig] Toggled ${field} for ${cardType} ${index !== null ? index : ''} to ${target[field]}`);
-            }
-        };
+        // 1. 卡片管理逻辑 (移除本地操作方法)
+        // const createEmptyCard = () => { ... }; // 移至 store
+        // const addCardInternal = (index) => { ... }; // 由 store.addContentCard 替代
+        // const removeCard = (index) => { ... }; // 由 store.removeContentCard 替代
+        // const toggleVisibility = (cardType, field, index = null) => { ... }; // 由 store.toggleCardVisibility 替代
         
-        // 获取按钮样式 (保持不变)
+        // 获取按钮样式 (保持不变，因为它不修改状态，只依赖状态)
         const getButtonClass = (isVisible) => {
              return isVisible 
                  ? 'border border-gray-400 text-gray-500 bg-gray-100 hover:bg-gray-200' 
                  : 'border border-green-500 text-green-600 bg-green-100 hover:bg-green-200';
         };
         
-        // 拖拽结束 (保持不变，v-model 会自动更新 store.cardContent.contentCards)
+        // 拖拽结束 (保持不变，v-model 驱动 store 更新)
         const onDragEnd = (event) => {
             console.log('[CardConfig] Drag ended:', event);
             // v-model="store.cardContent.contentCards" 已经处理了排序更新
-            // 无需手动调用 updateContent 或 emit
         };
 
         // 2. 管理 Textarea 自动高度 (保持不变)
@@ -257,17 +215,14 @@ export default {
             adjustAllTextareas
         } = useTextareaAutoHeight(cardConfigRoot);
 
-        // 3. 管理模板选择、预览缩放和动态加载
-        const { // 移除 emit 参数
+        // 3. 管理模板选择、预览缩放和动态加载 (保持不变)
+        const { 
             templatesInfo,
-            // previewCoverContent, // 不再需要从这里获取，下面创建计算属性
             templateItemRefs,
             scalingDivRefs,
             asyncTemplateComponentsMap,
-            // selectTemplate, // 不再需要这个方法，直接修改 store
-        } = useTemplatePreviewScaling(store); // 传递 store 实例或需要的 state/getters
+        } = useTemplatePreviewScaling(store);
         
-        // 创建计算属性用于模板预览的小卡片内容
         const templatePreviewCoverContent = computed(() => ({
              title: store.cardContent?.coverCard?.title || '标题示例',
              subtitle: store.cardContent?.coverCard?.subtitle || '副标题示例',
@@ -296,6 +251,7 @@ export default {
         // 监听 store 中的 focusedEditorIndex
         watch(() => store.focusedEditorIndex, (newIndex) => {
             // 滚动逻辑保持不变，只是源头从 props 变为 store
+            // newIndex: null (无焦点), -1 (封面), 0+ (内容卡片索引)
             console.log('[CardConfig] Watcher triggered. Received focusedEditorIndex from store:', newIndex);
             const container = editorScrollContainer.value;
             if (!container) {
@@ -304,11 +260,16 @@ export default {
             }
 
             let targetElement;
-            if (newIndex === null) {
+            // 修改: 处理 -1 代表封面卡片
+            if (newIndex === -1) {
                 targetElement = coverCardConfigSection.value;
-            } else if (typeof newIndex === 'number' && newIndex >= 0) {
+                console.log('[CardConfig] Scrolling to cover card section.');
+            } else if (newIndex !== null && newIndex >= 0) { // newIndex >= 0 代表内容卡片
                 targetElement = contentCardConfigSections.value[newIndex];
+                 console.log(`[CardConfig] Scrolling to content card section ${newIndex}.`);
             } else {
+                // newIndex 是 null 或其他无效值，不滚动
+                 console.log('[CardConfig] No valid editor index to scroll to, ignoring.');
                 return;
             }
 
@@ -321,7 +282,8 @@ export default {
                     container.scrollTo({ top: desiredScrollTop, behavior: 'smooth' });
                 });
             } else {
-                 if (newIndex === null) {
+                 // 目标元素未找到警告
+                 if (newIndex === -1) {
                     console.warn("[CardConfig] 无法找到封面卡片配置元素进行滚动");
                  } else {
                     console.warn(`[CardConfig] 无法找到索引 ${newIndex} 的内容卡片配置元素进行滚动`);
@@ -336,18 +298,9 @@ export default {
 
         // --- Methods --- 
 
-        // 在指定索引处插入新卡片 (使用 addCardInternal)
-        const insertCard = (index) => {
-            addCardInternal(index); 
-            nextTick(adjustAllTextareas); 
-        };
-
-        // 添加卡片到末尾 (简单包装)
-        const addCard = () => {
-            if (!store.cardContent || !store.cardContent.contentCards) return;
-            const newIndex = store.cardContent.contentCards.length;
-            insertCard(newIndex);
-        };
+        // 移除 insertCard 和 addCard，模板直接调用 store.addContentCard
+        // const insertCard = (index) => { ... };
+        // const addCard = () => { ... };
 
         // 处理描述输入事件，调用 store action
         const handleDescriptionInput = (event) => {
@@ -355,10 +308,9 @@ export default {
             store.updateTopicDescription(event.target.value);
         };
 
-        // 处理任意 textarea 的输入事件 (仅调整高度，v-model 已更新 store)
+        // 处理任意 textarea 的输入事件 (保持不变)
         const handleTextareaInput = (event) => {
             adjustSingleTextarea(event.target);
-            // 不需要手动 updateContent 或 emit 了，v-model 已经更新了 store.cardContent 的对应属性
             console.log('[CardConfig] Textarea input handled, store state updated via v-model');
         };
         
@@ -375,22 +327,22 @@ export default {
             editorScrollContainer, 
             coverCardConfigSection, 
             contentCardConfigSections, 
-            // 本地计算属性和方法 (部分从 useCardManagement 移入)
+            // 本地计算属性和方法 (移除与卡片操作相关的方法)
             templatePreviewCoverContent,
-            addCard, // 暴露包装后的 addCard
-            removeCard,
-            toggleVisibility,
-            getButtonClass,
-            onDragEnd,
-            insertCard,
+            // addCard, // 移除
+            // removeCard, // 移除
+            // toggleVisibility, // 移除
+            getButtonClass, // 保留
+            onDragEnd, // 保留
+            // insertCard, // 移除
             // 模板预览 (From useTemplatePreviewScaling)
             templatesInfo,
             asyncTemplateComponentsMap,
             // 其他
             dragOptions,
             isDevMode,
-            handleTextareaInput, // 暴露给模板
-            handleDescriptionInput, // 暴露给模板
+            handleTextareaInput, // 保留
+            handleDescriptionInput, // 保留
         };
     },
 }
