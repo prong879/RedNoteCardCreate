@@ -12,13 +12,13 @@
                     class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
                     <i class="fas fa-file-alt mr-1"></i> 生成 MD 模板
                 </button>
+                <!-- 新增: 检查/转换按钮 (仅开发) -->
                 <button
-                    @click="triggerFileInput"
-                    class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded text-sm">
-                    <i class="fas fa-upload mr-1"></i> 导入/更新 (MD)
+                    v-if="isDevMode"
+                    @click="openMarkdownManager"
+                    class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-1 px-3 rounded text-sm">
+                    <i class="fas fa-sync-alt mr-1"></i> 检查/转换 MD 文件
                 </button>
-                <input type="file" ref="fileInput" @change="handleFileImport" accept=".md" multiple hidden />
-                <!-- 切换Prompt按钮可见性的开关 -->
                 <label for="prompt-toggle" class="ml-4 mr-2 text-sm font-medium text-gray-700">显示 "生成Prompt":</label>
                 <button
                     id="prompt-toggle"
@@ -40,6 +40,81 @@
             @close="showGenerateMdModal = false"
             @generate="handleGenerateMdForTopic"
         />
+
+        <!-- 新增: Markdown 文件管理器模态框 (仅开发) -->
+        <div v-if="showMarkdownManager && isDevMode" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50" @click.self="closeMarkdownManager">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[80vh] flex flex-col">
+                <h3 class="text-lg font-medium mb-4">Markdown 文件状态与转换</h3>
+                <div class="flex justify-end mb-3">
+                     <button @click="fetchMarkdownFiles" class="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50" :disabled="loadingFiles"> <i class="fas fa-redo mr-1"></i> 刷新列表 </button>
+                </div>
+                <div class="overflow-y-auto flex-grow border rounded-lg p-3 bg-gray-50 min-h-[200px]">
+                    <div v-if="loadingFiles" class="text-center text-gray-500">加载中...</div>
+                    <div v-else-if="fileError" class="text-center text-red-500">加载文件列表失败: {{ fileError }}</div>
+                    <div v-else-if="markdownFileStatus.length === 0" class="text-center text-gray-500">未找到 Markdown 文件或 JS 文件。</div>
+                    <table v-else class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic ID</th>
+                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题 (来自 Meta)</th>
+                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                                <th scope="col" class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr v-for="item in markdownFileStatus" :key="item.topicId">
+                                <td class="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ item.topicId }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm text-gray-600">{{ item.title || '-' }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap text-sm">
+                                     <span v-if="item.status === 'md_only'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">仅 MD (待转换)</span>
+                                     <span v-else-if="item.status === 'both'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">MD & JS 存在</span>
+                                     <span v-else-if="item.status === 'js_only'" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">仅 JS 存在</span>
+                                     <span v-else class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">未知</span>
+                                </td>
+                                <td class="px-4 py-2 whitespace-nowrap text-center text-sm font-medium">
+                                    <!-- Standard state button -->
+                                    <button 
+                                        v-if="item.status === 'md_only' && !confirmingOverwrite[item.topicId]" 
+                                        @click="convertMd(item.topicId, false)"
+                                        :disabled="converting[item.topicId]"
+                                        class="text-indigo-600 hover:text-indigo-900 disabled:opacity-50 px-2 py-1 rounded border border-indigo-500 bg-indigo-50 text-xs">
+                                        {{ converting[item.topicId] ? '转换中...' : '转换为 JS' }}
+                                    </button>
+                                    <button 
+                                        v-if="item.status === 'both' && !confirmingOverwrite[item.topicId]"
+                                        @click="requestOverwriteConfirmation(item.topicId)" 
+                                        :disabled="converting[item.topicId]"
+                                        class="text-red-600 hover:text-red-900 disabled:opacity-50 px-2 py-1 rounded border border-red-500 bg-red-50 text-xs">
+                                        {{ converting[item.topicId] ? '转换中...' : '重新转换 (覆盖已有 JS)' }}
+                                    </button>
+                                    <span v-if="item.status === 'js_only' && !confirmingOverwrite[item.topicId]">-</span>
+
+                                    <!-- Confirmation state buttons -->
+                                    <div v-if="confirmingOverwrite[item.topicId]" class="flex items-center justify-center space-x-2">
+                                        <span class="text-xs text-orange-600 mr-1">确认?</span>
+                                        <button
+                                            @click="convertMd(item.topicId, true)" 
+                                            :disabled="converting[item.topicId]"
+                                            class="text-white bg-orange-500 hover:bg-orange-600 disabled:opacity-50 px-2 py-0.5 rounded text-xs">
+                                            覆盖
+                                        </button>
+                                        <button
+                                            @click="cancelOverwrite(item.topicId)"
+                                            :disabled="converting[item.topicId]"
+                                            class="text-gray-600 hover:text-gray-900 disabled:opacity-50 px-2 py-0.5 rounded border border-gray-300 text-xs">
+                                            取消
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 text-right">
+                    <button @click="closeMarkdownManager" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50">关闭</button>
+                </div>
+            </div>
+        </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div v-for="(topic, index) in topics" :key="topic.id"
@@ -76,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, watch } from 'vue';
+import { ref, onMounted, reactive, watch, computed } from 'vue';
 // import { topicsMeta as initialTopicsMeta } from '../content/topicsMeta'; // 不再需要直接导入
 import { useToast } from "vue-toastification";
 import promptTemplate from '../prompts/knowledge_card_prompt.md?raw';
@@ -94,7 +169,16 @@ const savedTopicInfo = reactive({});
 const showPromptButtons = ref(true);
 // const showCreateTopicModal = ref(false); // 移除旧状态
 const showGenerateMdModal = ref(false); // 添加新模态框状态
-const fileInput = ref(null); // 用于触发文件输入
+// const fileInput = ref(null); // Remove file input ref
+
+// --- New state for Markdown Manager ---
+const isDevMode = import.meta.env.DEV; // Check dev mode
+const showMarkdownManager = ref(false);
+const markdownFileStatus = ref([]); // [{ topicId: string, title: string, status: 'md_only' | 'js_only' | 'both' }] 
+const loadingFiles = ref(false);
+const fileError = ref(null);
+const converting = reactive({}); // { [topicId]: boolean }
+const confirmingOverwrite = reactive({}); // <--- Add state for confirmation
 
 // 从 store 加载 topics 并监听变化
 const topics = ref([...store.topics]); // 初始化时从 store 获取
@@ -102,6 +186,10 @@ watch(() => store.topics, (newTopics) => {
   topics.value = [...newTopics]; // 监听 store 变化并更新本地 ref
   // TODO: 可能需要重新计算 savedTopicInfo 或其他依赖 topics 的数据
   updateSavedTopicInfo(); // 调用更新函数
+  // If manager is open, refresh its data too
+  if (showMarkdownManager.value) {
+      updateMarkdownFileStatus();
+  }
 }, { deep: true });
 
 // 提取更新 savedTopicInfo 的逻辑为一个函数
@@ -210,68 +298,123 @@ const generatePrompt = (topic) => {
 
 // --- 修改和新增方法 ---
 
-// 触发文件输入点击
-const triggerFileInput = () => {
-  fileInput.value.click();
+// Fetch and process file list from API
+const fetchMarkdownFiles = async () => {
+    loadingFiles.value = true;
+    fileError.value = null;
+    try {
+        const response = await fetch('/api/list-content-files');
+        if (!response.ok) {
+            // Try parsing error message from server if available
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const errorResult = await response.json();
+                if (errorResult && errorResult.message) {
+                    errorMsg = errorResult.message;
+                }
+            } catch (parseError) { /* Ignore if response is not JSON */ }
+            throw new Error(errorMsg);
+        }
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.message || 'Failed to list files (server error)');
+        }
+        console.info('[TopicSelector] Fetched file list successfully.', data); // Log success to browser console
+        return data; 
+    } catch (error) {
+        console.error("[TopicSelector] Error fetching file list:", error); // Log error to browser console
+        fileError.value = error.message;
+        return null;
+    }
 };
 
-// 处理文件导入 (保持不变，调用 store.importTopicFromMarkdown)
-const handleFileImport = async (event) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) {
-        return;
-    }
+// Update the status list based on fetched files
+const updateMarkdownFileStatus = async () => {
+    const data = await fetchMarkdownFiles();
+    loadingFiles.value = false; // Set loading false after fetch attempt
+    if (!data) return; // Exit if fetch failed
 
-    let updatedCount = 0;
-    let errorCount = 0;
-    const totalFiles = files.length;
-    const processingToastId = toast.info(`开始处理 ${totalFiles} 个 Markdown 文件...`, { timeout: false });
-
-    const results = await Promise.allSettled(Array.from(files).map(file => {
-        if (!file.name.endsWith('.md')) {
-            toast.warning(`文件 "${file.name}" 不是 Markdown 文件，已跳过。`, { timeout: 2000 });
-            return Promise.resolve({ status: 'skipped', filename: file.name });
+    const mdSet = new Set(data.mdFiles.map(f => f.replace('.md', '')));
+    const jsSet = new Set(data.jsFiles.map(f => f.replace('_content.js', '')));
+    const allTopicIds = new Set([...mdSet, ...jsSet]);
+    
+    const statusList = [];
+    for (const topicId of allTopicIds) {
+        const hasMd = mdSet.has(topicId);
+        const hasJs = jsSet.has(topicId);
+        let status = 'unknown';
+        if (hasMd && !hasJs) {
+            status = 'md_only';
+        } else if (hasMd && hasJs) {
+            status = 'both';
+        } else if (!hasMd && hasJs) {
+            status = 'js_only';
         }
-        return store.importTopicFromMarkdown(file);
-    }));
-
-    toast.dismiss(processingToastId);
-
-    results.forEach((result, index) => {
-        const originalFile = files[index];
-        if (result.status === 'fulfilled') {
-            if (result.value?.status === 'skipped') {
-                // Skipped
-            } else {
-                const { topicId, title } = result.value;
-                toast.success(`选题 "${title}" (ID: ${topicId}) 已成功导入/更新。`);
-                updatedCount++;
-            }
-        } else if (result.status === 'rejected') {
-            console.error(`处理文件 "${originalFile.name}" 时出错:`, result.reason);
-            toast.error(`处理文件 "${originalFile.name}" 失败: ${result.reason?.message || result.reason}`);
-            errorCount++;
-        }
-    });
-
-    if (fileInput.value) {
-        fileInput.value.value = '';
+        
+        statusList.push({
+            topicId,
+            title: getTopicTitle(topicId), // Get title from store
+            status
+        });
     }
+    
+    markdownFileStatus.value = statusList.sort((a, b) => a.topicId.localeCompare(b.topicId)); // Sort by topicId
+};
 
-    if (updatedCount > 0 || errorCount > 0) {
-        let summaryMessage = '';
-        if (updatedCount > 0) summaryMessage += `${updatedCount} 个文件成功导入/更新。`;
-        if (errorCount > 0) summaryMessage += `${errorCount > 0 ? (updatedCount > 0 ? ' ' : '') + errorCount + ' 个文件处理失败。' : ''}`;
-        if (updatedCount > 0 && errorCount === 0) {
-            toast.success(summaryMessage);
-        } else if (errorCount > 0 && updatedCount === 0) {
-            toast.error(summaryMessage);
+// Open the markdown manager modal
+const openMarkdownManager = () => {
+    showMarkdownManager.value = true;
+    updateMarkdownFileStatus(); // Fetch initial data
+};
+
+// Close the markdown manager modal
+const closeMarkdownManager = () => {
+    showMarkdownManager.value = false;
+    markdownFileStatus.value = []; // Clear data on close
+    loadingFiles.value = false;
+    fileError.value = null;
+    Object.keys(converting).forEach(key => delete converting[key]); // Reset converting state
+    resetConfirmation(); // Reset confirmation on close
+};
+
+// Trigger conversion via API
+const convertMd = async (topicId, overwrite = false) => {
+    converting[topicId] = true; 
+    resetConfirmation(topicId); 
+    try {
+        const response = await fetch('/api/convert-md-to-js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ topicId })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || `HTTP error ${response.status}`);
+        }
+        toast.success(result.message || `成功转换 ${topicId}.md`);
+        console.info(`[TopicSelector] Conversion success: ${result.message}`, result); 
+        
+        localStorage.removeItem(`cardgen_topic_content_${topicId}`);
+        
+        if (result.cardCount !== undefined) {
+            savedTopicInfo[topicId] = { exists: true, cardCount: result.cardCount };
         } else {
-            toast.warning(summaryMessage);
+            console.warn(`[TopicSelector] API response for ${topicId} did not include cardCount.`); 
         }
-    } else if (results.every(r => r.value?.status === 'skipped')) {
-        toast.info("没有有效的 Markdown 文件被处理。");
+        await updateMarkdownFileStatus(); 
+
+    } catch (error) {
+        console.error(`[TopicSelector] Error converting ${topicId}.md:`, error); 
+        toast.error(`转换 ${topicId}.md 失败: ${error.message}`);
+    } finally {
+        converting[topicId] = false; 
     }
+};
+
+// Helper to get topic title from store
+const getTopicTitle = (topicId) => {
+    const topic = topics.value.find(t => t.id === topicId);
+    return topic?.title || null;
 };
 
 // 生成 Markdown 模板并处理保存/下载
@@ -393,4 +536,25 @@ const togglePromptButtons = () => {
 
 // 使用 import.meta.glob 获取所有 content 文件信息 (保持不变，用于 onMounted 检查原始文件，虽然现在主要依赖 localStorage)
 const contentModules = import.meta.glob('../content/*_content.js'); // 非 eager 模式
+
+// --- Helper function: Reset confirmation state ---
+const resetConfirmation = (topicId = null) => {
+    if (topicId) {
+        confirmingOverwrite[topicId] = false;
+    } else {
+        // Reset all if no specific ID is given (e.g., on modal close)
+        Object.keys(confirmingOverwrite).forEach(key => confirmingOverwrite[key] = false);
+    }
+};
+
+// --- New function: Request overwrite confirmation ---
+const requestOverwriteConfirmation = (topicId) => {
+    resetConfirmation(); // Reset any other pending confirmations first
+    confirmingOverwrite[topicId] = true;
+};
+
+// --- New function: Cancel overwrite ---
+const cancelOverwrite = (topicId) => {
+    resetConfirmation(topicId);
+};
 </script>
