@@ -1,5 +1,5 @@
 // src/content/topicsMeta.js
-// Generated/Updated by script at 2025-04-28T09:49:30.170Z
+// Generated/Updated by script at 2025-04-28T09:58:32.880Z
 // 用于存储选题的核心信息，与具体每次编辑的内容分开
 
 export const topicsMeta = [
@@ -221,6 +221,6 @@ export const topicsMeta = [
     {
         id: 'test01',
         title: '测试选题 (请忽略)',
-        description: '这是一个用于测试新功能的临时选题数据。测试编辑话题简介111111'
+        description: '这是一个用于测试新功能的临时选题数据。测试编辑话题简介'
     }
 ];

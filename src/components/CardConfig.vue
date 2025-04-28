@@ -131,7 +131,7 @@
              <div class="mb-6">
                   <h3 class="text-lg font-medium mb-2">话题简介（用于选题界面展示）</h3>
                   <textarea 
-                    v-model="content.topicDescription" 
+                    :value="content.topicDescription" 
                     @input="handleDescriptionInput"
                     class="w-full p-3 border bg-white rounded-lg text-sm text-gray-700 dynamic-textarea hide-scrollbar" 
                     placeholder="输入话题简介..."
@@ -196,7 +196,8 @@ export default {
         'return-to-topics',
         'save-content',
         'focus-preview-card',
-        'save-locally'
+        'save-locally',
+        'update:topicDescription'
     ],
     setup(props, { emit }) {
         // --- Refs --- 
@@ -323,12 +324,11 @@ export default {
 
         // 处理描述输入事件
         const handleDescriptionInput = (event) => {
-            // 确保 content 对象和 topicDescription 属性存在
+            // 确保 content 对象存在
             if (content.value && typeof content.value === 'object') {
-                 // 直接修改 props 可能不是最佳实践，但 useCardManagement 设计上似乎允许
-                 // content.value.topicDescription = event.target.value;
                  adjustSingleTextarea(event.target); // 调整高度
-                 updateContent(); // 触发更新事件，通知父组件
+                 // updateContent(); // 不再调用通用的更新，触发特定事件
+                 emit('update:topicDescription', event.target.value); // 触发特定更新事件
             } else {
                 console.warn("Cannot update description: content object is not ready.");
             }

@@ -26,6 +26,7 @@
                   @save-content="generateContentJsFile"
                   @save-locally="saveContentLocally"
                   @focus-preview-card="handleFocusPreviewCard"
+                  @update:topicDescription="handleDescriptionUpdate"
                 />
               </div>
               
@@ -246,6 +247,13 @@ export default {
       }
     };
     
+    // 新增：处理来自子组件的描述更新事件
+    const handleDescriptionUpdate = (newDescription) => {
+        if (cardContent.value) {
+            cardContent.value.topicDescription = newDescription;
+        }
+    };
+    
     return {
       showTopicSelector,
       selectedTemplate,
@@ -260,7 +268,8 @@ export default {
       handlePreviewScrolled,
       currentTopicTitle,
       updateMainText,
-      saveContentLocally
+      saveContentLocally,
+      handleDescriptionUpdate
     }
   }
 }
