@@ -24,7 +24,7 @@
     *   可单独控制卡片的页眉/页脚显隐。
     *   编辑内容实时反映在预览区。
     *   编辑区与预览区滚动联动，方便定位。
-    *   (内部实现遵循 Vue 单向数据流原则，子组件通过事件更新父组件状态)。
+    *   (内部使用 Pinia 进行集中式状态管理，简化了组件间通信)。
 *   **导出与保存图片、文案数据**: 
     *   导出单张或所有卡片为 **PNG 图片** (较高分辨率)。
     *   将所有图片打包为 **ZIP 文件**下载。
@@ -45,6 +45,7 @@
 ### 技术栈
 
 *   **前端**: Vue.js 3 (组合式 API), Vite
+*   **状态管理**: Pinia
 *   **样式**: Tailwind CSS, PostCSS (autoprefixer)
 *   **Markdown/LaTeX**: markdown-it, KaTeX
 *   **图片/文件处理**: html2canvas, file-saver, JSZip
@@ -235,6 +236,7 @@ npm run zhuanhuan -- all
 │   ├── markdown/           # Markdown 源文件 (可选工作流)
 │   │   └── topicXX.md
 │   ├── prompts/            # AI Prompt 模板
+│   ├── stores/             # Pinia 状态管理 Store
 │   ├── templates/          # 卡片样式模板组件 (*.vue)
 │   ├── utils/              # 通用工具函数
 │   ├── App.vue             # 根组件
