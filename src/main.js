@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import './assets/styles/index.css'
 
@@ -11,6 +12,9 @@ import Toast, { POSITION } from "vue-toastification";
 import "vue-toastification/dist/index.css";
 
 const app = createApp(App);
+
+// 新增：创建 Pinia 实例
+const pinia = createPinia();
 
 // 配置 vue-toastification
 const options = {
@@ -28,5 +32,8 @@ const options = {
     rtl: false
 };
 app.use(Toast, options);
+
+// 新增：让 Vue 应用使用 Pinia
+app.use(pinia);
 
 app.mount('#app') 
