@@ -43,13 +43,39 @@
 
 <script>
 import { useTemplateRendering } from '../composables/useTemplateRendering';
-import { commonTemplateProps } from '../config/commonProps'; // 导入共享 Props
 
 export default {
     name: 'Template1',
     props: {
-        ...commonTemplateProps, // 使用扩展运算符引入共享 Props
-        // 如果 Template1 有自己独特的 Props，可以在这里添加
+        // 卡片类型: 'cover' 或 'content'
+        type: {
+            type: String,
+            required: true,
+            validator: (value) => ['cover', 'content'].includes(value)
+        },
+        // 统一接收卡片数据对象 (coverCard 或 contentCard)
+        cardData: {
+            type: Object,
+            required: true
+        },
+        // 页眉和页脚文本
+        headerText: {
+            type: String,
+            default: '@园丁小区詹姆斯'
+        },
+        footerText: {
+            type: String,
+            default: '持续更新\\n你一定能学会时间序列分析'
+        },
+        // 控制页眉页脚可见性
+        isHeaderVisible: {
+            type: Boolean,
+            default: true
+        },
+        isFooterVisible: {
+            type: Boolean,
+            default: true
+        }
     },
     setup(props) {
         // 使用 Composable 获取渲染后的文本

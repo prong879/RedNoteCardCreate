@@ -34,13 +34,35 @@
 
 <script>
 import { useTemplateRendering } from '../composables/useTemplateRendering';
-import { commonTemplateProps } from '../config/commonProps'; // 导入共享 Props
 
 export default {
     name: 'Template2',
     props: {
-        ...commonTemplateProps // 使用扩展运算符引入共享 Props
-        // 如果 Template2 有自己独特的 Props，可以在这里添加
+        type: {
+            type: String,
+            required: true,
+            validator: (value) => ['cover', 'content'].includes(value)
+        },
+        cardData: {
+            type: Object,
+            required: true
+        },
+        headerText: {
+            type: String,
+            default: '@园丁小区詹姆斯'
+        },
+        footerText: {
+            type: String,
+            default: '持续更新\\n你一定能学会时间序列分析'
+        },
+        isHeaderVisible: {
+            type: Boolean,
+            default: true
+        },
+        isFooterVisible: {
+            type: Boolean,
+            default: true
+        }
     },
     setup(props) {
         const { 
