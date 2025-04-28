@@ -274,59 +274,116 @@ const handleFileImport = async (event) => {
     }
 };
 
-// 修改：处理从 GenerateMdModal 过来的生成请求
-const handleGenerateMdForTopic = ({ topicId, title }) => {
-  console.log('Generating MD template for topic:', topicId, title);
+// 生成 Markdown 模板并处理保存/下载
+const handleGenerateMdForTopic = async (options) => {
+  const { topicId, title, description, numCards, includeMainText } = options;
 
-  // 生成 Markdown 模板内容 (逻辑与之前 handleCreateTopic 类似，但使用传入的 topicId 和 title)
-  const templateContent = `---
-topicId: '${topicId}'
-title: '${title.replace(/'/g, "''")}' # 使用单引号包裹，并转义标题中的单引号
-description: '${(store.topics.find(t => t.id === topicId)?.description || '').replace(/'/g, "''")}' # 从 store 获取描述
-headerText: '' # 可选全局页眉
-footerText: '' # 可选全局页脚
-coverShowHeader: true
-coverShowFooter: true
-contentDefaultShowHeader: true
-contentDefaultShowFooter: true
----
+  // --- 调整 Markdown 内容以匹配 create_md_Template.js ---
+  // 使用 JSON.stringify 确保 YAML Front Matter 中的字符串安全转义
+  let mdContent = `--- 
+topicId: ${topicId}
+title: ${JSON.stringify(title)}
+description: ${JSON.stringify(description || '在这里填写选题描述...')}
+headerText: ${JSON.stringify("@园丁小区詹姆斯")}
+footerText: '' 
+coverShowHeader: true 
+coverShowFooter: true 
+contentDefaultShowHeader: true 
+contentDefaultShowFooter: true 
+--- 
 
-# ${title.replace(/'/g, "''")}
-这里是封面卡片的副标题或简短介绍 (支持 Markdown/LaTeX)
+# ${title}
 
----
+封面副标题
 
-# 内容卡片1 标题
-这里是第一张内容卡片的主体内容 (支持 Markdown/LaTeX)。
-
-<!-- 可选：单独控制此卡片页眉显隐 -->
-<!-- cardShowHeader: false -->
-<!-- 可选：单独控制此卡片页脚显隐 -->
-<!-- cardShowFooter: false -->
-
-<!-- 插图建议: 在AI辅助生成后，可以在这里添加插图建议 -->
-
----
-
-# 内容卡片2 标题
-更多内容卡片...
-
----
-
-## 主文案
-这里是小红书笔记的主文案区域。
-仅支持纯文本、换行、Emoji 和 #话题标签#。
-将所有卡片内容总结和扩展成流畅的笔记。
-#${title.replace(/\s+/g, '')} #${topicId} #知识分享
 `;
 
-  // 使用 file-saver 下载文件
-  const blob = new Blob([templateContent], { type: "text/markdown;charset=utf-8" });
-  saveAs(blob, `${topicId}.md`);
+  // 卡片部分可以保持与之前类似，或者根据需要简化成 create_md_Template.js 的单卡片示例
+  // 这里我们暂时保持多卡片生成，但可以根据需要调整
+  for (let i = 1; i <= numCards; i++) {
+    mdContent += `---
 
-  // 关闭模态框并提示
+## 内容卡片 ${i} 标题
+
+内容卡片 ${i} 正文
+
+<!-- 可选：单独控制此卡片的页眉/页脚显隐 -->
+<!-- cardShowHeader: true -->
+<!-- cardShowFooter: true -->
+
+`;
+  }
+
+  // 主文案部分
+  if (includeMainText) {
+    mdContent += `---
+
+## Main Text
+
+在这里编写你的小红书主文案...
+
+`;
+  }
+  // --- Markdown 内容生成完毕 ---
+
+  const filename = `${topicId}.md`; // <--- CHANGE: filename format
+
+  const isDevMode = import.meta.env.DEV;
+
+  if (isDevMode) {
+    try {
+      const response = await fetch('/api/save-markdown-template', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filename: filename, content: mdContent }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast.success(`模板 ${filename} 已成功保存到本地 src/markdown/ 目录！`); // <--- CHANGE: message
+        console.log(`[TopicSelector] Successfully saved MD template locally via API: ${filename} to src/markdown/`); // <--- CHANGE: log
+        showGenerateMdModal.value = false; 
+        return; 
+      } else {
+        // 处理特定错误：文件已存在
+        if (response.status === 409 && result.code === 'FILE_EXISTS') {
+             toast.error(result.message || `文件 ${filename} 已存在于 src/markdown/，无法覆盖。`);
+        } else {
+            // 其他 API 错误
+            console.error('[TopicSelector] API save failed:', result.message || `Status: ${response.status}`);
+            toast.warning(`尝试本地保存失败 (${result.message || `HTTP ${response.status}`})，将启动文件下载。`);
+            // 继续执行下载逻辑
+        }
+      }
+    } catch (error) {
+      console.error('[TopicSelector] Error calling save API:', error);
+      toast.warning(`调用本地保存 API 出错 (${error.message})，将启动文件下载。`);
+      // 继续执行下载逻辑
+    }
+    // 如果 API 调用失败或遇到已知错误（如文件存在），则可能需要继续执行下载
+    // 但如果文件已存在，通常不应再下载。我们根据上面的逻辑调整：
+    // 如果是文件存在错误，我们只提示错误，不下载。
+    if (response?.status === 409 && (await response?.json())?.code === 'FILE_EXISTS') { // 需要重新解析 json 或缓存 result
+        showGenerateMdModal.value = false; // 关闭模态框
+        return; // 阻止下载
+    }
+    // 对于其他 API 错误或网络错误，我们会继续尝试下载
+  }
+
+  // 非开发模式或本地保存失败时（非文件存在错误），执行文件下载
+  try {
+    const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
+    saveAs(blob, filename);
+    toast.success(`已生成 ${filename} 供下载。`);
+  } catch (saveError) {
+    console.error('[TopicSelector] Error saving file with file-saver:', saveError);
+    toast.error(`生成文件 ${filename} 失败: ${saveError.message}`);
+  }
+  
   showGenerateMdModal.value = false;
-  toast.success(`Markdown 模板 "${topicId}.md" 已生成并开始下载。`);
 };
 
 // 切换 Prompt 按钮可见性的方法 (保持不变)
