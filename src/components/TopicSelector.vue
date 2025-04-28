@@ -388,6 +388,11 @@ const convertMd = async (topicId, overwrite = false) => {
             body: JSON.stringify({ topicId })
         });
         const result = await response.json();
+        
+        // --- 新增调试日志 ---
+        console.log(`[TopicSelector] API response for ${topicId} conversion:`, result);
+        // --- 调试日志结束 ---
+        
         if (!response.ok || !result.success) {
             throw new Error(result.message || `HTTP error ${response.status}`);
         }
@@ -396,12 +401,33 @@ const convertMd = async (topicId, overwrite = false) => {
         
         localStorage.removeItem(`cardgen_topic_content_${topicId}`);
         
-        if (result.cardCount !== undefined) {
-            savedTopicInfo[topicId] = { exists: true, cardCount: result.cardCount };
+        // --- Modification Start ---
+        // Check if API returned a valid cardCount
+        if (result && typeof result.cardCount === 'number' && result.cardCount >= 0) { 
+            // Ensure the topicId entry exists in savedTopicInfo before updating
+            if (!savedTopicInfo[topicId]) {
+                savedTopicInfo[topicId] = { exists: false, cardCount: 0 }; // Initialize if needed
+            }
+            savedTopicInfo[topicId].exists = true; // Mark as existing (JS file exists)
+            savedTopicInfo[topicId].cardCount = result.cardCount; // Update with the count from API
+            console.log(`[TopicSelector] Updated savedTopicInfo for ${topicId} with cardCount: ${result.cardCount}`);
         } else {
-            console.warn(`[TopicSelector] API response for ${topicId} did not include cardCount.`); 
+            // Handle case where API didn't return cardCount or it's invalid
+            console.warn(`[TopicSelector] API response for ${topicId} did not include a valid cardCount. Displayed count might be inaccurate until next full refresh.`);
+             // Optionally, you could try to trigger a more robust update mechanism here,
+             // but for now, we rely on the API providing the count.
+             // We can still mark it as 'exists' if conversion was successful overall.
+             if (savedTopicInfo[topicId]) {
+                 savedTopicInfo[topicId].exists = true; 
+                 // Keep the old cardCount or set to a default? Let's keep old for now if it exists.
+             } else {
+                 // If it didn't exist before and we don't have a count, maybe set a default?
+                 savedTopicInfo[topicId] = { exists: true, cardCount: 1 }; // Default to 1 (cover) if no count provided
+             }
         }
-        await updateMarkdownFileStatus(); 
+        // --- Modification End ---
+
+        await updateMarkdownFileStatus(); // Keep this to update modal state
 
     } catch (error) {
         console.error(`[TopicSelector] Error converting ${topicId}.md:`, error); 
@@ -429,11 +455,11 @@ title: ${JSON.stringify(title)}
 description: ${JSON.stringify(description || '在这里填写选题描述...')}
 headerText: ${JSON.stringify("@园丁小区詹姆斯")}
 footerText: '' 
-coverShowHeader: true 
-coverShowFooter: true 
-contentDefaultShowHeader: true 
-contentDefaultShowFooter: true 
---- 
+coverShowHeader: true
+coverShowFooter: true
+contentDefaultShowHeader: true
+contentDefaultShowFooter: true
+---
 
 # ${title}
 
@@ -557,4 +583,17 @@ const requestOverwriteConfirmation = (topicId) => {
 const cancelOverwrite = (topicId) => {
     resetConfirmation(topicId);
 };
+
+// --- NEW: Computed property for modal dropdown --- 
+const topicsForModalDropdown = computed(() => {
+    // Use topics.value which mirrors store.topics
+    return topics.value.map((topic, index) => {
+        const ordinal = getOrdinal(index + 1);
+        return {
+            id: topic.id,
+            // Combine ordinal number, suffix, and title for display
+            displayTitle: `${ordinal.number}${ordinal.suffix} - ${topic.title}`
+        };
+    });
+});
 </script>

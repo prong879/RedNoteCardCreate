@@ -16,7 +16,7 @@
               class="w-full flex items-center justify-between p-3 text-left bg-white border border-gray-200 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-150"
             >
               <div>
-                <span class="font-medium text-gray-800">{{ topic.title }}</span>
+                <span class="font-medium text-gray-800">{{ topic.displayTitle }}</span>
                 <span class="block text-sm text-gray-500">{{ topic.description }}</span>
               </div>
               <span 
@@ -62,6 +62,15 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useCardStore } from '../stores/cardStore';
 import ConfirmationModal from './ConfirmationModal.vue'; // 引入确认模态框
 
+// --- NEW: Add getOrdinal function (copied from TopicSelector) --- 
+function getOrdinal(n) {
+    if (typeof n !== 'number' || n < 1) return { number: n, suffix: '' };
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    const suffix = s[(v - 20) % 10] || s[v] || s[0];
+    return { number: n, suffix: suffix };
+}
+
 const emit = defineEmits(['close', 'generate']);
 const store = useCardStore();
 
@@ -71,19 +80,22 @@ const topicToConfirm = ref(null);
 
 // 计算包含状态的选题列表
 const availableTopics = computed(() => {
-  return store.topics.map(topic => {
+  // Use index from map to calculate ordinal
+  return store.topics.map((topic, index) => { 
     const hasLocalStorage = localStorage.getItem(`cardgen_topic_content_${topic.id}`) !== null;
     const jsFilePathKey = `../content/${topic.id}_content.js`;
     const hasJsFile = store.detectedContentJsModules && store.detectedContentJsModules[jsFilePathKey] !== undefined;
-    
-    // 统一状态判断：只要有其一就算存在
     const status = (hasLocalStorage || hasJsFile) ? 'exists' : 'generate';
+    
+    // 直接使用中文格式，不再调用 getOrdinal
+    const displayTitle = `第 ${index + 1} 期 - ${topic.title}`; 
 
     return {
-      ...topic,
-      status: status, // 'exists' or 'generate' - 用于列表样式
-      hasJsFile: hasJsFile, // 用于确认消息
-      hasLocalStorage: hasLocalStorage // 用于确认消息
+      ...topic, // Spread original topic properties (like id, title, description)
+      displayTitle: displayTitle, // Add the formatted title
+      status: status, 
+      hasJsFile: hasJsFile, 
+      hasLocalStorage: hasLocalStorage 
     };
   });
 });
@@ -92,7 +104,8 @@ const availableTopics = computed(() => {
 const confirmationMessage = computed(() => {
   if (!topicToConfirm.value) return '';
 
-  const { title, hasJsFile, hasLocalStorage } = topicToConfirm.value;
+  // Use original title for confirmation message for clarity
+  const { title, hasJsFile, hasLocalStorage } = topicToConfirm.value; 
   let reason = '';
 
   if (hasJsFile && hasLocalStorage) {
@@ -102,10 +115,10 @@ const confirmationMessage = computed(() => {
   } else if (hasLocalStorage) {
     reason = '存在本地编辑记录 (localStorage)。';
   } else {
-    //理论上 status 为 exists 时，至少有一个为 true，但作为 fallback
     reason = '检测到已有存档。'; 
   }
 
+  // Keep using the original title in the confirmation message
   return `选题 "${title}" ${reason}\n\n重新生成 Markdown 模板可能会导致后续导入时覆盖已有数据。\n\n确定要继续生成模板吗？`;
 });
 
@@ -118,22 +131,25 @@ const closeModal = () => {
 };
 
 const selectTopic = (topic) => {
-  // 使用详细状态判断是否需要确认
   if (topic.hasJsFile || topic.hasLocalStorage) {
-    topicToConfirm.value = topic; // 存储包含详细状态的 topic 对象
+    topicToConfirm.value = topic; 
     showConfirmationModal.value = true;
   } else {
-    emit('generate', { topicId: topic.id, title: topic.title });
+    // Pass original title, not the formatted one
+    emit('generate', { topicId: topic.id, title: topic.title, description: topic.description }); 
   }
 };
 
 // 处理确认模态框的确认事件
 const handleConfirmGeneration = () => {
   if (topicToConfirm.value) {
-    // 触发原始的 generate 事件
-    emit('generate', { topicId: topicToConfirm.value.id, title: topicToConfirm.value.title });
+    // Pass original title, not the formatted one
+    emit('generate', { 
+        topicId: topicToConfirm.value.id, 
+        title: topicToConfirm.value.title, // Use original title
+        description: topicToConfirm.value.description // Pass description too
+    }); 
   }
-  // 关闭确认模态框
   showConfirmationModal.value = false;
   topicToConfirm.value = null;
 };

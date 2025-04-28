@@ -1,4 +1,4 @@
-// Generated from topic03.md by Vite Plugin at 2025-04-28T18:10:32.001Z
+// Generated from topic03.md by Vite Plugin at 2025-04-28T18:47:17.100Z
 export const topic03_contentData = {
   "headerText": "",
   "footerText": "",
@@ -12,6 +12,12 @@ export const topic03_contentData = {
     {
       "title": "卡二是电信",
       "body": "大大大",
+      "showHeader": true,
+      "showFooter": true
+    },
+    {
+      "title": "我是移动的",
+      "body": "$a+b=c$",
       "showHeader": true,
       "showFooter": true
     }
