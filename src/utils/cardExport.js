@@ -33,7 +33,7 @@ function sanitizeFilename(name) {
  * @param {string} rawFileName - 未清理的文件名 (不含扩展名)
  * @param {string} format - 图片格式 ('png' or 'jpg')
  */
-export const exportCardAsImage = async (cardElement, rawFileName, format = 'png') => {
+export const exportCardAsImage = async (cardElement, rawFileName, format = 'jpg') => {
     const fileName = sanitizeFilename(rawFileName);
     const fileExtension = format === 'jpg' ? 'jpg' : 'png';
     const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
@@ -42,7 +42,7 @@ export const exportCardAsImage = async (cardElement, rawFileName, format = 'png'
 
     try {
         const options = {
-            scale: 2, // 提高导出图片质量
+            scale: 4, // 提高导出图片质量
             useCORS: true, // 允许跨域图片
             backgroundColor: null, // 使用卡片本身的背景
             logging: false, // 减少控制台噪音
@@ -82,7 +82,7 @@ export const exportCardAsImage = async (cardElement, rawFileName, format = 'png'
  * @param {string} dateString - YYMMDD 格式日期字符串
  * @param {string} format - 图片格式 ('png' or 'jpg')
  */
-export const exportCardsAsImages = async (elementsToExport, topicId, dateString, format = 'png') => {
+export const exportCardsAsImages = async (elementsToExport, topicId, dateString, format = 'jpg') => {
     if (!elementsToExport || elementsToExport.length === 0) {
         throw new Error("没有元素需要导出。");
     }
@@ -124,7 +124,7 @@ export const exportCardsAsImages = async (elementsToExport, topicId, dateString,
  * @param {string} dateString - YYMMDD 格式日期字符串
  * @param {string} format - 图片格式 ('png' or 'jpg')
  */
-export const exportCardsAsZip = async (elementsToExport, topicId, dateString, format = 'png') => {
+export const exportCardsAsZip = async (elementsToExport, topicId, dateString, format = 'jpg') => {
     if (!elementsToExport || elementsToExport.length === 0) {
         throw new Error("没有元素需要导出。");
     }
