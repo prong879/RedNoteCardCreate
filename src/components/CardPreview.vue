@@ -6,8 +6,8 @@
                 <div class="flex items-center">
                     <label for="format-select" class="mr-1 text-sm text-gray-600">格式:</label>
                     <select id="format-select" v-model="selectedFormat" class="h-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
-                        <option value="png">PNG</option>
                         <option value="jpg">JPG</option>
+                        <option value="png">PNG</option>
                     </select>
                 </div>
                 <button @click="exportAllAsImages" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">全部导出</button>
@@ -130,7 +130,7 @@ export default {
         const { adjustSingleTextarea, adjustAllTextareas } = useTextareaAutoHeight(cardPreviewRoot);
         // 获取 toast 实例
         const toast = useToast();
-        const selectedFormat = ref('png');
+        const selectedFormat = ref('jpg');
 
         // 修改 activeTemplateComponent 计算属性以使用加载器
         const activeTemplateComponent = computed(() => {
