@@ -33,25 +33,31 @@ const path = require('path');
 // 引入 gray-matter 库，用于解析 Markdown 文件中的 YAML Front Matter
 // 需要先通过 npm install gray-matter --save-dev 或 yarn add gray-matter --dev 安装
 const matter = require('gray-matter');
+const { readTopicsMeta, writeTopicsMeta, truncateString } = require('./metaUtils'); // 导入工具函数
+
+// --- 全局变量 --- 
+// const topicsMetaPath = path.resolve(__dirname, '../src/content/topicsMeta.js'); // 已移至 metaUtils
+// let topicsMetaData = []; // 不再需要全局存储
+let processedTopicsInfo = []; // 存储本次运行处理过的 topic 信息 { id, title, description }
 
 // --- 辅助函数：截断长字符串用于日志输出 ---
-function truncateString(str, maxLength = 50) {
-    if (typeof str !== 'string') return str; // 如果不是字符串直接返回
-    if (str.length <= maxLength) {
-        return str;
-    }
-    return str.substring(0, maxLength - 3) + '...';
-}
+// function truncateString(str, maxLength = 50) { ... } // 已移至 metaUtils
+
+// --- 辅助函数：读取并解析 topicsMeta.js --- 
+// function readTopicsMeta() { ... } // 已移至 metaUtils
+
+// --- 辅助函数：写回 topicsMeta.js ---
+// function writeTopicsMeta(metaArray) { ... } // 已移至 metaUtils
 
 // --- 核心转换函数：处理单个 Markdown 文件 ---
 function convertFile(inputFilePath) {
     const baseName = path.basename(inputFilePath);
     console.log(`
-[处理文件] ${baseName}`); // 标记开始处理哪个文件
+        [处理文件] ${baseName} `); // 标记开始处理哪个文件
 
     // 检查输入文件是否存在
     if (!fs.existsSync(inputFilePath)) {
-        console.error(`  ❌ 错误：文件未找到 ${inputFilePath}`);
+        console.error(`  ❌ 错误：文件未找到 ${inputFilePath} `);
         return false;
     }
 
@@ -69,13 +75,21 @@ function convertFile(inputFilePath) {
         }
         console.log(`    - Topic ID: '${topicId}'`);
 
-        // 提取 Front Matter 元数据 (不再逐一打印)
+        // 提取 Front Matter 元数据
+        const titleFromMd = frontMatter.title || ''; // 优先使用 Front Matter 的 title
+        const descriptionFromMd = frontMatter.description || '请在此处添加描述...'; // 新增：提取 description
         const headerText = frontMatter.headerText || '';
         const footerText = frontMatter.footerText || '';
         const coverShowHeader = frontMatter.coverShowHeader !== undefined ? frontMatter.coverShowHeader : true;
         const coverShowFooter = frontMatter.coverShowFooter !== undefined ? frontMatter.coverShowFooter : true;
         const contentDefaultShowHeader = frontMatter.contentDefaultShowHeader !== undefined ? frontMatter.contentDefaultShowHeader : true;
         const contentDefaultShowFooter = frontMatter.contentDefaultShowFooter !== undefined ? frontMatter.contentDefaultShowFooter : true;
+
+        console.log(`    - Title: '${truncateString(titleFromMd)}'`);
+        console.log(`    - Description: '${truncateString(descriptionFromMd)}'`);
+
+        // 将处理结果暂存，用于后续更新 Meta
+        processedTopicsInfo.push({ id: topicId, title: titleFromMd, description: descriptionFromMd });
 
         // 提取主文案
         let markdownContentForCards = originalMarkdownContent.trim();
@@ -95,14 +109,14 @@ function convertFile(inputFilePath) {
         if (mainTextStartIndex !== -1) {
             mainText = markdownContentForCards.substring(mainTextStartIndex + markerLength).trim();
             markdownContentForCards = markdownContentForCards.substring(0, mainTextStartIndex).trim();
-            console.log(`    - 主文案: 找到 (长度: ${mainText.length})`);
+            console.log(`    - 主文案: 找到(长度: ${mainText.length})`);
         } else {
             console.log(`    - 主文案: 未找到`);
         }
 
         // 处理卡片内容
         const cardContents = markdownContentForCards.split(/(?:\r?\n\s*){1,}---\s*(?:\r?\n\s*)*/);
-        console.log(`  - 内容分割: 找到 ${cardContents.length} 个部分 (含封面)`);
+        console.log(`  - 内容分割: 找到 ${cardContents.length} 个部分(含封面)`);
 
         // 健全性检查
         if (cardContents.length === 0 || (cardContents.length === 1 && !cardContents[0].trim() && !mainText)) {
@@ -116,24 +130,25 @@ function convertFile(inputFilePath) {
 
         // 处理封面卡片
         const coverContentRaw = (cardContents[0] || '').trim();
-        let coverTitle = frontMatter.title || '';
+        let coverTitleForCard = titleFromMd; // 封面卡片标题直接用 Front Matter 的
         let coverSubtitle = '';
         const coverLines = coverContentRaw.split(/\r?\n/);
         const titleIndex = coverLines.findIndex(line => line.trim().startsWith('# '));
         if (titleIndex !== -1) {
-            coverTitle = coverLines[titleIndex].trim().substring(2).trim();
+            // 如果 MD 中仍有一级标题，忽略它作为标题，后续内容作为副标题
             let subtitleStartIndex = coverLines.findIndex((line, idx) => idx > titleIndex && line.trim() !== '');
             if (subtitleStartIndex !== -1) {
                 coverSubtitle = coverLines.slice(subtitleStartIndex).join('\n').trim();
+            } else {
+                // 如果 # 标题后没有内容，副标题为空
+                coverSubtitle = '';
             }
         } else if (coverContentRaw) {
+            // 如果没有 # 标题，整个第一部分作为副标题
             coverSubtitle = coverContentRaw;
-            if (coverTitle === frontMatter.title && coverTitle) {
-                console.warn(`    ⚠️ 警告：封面卡片缺少一级标题 (#)。`);
-            }
         }
         const coverCard = {
-            title: coverTitle,
+            title: coverTitleForCard, // 使用来自 Front Matter 的 title
             subtitle: coverSubtitle,
             showHeader: coverShowHeader,
             showFooter: coverShowFooter
@@ -156,7 +171,7 @@ function convertFile(inputFilePath) {
                 cardTitle = cardLines[cardTitleIndex].trim().replace(/^#+\s+/, '').trim();
                 cardBody = cardLines.slice(cardTitleIndex + 1).join('\n').trim();
             } else {
-                console.warn(`    ⚠️ 警告：内容卡片 ${i} 未找到标题 (#...)。`);
+                console.warn(`    ⚠️ 警告：内容卡片 ${i} 未找到标题(#...)。`);
             }
             const headerMatch = cardBody.match(showHeaderRegex);
             if (headerMatch) {
@@ -178,34 +193,34 @@ function convertFile(inputFilePath) {
         // 生成 JS 文件内容
         const outputJsonString = JSON.stringify(outputObject, null, 4);
         const outputJsContent = `// ${path.join('src/content', `${topicId}_content.js`).replace(/\\/g, '/')}
-// Generated from: ${baseName} at ${new Date().toISOString()}
+        // Generated from: ${baseName} at ${new Date().toISOString()}
 
-export const ${topicId}_contentData = ${outputJsonString};
-`;
+        export const ${topicId}_contentData = ${outputJsonString};
+        `;
 
         // 写入 JS 文件
         const outputDir = path.resolve(__dirname, '../src/content');
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
-        const outputFilePath = path.join(outputDir, `${topicId}_content.js`);
+        const outputFilePath = path.join(outputDir, `${topicId} _content.js`);
         const relativeOutputFilePath = path.relative(path.resolve(__dirname, '..'), outputFilePath).replace(/\\/g, '/');
         fs.writeFileSync(outputFilePath, outputJsContent, { encoding: 'utf8' });
-        console.log(`  ✅ 成功生成 JS 文件: ${relativeOutputFilePath}`);
+        console.log(`  ✅ 成功生成 JS 文件: ${relativeOutputFilePath} `);
         return true;
 
     } catch (error) {
         // 捕获包括 YAML 解析错误在内的所有错误
-        console.error(`  ❌ 处理文件 ${baseName} 时发生错误:`);
+        console.error(`  ❌ 处理文件 ${baseName} 时发生错误: `);
 
         // 检查是否是 YAML 解析错误，并提供更具体的定位信息
         if (error.name === 'YAMLException' && error.mark) {
             console.error(`     错误类型: YAML Front Matter 解析失败`);
-            console.error(`     原因: ${error.reason}`);
+            console.error(`     原因: ${error.reason} `);
             // error.mark.line 通常是 0 索引的，加 1 得到实际行号
             const errorLine = error.mark.line + 1;
             console.error(`     位置: 大约在 Markdown 文件的第 ${errorLine} 行附近`);
-            console.error(`     上下文片段:`);
+            console.error(`     上下文片段: `);
             console.error(`       \`\`\`\n       ${error.mark.snippet || error.mark.buffer?.split('\n')[error.mark.line] || '无法获取上下文'}\n       \`\`\``);
             console.error(`     👉 请检查第 ${errorLine} 行及其前后几行的 YAML Front Matter 语法，特别注意：`);
             console.error(`        - 字符串是否正确使用单引号 (' 或双引号 (" 包裹？`);
@@ -221,96 +236,166 @@ export const ${topicId}_contentData = ${outputJsonString};
         }
         return false;
     }
-}
 
-// --- 脚本入口点 --- 
-console.log('--- 开始执行 Markdown 转 JS 内容脚本 ---');
-// 获取命令行传入的第三个参数 (topicId 或 'all')
-const target = process.argv[2];
-// 定义 Markdown 源文件所在的目录路径
-const markdownDir = path.resolve(__dirname, '../src/markdown');
-console.log(`1. 解析参数和路径...`);
-console.log(`   - 目标参数: ${target}`);
-console.log(`   - 源目录: ${markdownDir}`);
-
-// 检查是否提供了目标参数
-if (!target) {
-    console.error('❌ 错误：未提供 topicId 或 all 作为参数！');
-    console.log('   用法: npm run zhuanhuan -- <topicId|all>');
-    process.exit(1); // 缺少参数，退出脚本
-}
-
-// 检查 Markdown 源文件目录是否存在
-console.log(`2. 检查源目录是否存在...`);
-if (!fs.existsSync(markdownDir)) {
-    console.error(`❌ 错误：Markdown 源文件目录未找到 ${markdownDir}`);
-    process.exit(1); // 源目录不存在，退出脚本
-}
-console.log(`   - 源目录存在。`);
-
-// 初始化成功和失败计数器
-let successCount = 0;
-let failureCount = 0;
-const failedFiles = []; // 记录转换失败的文件名
-
-// 判断是处理所有文件还是单个文件
-if (target.toLowerCase() === 'all') {
-    // --- 处理所有文件 --- 
-    console.log(`3. 模式: all - 准备转换 ${markdownDir} 中的所有 .md 文件...`);
-    try {
-        // 读取源目录下的所有文件名
-        const files = fs.readdirSync(markdownDir);
-        // 过滤出所有以 .md 结尾的文件 (不区分大小写)
-        const markdownFiles = files.filter(file => path.extname(file).toLowerCase() === '.md');
-        console.log(`   - 在源目录中找到 ${markdownFiles.length} 个 .md 文件: ${markdownFiles.join(', ')}`);
-
-        // 如果没有找到 Markdown 文件
-        if (markdownFiles.length === 0) {
-            console.log('   🤷 未找到需要转换的 .md 文件。');
-        } else {
-            // 遍历所有 Markdown 文件
-            markdownFiles.forEach(file => {
-                const filePath = path.join(markdownDir, file);
-                // 调用核心转换函数处理每个文件
-                if (convertFile(filePath)) {
-                    successCount++; // 成功则计数器加 1
-                } else {
-                    failureCount++; // 失败则计数器加 1
-                    failedFiles.push(path.basename(filePath)); // 记录失败的文件名
-                }
-            });
+    // --- 更新 Meta 文件的函数 ---
+    function updateTopicsMetaFile() {
+        console.log(`\n[更新 Meta] 开始处理 topicsMeta.js...`);
+        if (processedTopicsInfo.length === 0) {
+            console.log(`  [Meta] 本次运行未成功处理任何文件，跳过更新 Meta。`);
+            return;
         }
-    } catch (error) {
-        // 如果读取目录时发生错误
-        console.error(`❌ 读取源目录 ${markdownDir} 时发生错误:`, error);
-        process.exit(1);
+
+        // 读取当前的 Meta 数据 (使用导入的函数)
+        const currentMeta = readTopicsMeta();
+        if (currentMeta === null) {
+            console.error(`  [Meta] ❌ 无法读取或解析 topicsMeta.js，更新中止。`);
+            failureCount += processedTopicsInfo.length; // 标记所有处理过的文件为失败，因为 Meta 无法更新
+            return;
+        }
+
+        let metaChanged = false; // 标记 Meta 是否被修改
+
+        processedTopicsInfo.forEach(topicInfo => {
+            const existingIndex = currentMeta.findIndex(item => item.id === topicInfo.id);
+
+            if (existingIndex !== -1) {
+                // --- 更新现有条目 ---
+                const existingItem = currentMeta[existingIndex];
+                let itemChanged = false;
+                // 优先使用 MD 文件中的 title 和 description 更新
+                if (existingItem.title !== topicInfo.title) {
+                    console.log(`    [Meta Update] Topic ID '${topicInfo.id}': 标题更新为 '${truncateString(topicInfo.title)}'`);
+                    existingItem.title = topicInfo.title;
+                    itemChanged = true;
+                }
+                if (existingItem.description !== topicInfo.description) {
+                    console.log(`    [Meta Update] Topic ID '${topicInfo.id}': 描述更新为 '${truncateString(topicInfo.description)}'`);
+                    existingItem.description = topicInfo.description;
+                    itemChanged = true;
+                }
+                if (itemChanged) {
+                    metaChanged = true;
+                }
+            } else {
+                // --- 添加新条目 ---
+                console.log(`    [Meta Add] Topic ID '${topicInfo.id}': 添加新条目 (标题: '${truncateString(topicInfo.title)}')`);
+                currentMeta.push({
+                    id: topicInfo.id,
+                    title: topicInfo.title,
+                    description: topicInfo.description
+                });
+                metaChanged = true;
+            }
+        });
+
+        // 如果 Meta 数据有变动，则写回文件 (使用导入的函数)
+        if (metaChanged) {
+            if (!writeTopicsMeta(currentMeta)) {
+                console.error(`  [Meta] ❌ 写回 topicsMeta.js 失败，本次转换的部分结果可能不一致。`);
+                // 根据需要决定是否将 successCount 转移到 failureCount
+            }
+        } else {
+            console.log(`  [Meta] topicsMeta.js 内容无需更新。`);
+        }
     }
-} else {
-    // --- 处理单个文件 --- 
-    console.log(`3. 模式: single - 准备转换 topicId 为 '${target}' 的文件...`);
-    // 构建单个 Markdown 文件的完整路径
-    const inputFilePath = path.join(markdownDir, `${target}.md`);
-    console.log(`   - 输入文件路径: ${inputFilePath}`);
-    // 调用核心转换函数处理该文件
-    if (convertFile(inputFilePath)) {
-        successCount++;
+
+    // --- 脚本入口点 --- 
+    console.log('--- 开始执行 Markdown 转 JS 内容脚本 ---');
+    // 获取命令行传入的第三个参数 (topicId 或 'all')
+    const target = process.argv[2];
+    // 定义 Markdown 源文件所在的目录路径
+    const markdownDir = path.resolve(__dirname, '../src/markdown');
+    console.log(`1. 解析参数和路径...`);
+    console.log(`   - 目标参数: ${target}`);
+    console.log(`   - 源目录: ${markdownDir}`);
+
+    // 检查是否提供了目标参数
+    if (!target) {
+        console.error('❌ 错误：未提供 topicId 或 all 作为参数！');
+        console.log('   用法: npm run zhuanhuan -- <topicId|all>');
+        process.exit(1); // 缺少参数，退出脚本
+    }
+
+    // 检查 Markdown 源文件目录是否存在
+    console.log(`2. 检查源目录是否存在...`);
+    if (!fs.existsSync(markdownDir)) {
+        console.error(`❌ 错误：Markdown 源文件目录未找到 ${markdownDir}`);
+        process.exit(1); // 源目录不存在，退出脚本
+    }
+    console.log(`   - 源目录存在。`);
+
+    // 初始化成功和失败计数器
+    let successCount = 0;
+    let failureCount = 0;
+    const failedFiles = []; // 记录转换失败的文件名
+
+    // 重置计数器和处理列表
+    successCount = 0;
+    failureCount = 0;
+    failedFiles.length = 0;
+    processedTopicsInfo.length = 0; // 清空上次运行的数据
+
+    // 判断是处理所有文件还是单个文件
+    if (target.toLowerCase() === 'all') {
+        // --- 处理所有文件 --- 
+        console.log(`3. 模式: all - 准备转换 ${markdownDir} 中的所有 .md 文件...`);
+        try {
+            // 读取源目录下的所有文件名
+            const files = fs.readdirSync(markdownDir);
+            // 过滤出所有以 .md 结尾的文件 (不区分大小写)
+            const markdownFiles = files.filter(file => path.extname(file).toLowerCase() === '.md');
+            console.log(`   - 在源目录中找到 ${markdownFiles.length} 个 .md 文件: ${markdownFiles.join(', ')}`);
+
+            // 如果没有找到 Markdown 文件
+            if (markdownFiles.length === 0) {
+                console.log('   🤷 未找到需要转换的 .md 文件。');
+            } else {
+                // 遍历所有 Markdown 文件
+                markdownFiles.forEach(file => {
+                    const filePath = path.join(markdownDir, file);
+                    // 调用核心转换函数处理每个文件
+                    if (convertFile(filePath)) {
+                        successCount++; // 成功则计数器加 1
+                    } else {
+                        failureCount++; // 失败则计数器加 1
+                        failedFiles.push(path.basename(filePath)); // 记录失败的文件名
+                    }
+                });
+            }
+        } catch (error) {
+            // 如果读取目录时发生错误
+            console.error(`❌ 读取源目录 ${markdownDir} 时发生错误:`, error);
+            process.exit(1);
+        }
     } else {
-        failureCount++;
-        failedFiles.push(path.basename(inputFilePath));
+        // --- 处理单个文件 --- 
+        console.log(`3. 模式: single - 准备转换 topicId 为 '${target}' 的文件...`);
+        // 构建单个 Markdown 文件的完整路径
+        const inputFilePath = path.join(markdownDir, `${target}.md`);
+        console.log(`   - 输入文件路径: ${inputFilePath}`);
+        // 调用核心转换函数处理该文件
+        if (convertFile(inputFilePath)) {
+            successCount++;
+        } else {
+            failureCount++;
+            failedFiles.push(path.basename(inputFilePath));
+        }
     }
-}
 
-// --- 打印最终结果 --- 
-console.log('\n--- 转换完成 ---');
-console.log(`✅ 成功: ${successCount}`);
-console.log(`❌ 失败: ${failureCount}`);
+    // --- 在所有文件处理完毕后，更新 Meta 文件 --- 
+    updateTopicsMetaFile(); // 调用更新函数
 
-// 如果有失败的文件，打印失败的文件列表
-if (failureCount > 0) {
-    console.log(`   - 失败的文件列表: ${failedFiles.join(', ')}`);
-    process.exit(1); // 以错误码退出
-} else {
-    console.log('🎉 所有文件转换成功！');
-}
+    // --- 打印最终结果 --- 
+    console.log('\n--- 转换完成 ---');
+    console.log(`✅ 成功: ${successCount}`);
+    console.log(`❌ 失败: ${failureCount}`);
 
-console.log('--- Markdown 转 JS 内容脚本执行完毕 ---'); 
+    // 如果有失败的文件，打印失败的文件列表
+    if (failureCount > 0) {
+        console.log(`   - 失败的文件列表: ${failedFiles.join(', ')}`);
+        process.exit(1); // 以错误码退出
+    } else {
+        console.log('🎉 所有文件转换成功！');
+    }
+
+    console.log('--- Markdown 转 JS 内容脚本执行完毕 ---'); 

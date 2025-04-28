@@ -71,7 +71,8 @@ console.log('3. 生成 Markdown 模板内容...');
 // 使用 JSON.stringify(mainTitle) 是为了确保 mainTitle 中的特殊字符 (如引号) 在写入 YAML Front Matter 时被正确转义，符合 YAML 字符串规范
 const template = `--- 
 topicId: ${topicId}
-title: ${JSON.stringify(mainTitle)} 
+title: ${JSON.stringify(mainTitle)}
+description: '在这里填写选题描述...'
 headerText: '' 
 footerText: '' 
 coverShowHeader: true 

@@ -97,6 +97,8 @@ import { useToast } from "vue-toastification";
 import { useTemplateLoader } from '../composables/useTemplateLoader';
 // 导入文本域自动高度 hook
 import { useTextareaAutoHeight } from '../composables/useTextareaAutoHeight';
+// 导入重构后的 getFormattedDate
+import { getFormattedDate } from '../utils/cardExport';
 
 export default {
     name: 'CardPreview',
@@ -310,41 +312,24 @@ export default {
         };
     },
     methods: {
-        getFormattedDate() {
-            const date = new Date();
-            const year = date.getFullYear().toString().slice(-2);
-            const month = (date.getMonth() + 1).toString().padStart(2, '0');
-            const day = date.getDate().toString().padStart(2, '0');
-            return `${year}${month}${day}`;
-        },
-
+        getFormattedDate: getFormattedDate,
+        
         _getExportableCardElement(containerElement) {
             if (!containerElement) {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
             }
-            // 修改查找逻辑以适应模板名称的变化或依赖模板根元素的类
-            // 查找根元素，而不是特定的模板类
-            // 假设所有模板的根元素都有 'card' 或 'xhs-card' 或类似标识
-            let actualCard = containerElement.querySelector('.card') || containerElement.querySelector('.xhs-card');
+            // 修改查找逻辑以使用 data-exportable-card 属性
+            let actualCard = containerElement.querySelector('[data-exportable-card="true"]');
             
-            // 如果模板没有通用类，可能需要更复杂的选择器，或者依赖于模板内部结构
-            // 备选方案：查找第一个直接子元素？ containerElement.children[0]
-            // 警告：这种方式非常脆弱，强烈建议所有模板根元素有共同的类
             if (!actualCard) {
-                 console.warn('在容器元素内找不到具有 .card 或 .xhs-card 类的可导出卡片元素', containerElement);
-                 // 尝试回退到查找第一个子元素
-                 actualCard = containerElement.children?.[0]; 
-                  if (actualCard) {
-                      console.warn('回退到使用第一个子元素进行导出，请确保模板结构稳定。');
-                  } else {
-                      console.error('无法定位到任何可导出的元素。');
-                  }
+                 console.error('在容器元素内找不到具有 [data-exportable-card="true"] 属性的可导出卡片元素。', containerElement);
             }
+
             return actualCard;
         },
 
-        async exportSingleCard(cardElementRefOrActualElement, fileName) {
+        async exportSingleCard(cardElementRefOrActualElement, rawFileName) {
             // 确定是 ref 还是直接的元素
             const cardElement = cardElementRefOrActualElement && cardElementRefOrActualElement.$el 
                                 ? cardElementRefOrActualElement.$el // 如果是 Vue 组件实例 Ref
@@ -354,14 +339,23 @@ export default {
                 this.toast.error('无法获取主题ID，无法导出。');
                 return;
             }
+            
+            // 直接使用传入的 rawFileName，因为它已经包含了 topicId, 类型, 和日期
+            const finalFileName = rawFileName; 
+            // const dateString = getFormattedDate(); 
+            // const baseFileName = rawFileName.includes('封面') 
+            //                    ? `${this.topicId}_封面_${dateString}` 
+            //                    : `${this.topicId}_内容${rawFileName.match(/(\d+)/)?.[1] || 'XX'}_${dateString}`; 
+
             try {
                 const format = this.selectedFormat;
                 const actualCardToExport = this._getExportableCardElement(cardElement);
                 if (!actualCardToExport) {
                     throw new Error("找不到可导出的卡片元素");
                 }
-                await exportCardAsImage(actualCardToExport, fileName, format);
-                this.toast.success(`成功导出 ${fileName}.${format}`);
+                // 使用最终确认的文件名
+                await exportCardAsImage(actualCardToExport, finalFileName, format);
+                this.toast.success(`成功导出 ${finalFileName}.${format}`);
             } catch (error) {                console.error('导出失败:', error);
                 this.toast.error('导出失败: ' + error.message);
             }
@@ -404,19 +398,22 @@ export default {
             const format = this.selectedFormat;
             console.log(`准备导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`);
 
-            // 新增：显示加载提示
+            // 显示加载提示
             const loadingToastId = this.toast.info(`正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})，请稍候...`, {
                 timeout: false // 不自动关闭
             });
+            
+            const dateString = getFormattedDate(); // 使用导入的函数
 
             try {
-                await exportCardsAsImages(elementsToExport, this.topicId, this.getFormattedDate(), format);
-                // 修改：先关闭加载提示，再显示成功提示
+                // 注意：批量导出函数现在应该只需要 elementsToExport, topicId, dateString, format
+                await exportCardsAsImages(elementsToExport, this.topicId, dateString, format);
+                // 关闭加载提示
                 this.toast.dismiss(loadingToastId);
                 this.toast.success('所有图片导出完成！');
             } catch(error) {
                 console.error('批量导出图片失败:', error);
-                // 修改：先关闭加载提示，再显示错误提示
+                // 关闭加载提示
                 this.toast.dismiss(loadingToastId);
                 this.toast.error('批量导出图片失败: ' + error.message);
             }
@@ -435,20 +432,22 @@ export default {
             const format = this.selectedFormat;
             console.log(`准备打包 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`);
 
-            // 新增：显示加载提示
+            // 显示加载提示
             const loadingToastId = this.toast.info(`正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包，请稍候...`, {
                 timeout: false // 不自动关闭
             });
+            
+            const dateString = getFormattedDate(); // 使用导入的函数
 
             try {
-                const zipFileName = `${this.topicId}_${this.getFormattedDate()}.zip`;
-                await exportCardsAsZip(elementsToExport, this.topicId, this.getFormattedDate(), format);
-                // 修改：先关闭加载提示，再显示成功提示
+                const zipFileName = `${this.topicId}_${dateString}.zip`;
+                await exportCardsAsZip(elementsToExport, this.topicId, dateString, format);
+                // 关闭加载提示
                 this.toast.dismiss(loadingToastId);
                 this.toast.success(`打包文件 ${zipFileName} 已开始下载！`);
             } catch(error) {
                 console.error('打包下载失败:', error);
-                // 修改：先关闭加载提示，再显示错误提示
+                // 关闭加载提示
                 this.toast.dismiss(loadingToastId);
                 this.toast.error('打包下载失败: ' + error.message);
             }

@@ -2,7 +2,7 @@
     <!-- 模板1 的根元素 -->
     <div class="template1">
         <!-- 卡片容器 -->
-        <div class="card w-80 aspect-[3/4] relative cover-card-bg">
+        <div class="card w-80 aspect-[3/4] relative cover-card-bg" data-exportable-card="true">
             <!-- 磨砂玻璃前景层 -->
             <div class="frosted-layer absolute inset-4 bg-black/30 backdrop-blur-lg rounded-2xl p-4 text-white flex flex-col overflow-hidden">
                 <!-- 页眉区域 -->
@@ -42,8 +42,7 @@
 </template>
 
 <script>
-import { renderMarkdownAndLaTeX } from '../utils/markdownRenderer';
-import { computed } from 'vue';
+import { useTemplateRendering } from '../composables/useTemplateRendering';
 
 export default {
     name: 'Template1',
@@ -79,34 +78,13 @@ export default {
         }
     },
     setup(props) {
-        // 计算渲染后的 Markdown 和 LaTeX 内容
-        const renderedCoverTitle = computed(() => {
-            // 从 cardData 获取封面标题
-            return props.type === 'cover' && props.cardData && props.cardData.title
-                   ? renderMarkdownAndLaTeX(props.cardData.title)
-                   : '';
-        });
-
-        const renderedCoverSubtitle = computed(() => {
-            // 从 cardData 获取封面副标题
-            return props.type === 'cover' && props.cardData && props.cardData.subtitle
-                   ? renderMarkdownAndLaTeX(props.cardData.subtitle)
-                   : '';
-        });
-
-        const renderedContentTitle = computed(() => {
-            // 从 cardData 获取内容卡片标题
-            return props.type === 'content' && props.cardData && props.cardData.title
-                   ? renderMarkdownAndLaTeX(props.cardData.title)
-                   : '';
-        });
-
-        const renderedMarkdownBody = computed(() => {
-            // 从 cardData 获取内容卡片正文
-            return props.type === 'content' && props.cardData && props.cardData.body
-                   ? renderMarkdownAndLaTeX(props.cardData.body)
-                   : '';
-        });
+        // 使用 Composable 获取渲染后的文本
+        const { 
+            renderedCoverTitle, 
+            renderedCoverSubtitle, 
+            renderedContentTitle, 
+            renderedMarkdownBody 
+        } = useTemplateRendering(props);
 
         return {
             renderedCoverTitle,
