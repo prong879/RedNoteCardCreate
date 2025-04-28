@@ -161,48 +161,56 @@ export default {
             });
         }, { immediate: false });
 
-        // 监听 store.focusedPreviewIndex 变化，滚动到对应卡片
+        // 监听 store.focusedPreviewIndex 变化，只负责滚动
         watch(() => store.focusedPreviewIndex, (newIndex) => {
-            console.log('[CardPreview] Watcher triggered for focusedPreviewIndex:', newIndex);
-            // 使用 nextTick 确保 DOM 元素可用
-            nextTick(() => {
-                let targetElementContainer;
-                if (newIndex === null) { // 聚焦封面卡片
-                    targetElementContainer = coverCardContainer.value;
-                    console.log('[CardPreview] Focusing cover card. Container:', targetElementContainer);
-                } else if (newIndex >= 0) { // 聚焦内容卡片
-                    targetElementContainer = contentCardRefs.value[newIndex];
-                    console.log(`[CardPreview] Focusing content card ${newIndex}. Container:`, targetElementContainer);
-                } else {
-                    console.warn('[CardPreview] Invalid index received for focus:', newIndex);
-                    return; // 无效索引，不处理
-                }
+            console.log(`[CardPreview] Watcher triggered. Received newIndex: ${newIndex} (Type: ${typeof newIndex})`);
 
-                if (targetElementContainer && previewScrollContainer.value) {
-                    console.log(`[CardPreview] Scrolling preview to card index: ${newIndex}`, targetElementContainer);
-                    targetElementContainer.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'center'
-                    });
-                    // 滚动完成后重置 store 中的焦点状态，避免重复触发
-                    // 考虑是否需要延迟执行，或者在滚动事件结束时重置
-                    // setTimeout(() => store.resetFocus(), 500); // 简单延迟示例
-                    // 更好的方式可能是监听 scroll 事件结束
-                } else {
-                     if (newIndex === null) {
-                        console.warn('[CardPreview] Cover card container element not found for scrolling.');
-                     } else {
-                        console.warn(`[CardPreview] Content card container element not found for index ${newIndex} for scrolling.`);
-                     }
-                     console.log({ 
-                        coverRef: coverCardContainer.value, 
-                        contentRefs: contentCardRefs.value, 
-                        scrollContainer: previewScrollContainer.value 
-                     });
-                }
-            });
-        }, { flush: 'post' }); // flush: 'post' 确保在 DOM 更新后执行 watcher 回调
+            // 严格检查 newIndex 是否是有效的定位请求 (-1 或 0+)
+            const isValidFocusRequest = (newIndex === -1 || (typeof newIndex === 'number' && newIndex >= 0));
+
+            if (isValidFocusRequest) {
+                console.log('[CardPreview] Valid focus request confirmed. Initiating scroll.');
+                nextTick(() => {
+                    console.log('[CardPreview] Inside nextTick for scroll request.');
+                    let targetElementContainer = null;
+                    const scrollContainer = previewScrollContainer.value;
+
+                    if (!scrollContainer) {
+                        console.warn('[CardPreview] Scroll container ref not available. Cannot scroll.');
+                        return;
+                    }
+
+                    if (newIndex === -1) { // 封面卡片
+                        if (coverCardContainer.value) {
+                            targetElementContainer = coverCardContainer.value;
+                        } else {
+                            console.warn('[CardPreview] Cover card container ref not available.');
+                        }
+                    } else { // 内容卡片 (newIndex >= 0)
+                        if (contentCardRefs.value && contentCardRefs.value[newIndex]) {
+                            targetElementContainer = contentCardRefs.value[newIndex];
+                        } else {
+                            console.warn(`[CardPreview] Content card ref for index ${newIndex} not available.`);
+                        }
+                    }
+
+                    if (targetElementContainer) {
+                        console.log(`[CardPreview] Calling scrollIntoView for target (index ${newIndex}):`, targetElementContainer);
+                        targetElementContainer.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest',
+                            inline: 'center'
+                        });
+                    } else {
+                        console.warn(`[CardPreview] Target element ref could not be found for index ${newIndex}. Cannot scroll.`);
+                    }
+                });
+            } 
+            // 如果 newIndex 不是有效请求 (是 null 或其他意外类型)，则忽略
+            else {
+                 console.log('[CardPreview] Watcher triggered, but newIndex is NOT a valid focus request. Ignoring scroll command.');
+            }
+        }, { flush: 'post' });
         
         // 获取所有卡片容器元素 (稍作调整)
         const getAllCardElements = () => {
@@ -214,29 +222,30 @@ export default {
             return elements;
         };
 
-        // 查找当前中心卡片的索引 (保持不变)
+        // 查找当前中心卡片的索引 (返回 -1 代表封面, 0+ 代表内容卡片索引)
         const findCurrentCardIndex = () => {
             const container = previewScrollContainer.value;
-            if (!container) return -1;
+            if (!container) return null; // 无法判断时返回 null (无焦点)
             const containerCenter = container.scrollLeft + container.clientWidth / 2;
             const cards = getAllCardElements();
-            let minIndex = -1;
+            let minIndex = -2; // 使用 -2 初始值，区分未找到和封面的 -1
             let minDistance = Infinity;
 
-            cards.forEach((card, index) => {
+            cards.forEach((card, arrayIndex) => { // arrayIndex 是 0 (封面), 1 (内容0), 2 (内容1)...
                 if (!card) return;
                 const cardCenter = card.offsetLeft + card.clientWidth / 2;
                 const distance = Math.abs(cardCenter - containerCenter);
                 if (distance < minDistance) {
                     minDistance = distance;
-                    minIndex = index; // 这个 index 对应 getAllCardElements 返回数组的索引 (0是封面, 1+是内容卡片)
+                    minIndex = arrayIndex;
                 }
             });
             
-            // 将数组索引转换为 store action 需要的索引 (null for cover, 0+ for content)
-            if (minIndex === 0) return null; // 封面卡片
-            if (minIndex > 0) return minIndex - 1; // 内容卡片索引 (0-based)
-            return null; // 未找到或只有封面
+            // 将数组索引转换为 Store 使用的索引
+            if (minIndex === 0) return -1; // 数组索引 0 对应封面 (-1)
+            if (minIndex > 0) return minIndex - 1; // 数组索引 1+ 对应内容卡片索引 (0+)
+            
+            return null; // 未找到或发生错误，返回 null (无焦点)
         };
         
         // 防抖函数 (用于滚动结束时触发 store action)
@@ -250,13 +259,27 @@ export default {
             };
         };
         
-        // 滚动结束时触发的函数，更新编辑器焦点
+        // 滚动结束时触发的函数，更新编辑器焦点并按需重置预览请求
         const onScrollEnd = debounce(() => {
-            const currentEditorIndex = findCurrentCardIndex();
+            const currentEditorIndex = findCurrentCardIndex(); // 可能返回 null, -1, 0+
             console.log('[CardPreview] Scroll ended. Detected editor index:', currentEditorIndex);
-            store.setFocusedEditor(currentEditorIndex); // 更新 store 中的编辑器焦点索引
-            store.resetFocus(); // 重置预览区焦点请求 (因为滚动已完成)
-        }, 200); // 200ms 无滚动视为结束
+            
+            // 1. 更新编辑器焦点状态
+            store.setFocusedEditor(currentEditorIndex); 
+            
+            // 2. 检查是否需要重置预览定位请求状态
+            // 如果之前有一个定位请求 (focusedPreviewIndex 不是 null)
+            // 并且 滚动结束的位置 正好是 请求的位置
+            if (store.focusedPreviewIndex !== null && store.focusedPreviewIndex === currentEditorIndex) {
+                console.log(`[CardPreview] Scroll ended at the requested index (${currentEditorIndex}). Resetting focusedPreviewIndex to null.`);
+                store.resetFocus(); // 调用 action 将 focusedPreviewIndex 设为 null
+            } else if (store.focusedPreviewIndex !== null) {
+                // 滚动结束了，但位置不是之前请求的位置 (可能用户手动干扰了)
+                // 此时也应该重置请求状态，因为它没有被满足
+                console.log(`[CardPreview] Scroll ended, but not at the requested index (${store.focusedPreviewIndex}, ended at ${currentEditorIndex}). Resetting focusedPreviewIndex to null.`);
+                store.resetFocus();
+            }
+        }, 200); 
 
         // 检查滚动按钮显隐 (保持不变)
         const checkScrollButtons = () => {
@@ -266,7 +289,7 @@ export default {
             showRightScroll.value = el.scrollWidth - el.clientWidth - el.scrollLeft > 1; // 修复右侧按钮判断
         };
 
-        // 处理滚动事件，触发滚动按钮检查和滚动结束逻辑
+        // 处理滚动事件
         const handleScroll = () => {
             checkScrollButtons();
             onScrollEnd(); // 调用防抖函数
