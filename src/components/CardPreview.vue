@@ -16,21 +16,21 @@
         </div>
 
         <!-- 添加相对定位的容器 -->
-        <div class="relative preview-container-wrapper">
+        <div v-if="store.cardContent && store.cardContent.coverCard" class="relative preview-container-wrapper">
             <div ref="previewScrollContainer" @scroll="handleScroll" class="flex overflow-x-auto scroll-smooth gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <!-- 封面卡片 -->
                 <div class="card-container flex-shrink-0" ref="coverCardContainer">
                     <div ref="coverCard">
                         <component :is="activeTemplateComponent" type="cover"
-                            :cardData="content.coverCard" 
-                            :headerText="content.headerText || ''"
-                            :footerText="content.footerText || ''"
-                            :isHeaderVisible="content.coverCard.showHeader !== false"
-                            :isFooterVisible="content.coverCard.showFooter !== false"/>
+                            :cardData="store.cardContent.coverCard" 
+                            :headerText="store.cardContent.headerText || ''"
+                            :footerText="store.cardContent.footerText || ''"
+                            :isHeaderVisible="store.cardContent.coverCard.showHeader !== false"
+                            :isFooterVisible="store.cardContent.coverCard.showFooter !== false"/>
                     </div>
                     <div class="mt-2 text-center text-sm text-xhs-gray">
                         封面卡片
-                        <button @click="exportSingleCard($refs.coverCard, `${topicId}_封面_${getFormattedDate()}`)"
+                        <button @click="exportSingleCard($refs.coverCard, `${store.currentTopicId}_封面_${getFormattedDate()}`)"
                             class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                             导出
                         </button>
@@ -38,18 +38,18 @@
                 </div>
 
                 <!-- 内容卡片 -->
-                <div v-for="(card, index) in content.contentCards" :key="index" class="card-container flex-shrink-0" :ref="el => { if (el) contentCardRefs[index] = el }">
+                <div v-for="(card, index) in store.cardContent.contentCards" :key="index" class="card-container flex-shrink-0" :ref="el => { if (el) contentCardRefs[index] = el }">
                     <div>
                         <component :is="activeTemplateComponent" type="content"
                              :cardData="card" 
-                             :headerText="content.headerText || ''"
-                             :footerText="content.footerText || ''"
+                             :headerText="store.cardContent.headerText || ''"
+                             :footerText="store.cardContent.footerText || ''"
                              :isHeaderVisible="card.showHeader !== false"
                              :isFooterVisible="card.showFooter !== false"/>
                     </div>
                     <div class="mt-2 text-center text-sm text-xhs-gray">
                         内容卡片 {{ index + 1 }}
-                        <button @click="exportSingleCard(contentCardRefs[index], `${topicId}_内容${String(index + 1).padStart(2, '0')}_${getFormattedDate()}`)"
+                        <button @click="exportSingleCard(contentCardRefs[index], `${store.currentTopicId}_内容${String(index + 1).padStart(2, '0')}_${getFormattedDate()}`)"
                             class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                             导出
                         </button>
@@ -68,8 +68,11 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
             </button>
         </div>
+        <div v-else class="p-6 text-center text-gray-500">
+            请先选择一个主题或等待内容加载...
+        </div>
 
-        <div class="mt-6">
+        <div v-if="store.cardContent" class="mt-6">
             <h3 class="text-lg font-medium mb-2">主文案编辑</h3>
             <textarea 
                 ref="mainTextareaRef" 
@@ -89,6 +92,8 @@
 
 <script>
 import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted, onUpdated, onUnmounted } from 'vue';
+// 导入 store
+import { useCardStore } from '../stores/cardStore'; 
 import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard } from '../utils/cardExport';
 // 导入 vue-toastification
 import { useToast } from "vue-toastification";
@@ -102,26 +107,10 @@ import { getFormattedDate } from '../utils/cardExport';
 
 export default {
     name: 'CardPreview',
-    props: {
-        template: {
-            type: String,
-            required: true
-        },
-        content: {
-            type: Object,
-            required: true
-        },
-        topicId: {
-            type: String,
-            required: true
-        },
-        focusedPreviewIndex: {
-            type: Number,
-            default: null
-        }
-    },
-    emits: ['reset-focus', 'preview-scrolled-to-index', 'update:mainText'],
-    setup(props, { emit }) {
+    setup() {
+        // 获取 store 实例
+        const store = useCardStore();
+        
         // 使用新的加载器
         const { getAsyncTemplateComponent } = useTemplateLoader();
         // 获取根元素的引用，用于自动高度调整
@@ -134,71 +123,98 @@ export default {
         const toast = useToast();
         const selectedFormat = ref('jpg');
 
-        // 修改 activeTemplateComponent 计算属性以使用加载器
+        // 计算属性，依赖 store.selectedTemplate
         const activeTemplateComponent = computed(() => {
-            return getAsyncTemplateComponent(props.template); // 直接调用加载器
+            return getAsyncTemplateComponent(store.selectedTemplate); 
         });
 
         const previewScrollContainer = ref(null);
         const coverCardContainer = ref(null);
+        const coverCard = ref(null);
         const contentCardRefs = ref([]);
         const showLeftScroll = ref(false);
         const showRightScroll = ref(false);
 
-        // 计算属性用于 v-model 绑定主文案
+        // 计算属性，直接读写 store.cardContent.mainText
         const mainTextModel = computed({
-            get: () => props.content.mainText || '',
+            get: () => store.cardContent?.mainText || '',
             set: (newValue) => {
-                emit('update:mainText', newValue);
+                store.updateMainText(newValue); // 调用 store action 更新
             }
         });
 
         // 处理文本域输入事件以调整高度
         const handleTextareaInput = (event) => {
             adjustSingleTextarea(event.target);
-            // v-model 已经通过 computed setter 触发了事件，这里只需调整高度
         };
 
         onBeforeUpdate(() => {
             contentCardRefs.value = [];
         });
 
-        // 监听主文案内容变化，调整高度
-        watch(() => props.content.mainText, (newText) => {
+        // 监听 store.cardContent.mainText 变化，调整高度
+        watch(() => store.cardContent?.mainText, (newText) => {
             nextTick(() => {
                 if (mainTextareaRef.value) {
                     adjustSingleTextarea(mainTextareaRef.value);
                 }
             });
-        }, { immediate: false }); // 不立即执行，等待挂载后调整
+        }, { immediate: false });
 
-        watch(() => props.focusedPreviewIndex, (newIndex) => {
-            if (newIndex !== null && newIndex >= 0) {
-                nextTick(() => {
-                     const targetElement = contentCardRefs.value[newIndex];
-                     if (targetElement && previewScrollContainer.value) {
-                         console.log(`Scrolling preview to card index: ${newIndex}`, targetElement);
-                         targetElement.scrollIntoView({
-                             behavior: 'smooth',
-                             block: 'nearest',
-                             inline: 'center'
-                         });
+        // 监听 store.focusedPreviewIndex 变化，滚动到对应卡片
+        watch(() => store.focusedPreviewIndex, (newIndex) => {
+            console.log('[CardPreview] Watcher triggered for focusedPreviewIndex:', newIndex);
+            // 使用 nextTick 确保 DOM 元素可用
+            nextTick(() => {
+                let targetElementContainer;
+                if (newIndex === null) { // 聚焦封面卡片
+                    targetElementContainer = coverCardContainer.value;
+                    console.log('[CardPreview] Focusing cover card. Container:', targetElementContainer);
+                } else if (newIndex >= 0) { // 聚焦内容卡片
+                    targetElementContainer = contentCardRefs.value[newIndex];
+                    console.log(`[CardPreview] Focusing content card ${newIndex}. Container:`, targetElementContainer);
+                } else {
+                    console.warn('[CardPreview] Invalid index received for focus:', newIndex);
+                    return; // 无效索引，不处理
+                }
+
+                if (targetElementContainer && previewScrollContainer.value) {
+                    console.log(`[CardPreview] Scrolling preview to card index: ${newIndex}`, targetElementContainer);
+                    targetElementContainer.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                    // 滚动完成后重置 store 中的焦点状态，避免重复触发
+                    // 考虑是否需要延迟执行，或者在滚动事件结束时重置
+                    // setTimeout(() => store.resetFocus(), 500); // 简单延迟示例
+                    // 更好的方式可能是监听 scroll 事件结束
+                } else {
+                     if (newIndex === null) {
+                        console.warn('[CardPreview] Cover card container element not found for scrolling.');
                      } else {
-                         console.warn(`Could not find preview card element for index: ${newIndex}`);
+                        console.warn(`[CardPreview] Content card container element not found for index ${newIndex} for scrolling.`);
                      }
-                });
-            }
-        });
-
+                     console.log({ 
+                        coverRef: coverCardContainer.value, 
+                        contentRefs: contentCardRefs.value, 
+                        scrollContainer: previewScrollContainer.value 
+                     });
+                }
+            });
+        }, { flush: 'post' }); // flush: 'post' 确保在 DOM 更新后执行 watcher 回调
+        
+        // 获取所有卡片容器元素 (稍作调整)
         const getAllCardElements = () => {
-            const cover = coverCardContainer.value;
-            const contents = contentCardRefs.value || [];
+            const cover = coverCardContainer.value; 
+            const contents = contentCardRefs.value || []; 
             const elements = [];
-            if (cover) elements.push(cover);
-            elements.push(...contents.filter(el => el));
+            if (cover) elements.push(cover); // coverCardContainer 是 DOM 元素
+            elements.push(...contents.filter(el => el)); // contentCardRefs 也是 DOM 元素数组
             return elements;
         };
 
+        // 查找当前中心卡片的索引 (保持不变)
         const findCurrentCardIndex = () => {
             const container = previewScrollContainer.value;
             if (!container) return -1;
@@ -213,78 +229,138 @@ export default {
                 const distance = Math.abs(cardCenter - containerCenter);
                 if (distance < minDistance) {
                     minDistance = distance;
-                    minIndex = index;
+                    minIndex = index; // 这个 index 对应 getAllCardElements 返回数组的索引 (0是封面, 1+是内容卡片)
                 }
             });
-            return minIndex;
+            
+            // 将数组索引转换为 store action 需要的索引 (null for cover, 0+ for content)
+            if (minIndex === 0) return null; // 封面卡片
+            if (minIndex > 0) return minIndex - 1; // 内容卡片索引 (0-based)
+            return null; // 未找到或只有封面
         };
+        
+        // 防抖函数 (用于滚动结束时触发 store action)
+        const debounce = (func, delay) => {
+            let timeoutId;
+            return (...args) => {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => {
+                    func.apply(this, args);
+                }, delay);
+            };
+        };
+        
+        // 滚动结束时触发的函数，更新编辑器焦点
+        const onScrollEnd = debounce(() => {
+            const currentEditorIndex = findCurrentCardIndex();
+            console.log('[CardPreview] Scroll ended. Detected editor index:', currentEditorIndex);
+            store.setFocusedEditor(currentEditorIndex); // 更新 store 中的编辑器焦点索引
+            store.resetFocus(); // 重置预览区焦点请求 (因为滚动已完成)
+        }, 200); // 200ms 无滚动视为结束
 
+        // 检查滚动按钮显隐 (保持不变)
         const checkScrollButtons = () => {
             const el = previewScrollContainer.value;
             if (!el) return;
             showLeftScroll.value = el.scrollLeft > 1;
-            showRightScroll.value = el.scrollLeft < el.scrollWidth - el.clientWidth - 1;
+            showRightScroll.value = el.scrollWidth - el.clientWidth - el.scrollLeft > 1; // 修复右侧按钮判断
         };
 
+        // 处理滚动事件，触发滚动按钮检查和滚动结束逻辑
         const handleScroll = () => {
             checkScrollButtons();
+            onScrollEnd(); // 调用防抖函数
         };
 
+        // 向左滚动，完成后更新编辑器焦点
         const scrollLeft = () => {
+            const container = previewScrollContainer.value;
+            if (!container) return;
+            
             const cards = getAllCardElements();
-            const currentIndex = findCurrentCardIndex();
-            const targetIndex = currentIndex - 1;
+            // 使用 findCurrentCardIndex 找到的是 store 索引 (null/0/1...)
+            // 需要转换回 getAllCardElements 的数组索引 (0/1/2...)
+            const currentStoreIndex = findCurrentCardIndex(); 
+            let currentArrayIndex = -1;
+            if (currentStoreIndex === null) { // 封面
+                currentArrayIndex = 0;
+            } else if (currentStoreIndex !== null && currentStoreIndex >= 0) { // 内容卡片
+                currentArrayIndex = currentStoreIndex + 1;
+            }
+            
+            const targetArrayIndex = currentArrayIndex - 1;
 
-            if (targetIndex >= 0 && targetIndex < cards.length) {
-                const targetElement = cards[targetIndex];
+            if (targetArrayIndex >= 0 && targetArrayIndex < cards.length) {
+                const targetElement = cards[targetArrayIndex];
                 if (targetElement) {
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'center'
+                    const containerWidth = container.clientWidth;
+                    const targetOffsetLeft = targetElement.offsetLeft;
+                    const targetWidth = targetElement.clientWidth;
+                    // 计算目标滚动位置，使目标元素居中
+                    const targetScrollLeft = targetOffsetLeft + targetWidth / 2 - containerWidth / 2;
+                    
+                    container.scrollTo({
+                        left: Math.max(0, targetScrollLeft), // 确保不小于0
+                        behavior: 'smooth'
                     });
-                    const emitIndex = targetIndex === 0 ? null : targetIndex - 1;
-                    emit('preview-scrolled-to-index', emitIndex);
-                    emit('reset-focus');
+                    // 滚动结束后由 handleScroll -> onScrollEnd 触发编辑器焦点更新
+                    store.resetFocus(); // 立即重置预览区焦点请求
                 }
             }
         };
 
+        // 向右滚动，完成后更新编辑器焦点
         const scrollRight = () => {
+            const container = previewScrollContainer.value;
+            if (!container) return;
+            
             const cards = getAllCardElements();
-            const currentIndex = findCurrentCardIndex();
-            const targetIndex = currentIndex + 1;
+            const currentStoreIndex = findCurrentCardIndex();
+            let currentArrayIndex = -1;
+            if (currentStoreIndex === null) {
+                currentArrayIndex = 0;
+            } else if (currentStoreIndex !== null && currentStoreIndex >= 0) {
+                currentArrayIndex = currentStoreIndex + 1;
+            }
 
-            if (targetIndex >= 0 && targetIndex < cards.length) {
-                const targetElement = cards[targetIndex];
+            const targetArrayIndex = currentArrayIndex + 1;
+
+            if (targetArrayIndex >= 0 && targetArrayIndex < cards.length) {
+                const targetElement = cards[targetArrayIndex];
                 if (targetElement) {
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'center'
+                    const containerWidth = container.clientWidth;
+                    const targetOffsetLeft = targetElement.offsetLeft;
+                    const targetWidth = targetElement.clientWidth;
+                    // 计算目标滚动位置，使目标元素居中
+                    const targetScrollLeft = targetOffsetLeft + targetWidth / 2 - containerWidth / 2;
+                    
+                    container.scrollTo({
+                         // 确保不超过最大滚动距离
+                        left: Math.min(container.scrollWidth - containerWidth, targetScrollLeft),
+                        behavior: 'smooth'
                     });
-                    const emitIndex = targetIndex === 0 ? null : targetIndex - 1;
-                    emit('preview-scrolled-to-index', emitIndex);
-                    emit('reset-focus');
+                    store.resetFocus(); // 立即重置预览区焦点请求
                 }
             }
         };
 
         onMounted(() => {
-            nextTick(checkScrollButtons);
-            window.addEventListener('resize', checkScrollButtons);
-            // 初始调整主文案 textarea 高度
             nextTick(() => {
-                // 使用 ref 进行初始调整
+                checkScrollButtons();
+                 // 初始调整主文案 textarea 高度
                 if (mainTextareaRef.value) {
                     adjustSingleTextarea(mainTextareaRef.value);
                 }
             });
+            window.addEventListener('resize', checkScrollButtons);
         });
+
         onUpdated(() => {
-             nextTick(checkScrollButtons);
+             nextTick(checkScrollButtons); 
         });
-        watch(() => props.content.contentCards.length, () => {
+        
+        // 监听内容卡片数量变化，更新滚动按钮状态
+        watch(() => store.cardContent?.contentCards?.length, () => {
             nextTick(checkScrollButtons);
         });
 
@@ -292,29 +368,7 @@ export default {
           window.removeEventListener('resize', checkScrollButtons);
         });
 
-        return {
-            activeTemplateComponent,
-            previewScrollContainer,
-            coverCardContainer,
-            contentCardRefs,
-            handleScroll,
-            scrollLeft,
-            scrollRight,
-            showLeftScroll,
-            showRightScroll,
-            mainTextModel,
-            handleTextareaInput,
-            cardPreviewRoot,
-            mainTextareaRef,
-            toast,
-            selectedFormat,
-            contentCardRefs
-        };
-    },
-    methods: {
-        getFormattedDate: getFormattedDate,
-        
-        _getExportableCardElement(containerElement) {
+        const _getExportableCardElement = (containerElement) => {
             if (!containerElement) {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
@@ -327,146 +381,140 @@ export default {
             }
 
             return actualCard;
-        },
+        };
 
-        async exportSingleCard(cardElementRefOrActualElement, rawFileName) {
-            // 确定是 ref 还是直接的元素
-            const cardElement = cardElementRefOrActualElement && cardElementRefOrActualElement.$el 
-                                ? cardElementRefOrActualElement.$el // 如果是 Vue 组件实例 Ref
-                                : cardElementRefOrActualElement;    // 如果是 DOM 元素 Ref 或直接元素
-            
-            if (!this.topicId) {
-                this.toast.error('无法获取主题ID，无法导出。');
+        const exportSingleCard = async (cardElementRefOrActualElement, rawFileName) => {
+            const cardElement = cardElementRefOrActualElement?.$el || cardElementRefOrActualElement;
+            if (!store.currentTopicId) { // 使用 store.currentTopicId
+                toast.error('无法获取主题ID，无法导出。');
                 return;
             }
-            
-            // 直接使用传入的 rawFileName，因为它已经包含了 topicId, 类型, 和日期
-            const finalFileName = rawFileName; 
-            // const dateString = getFormattedDate(); 
-            // const baseFileName = rawFileName.includes('封面') 
-            //                    ? `${this.topicId}_封面_${dateString}` 
-            //                    : `${this.topicId}_内容${rawFileName.match(/(\d+)/)?.[1] || 'XX'}_${dateString}`; 
-
+            const finalFileName = rawFileName;
             try {
-                const format = this.selectedFormat;
-                const actualCardToExport = this._getExportableCardElement(cardElement);
+                const format = selectedFormat.value;
+                const actualCardToExport = _getExportableCardElement(cardElement);
                 if (!actualCardToExport) {
                     throw new Error("找不到可导出的卡片元素");
                 }
-                // 使用最终确认的文件名
                 await exportCardAsImage(actualCardToExport, finalFileName, format);
-                this.toast.success(`成功导出 ${finalFileName}.${format}`);
-            } catch (error) {                console.error('导出失败:', error);
-                this.toast.error('导出失败: ' + error.message);
+                toast.success(`成功导出 ${finalFileName}.${format}`);
+            } catch (error) {
+                console.error('导出失败:', error);
+                toast.error('导出失败: ' + error.message);
             }
-        },
+        };
 
-        _getAllExportableElements() {
+        const _getAllExportableElements = () => {
             const elements = [];
-            const coverCardContainer = this.$refs.coverCardContainer;
-            const coverCardElement = this._getExportableCardElement(coverCardContainer);
+            const coverCardContainerElement = coverCardContainer.value; // 直接用 ref.value
+            const coverCardElement = _getExportableCardElement(coverCardContainerElement);
             if (coverCardElement) {
                 elements.push({ element: coverCardElement, type: 'cover', index: -1 });
             } else {
-                 console.warn('无法为封面卡片找到可导出元素。', coverCardContainer);
+                 console.warn('无法为封面卡片找到可导出元素。', coverCardContainerElement);
             }
 
-            this.content.contentCards.forEach((_, index) => {
-                // 通过 this.contentCardRefs 访问 setup 返回的 ref
-                const contentCardContainer = this.contentCardRefs[index]; 
-                const contentCardElement = this._getExportableCardElement(contentCardContainer);
+            store.cardContent?.contentCards?.forEach((_, index) => { // 使用 store 数据迭代
+                const contentCardContainerElement = contentCardRefs.value[index]; 
+                const contentCardElement = _getExportableCardElement(contentCardContainerElement);
                 if (contentCardElement) {
                     elements.push({ element: contentCardElement, type: 'content', index: index });
                 } else {
-                    console.warn(`无法为索引 ${index} 的内容卡片找到可导出元素。`, contentCardContainer);
+                    console.warn(`无法为索引 ${index} 的内容卡片找到可导出元素。`, contentCardContainerElement);
                 }
             });
              console.log("All exportable elements found:", elements.length, elements);
             return elements;
-        },
+        };
 
-        async exportAllAsImages() {
-            if (!this.topicId) {
-                this.toast.error('无法获取主题ID，无法导出。');
+        const exportAllAsImages = async () => {
+            if (!store.currentTopicId) { // 使用 store.currentTopicId
+                toast.error('无法获取主题ID，无法导出。');
                 return;
             }
-            const elementsToExport = this._getAllExportableElements();
+            const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                this.toast.warning("没有可导出的卡片。");
+                toast.warning("没有可导出的卡片。");
                 return;
             }
-            const format = this.selectedFormat;
-            console.log(`准备导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`);
-
-            // 显示加载提示
-            const loadingToastId = this.toast.info(`正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})，请稍候...`, {
-                timeout: false // 不自动关闭
-            });
-            
-            const dateString = getFormattedDate(); // 使用导入的函数
-
+            const format = selectedFormat.value;
+            const loadingToastId = toast.info(`正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`, { timeout: false });
+            const dateString = getFormattedDate();
             try {
-                // 注意：批量导出函数现在应该只需要 elementsToExport, topicId, dateString, format
-                await exportCardsAsImages(elementsToExport, this.topicId, dateString, format);
-                // 关闭加载提示
-                this.toast.dismiss(loadingToastId);
-                this.toast.success('所有图片导出完成！');
+                await exportCardsAsImages(elementsToExport, store.currentTopicId, dateString, format);
+                toast.dismiss(loadingToastId);
+                toast.success('所有图片导出完成！');
             } catch(error) {
                 console.error('批量导出图片失败:', error);
-                // 关闭加载提示
-                this.toast.dismiss(loadingToastId);
-                this.toast.error('批量导出图片失败: ' + error.message);
+                toast.dismiss(loadingToastId);
+                toast.error('批量导出图片失败: ' + error.message);
             }
-        },
+        };
 
-        async exportAllAsZip() {
-            if (!this.topicId) {
-                this.toast.error('无法获取主题ID，无法导出。');
+        const exportAllAsZip = async () => {
+             if (!store.currentTopicId) { // 使用 store.currentTopicId
+                toast.error('无法获取主题ID，无法导出。');
                 return;
             }
-            const elementsToExport = this._getAllExportableElements();
+            const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                this.toast.warning("没有可导出的卡片。");
+                toast.warning("没有可导出的卡片。");
                 return;
             }
-            const format = this.selectedFormat;
-            console.log(`准备打包 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`);
-
-            // 显示加载提示
-            const loadingToastId = this.toast.info(`正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包，请稍候...`, {
-                timeout: false // 不自动关闭
-            });
-            
-            const dateString = getFormattedDate(); // 使用导入的函数
-
+            const format = selectedFormat.value;
+            const loadingToastId = toast.info(`正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包...`, { timeout: false });
+            const dateString = getFormattedDate();
             try {
-                const zipFileName = `${this.topicId}_${dateString}.zip`;
-                await exportCardsAsZip(elementsToExport, this.topicId, dateString, format);
-                // 关闭加载提示
-                this.toast.dismiss(loadingToastId);
-                this.toast.success(`打包文件 ${zipFileName} 已开始下载！`);
+                const zipFileName = `${store.currentTopicId}_${dateString}.zip`;
+                await exportCardsAsZip(elementsToExport, store.currentTopicId, dateString, format);
+                toast.dismiss(loadingToastId);
+                toast.success(`打包文件 ${zipFileName} 已开始下载！`);
             } catch(error) {
                 console.error('打包下载失败:', error);
-                // 关闭加载提示
-                this.toast.dismiss(loadingToastId);
-                this.toast.error('打包下载失败: ' + error.message);
+                toast.dismiss(loadingToastId);
+                toast.error('打包下载失败: ' + error.message);
             }
-        },
+        };
 
-        async copyMainText() {
+        const copyMainText = async () => {
             try {
-                const result = await copyTextToClipboard(this.content.mainText || '');
+                const result = await copyTextToClipboard(store.cardContent?.mainText || ''); // 使用 store.cardContent.mainText
                 if (result.success) {
-                    this.toast.success('主文案已复制到剪贴板！');
+                    toast.success('主文案已复制到剪贴板！');
                 } else {
-                    this.toast.error(result.message);
+                    toast.error(result.message);
                 }
             } catch (error) {
                 console.error('复制主文案时出错:', error);
-                this.toast.error('复制失败: ' + error.message);
+                toast.error('复制失败: ' + error.message);
             }
-        }
-    }
+        };
+
+        return {
+            store,
+            activeTemplateComponent,
+            previewScrollContainer,
+            coverCardContainer,
+            coverCard,
+            contentCardRefs,
+            handleScroll,
+            scrollLeft,
+            scrollRight,
+            showLeftScroll,
+            showRightScroll,
+            mainTextModel,
+            handleTextareaInput,
+            cardPreviewRoot,
+            mainTextareaRef,
+            toast,
+            selectedFormat,
+            exportSingleCard,
+            exportAllAsImages,
+            exportAllAsZip,
+            copyMainText,
+            getFormattedDate
+        };
+    },
 }
 </script>
 
