@@ -77,6 +77,10 @@ function parseMarkdownContent(content) {
     return result;
 }
 
+// 获取 JS 内容模块信息 (在 store 定义外部执行，确保只执行一次)
+const contentJsModules = import.meta.glob('../content/*_content.js');
+console.log('[Store Init] Found content JS modules:', Object.keys(contentJsModules));
+
 // 使用 defineStore 定义 store
 // 第一个参数是 store 的唯一 ID
 // 第二个参数是选项对象或 setup 函数
@@ -95,6 +99,9 @@ export const useCardStore = defineStore('card', () => {
 
     // 新增：存储所有话题元数据
     const topics = ref([...topicsMeta]); // 从原始文件初始化
+
+    // 新增：存储检测到的 JS 内容模块信息
+    const detectedContentJsModules = ref(contentJsModules);
 
     // --- Getters ---
     // 使用 computed() 定义 getter
@@ -546,6 +553,7 @@ export const useCardStore = defineStore('card', () => {
         focusedPreviewIndex,
         focusedEditorIndex,
         topics,
+        detectedContentJsModules,
 
         // Getters
         currentTopic,
@@ -563,7 +571,7 @@ export const useCardStore = defineStore('card', () => {
         updateCardText,
         updateMainText,
         updateTopicDescription,
-        updateContentCardsOrder, // 新增拖拽排序 action
+        updateContentCardsOrder,
         generateContentJsFile,
         saveContentLocally,
         setSelectedTemplate,
@@ -571,7 +579,7 @@ export const useCardStore = defineStore('card', () => {
         setFocusedEditor,
         resetFocus,
         returnToTopicSelection,
-        saveCurrentContentToLocalStorage // 暴露辅助函数，如果外部需要
+        saveCurrentContentToLocalStorage
     };
 }, {
     // 可以在这里配置持久化等插件选项

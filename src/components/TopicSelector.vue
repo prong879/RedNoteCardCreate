@@ -6,10 +6,11 @@
             
             <!-- 新增按钮 -->
             <div class="flex items-center space-x-2">
+                <!-- 修改按钮文字和点击事件 -->
                 <button
-                    @click="showCreateTopicModal = true"
-                    class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">
-                    <i class="fas fa-plus mr-1"></i> 新建选题 (MD)
+                    @click="showGenerateMdModal = true"
+                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
+                    <i class="fas fa-file-alt mr-1"></i> 生成 MD 模板
                 </button>
                 <button
                     @click="triggerFileInput"
@@ -33,11 +34,11 @@
             </div>
         </div>
         
-        <!-- 新增：新建选题模态框 -->
-        <CreateTopicModal
-            v-if="showCreateTopicModal"
-            @close="showCreateTopicModal = false"
-            @create="handleCreateTopic"
+        <!-- 修改：使用新的模态框 -->
+        <GenerateMdModal
+            v-if="showGenerateMdModal"
+            @close="showGenerateMdModal = false"
+            @generate="handleGenerateMdForTopic"
         />
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -76,58 +77,48 @@
 
 <script setup>
 import { ref, onMounted, reactive, watch } from 'vue';
-import { topicsMeta as initialTopicsMeta } from '../content/topicsMeta'; // 重命名初始导入
+// import { topicsMeta as initialTopicsMeta } from '../content/topicsMeta'; // 不再需要直接导入
 import { useToast } from "vue-toastification";
 import promptTemplate from '../prompts/knowledge_card_prompt.md?raw';
 import { useCardStore } from '../stores/cardStore'; // 引入 store
-import CreateTopicModal from './CreateTopicModal.vue'; // 引入模态框组件
+// import CreateTopicModal from './CreateTopicModal.vue'; // 移除旧模态框
+import GenerateMdModal from './GenerateMdModal.vue'; // 引入新模态框
 import { saveAs } from 'file-saver'; // 引入 file-saver
-import matter from 'gray-matter'; // 引入 gray-matter
+// import matter from 'gray-matter'; // handleFileImport 中已引入 store action，这里不再需要
 
 const store = useCardStore(); // 获取 store 实例
 const emit = defineEmits(['select-topic']);
 const toast = useToast();
 
-// 使用 store 中的 topics 代替本地 ref
-// const topics = ref(topicsMeta); // 旧代码，替换为 store.topics
 const savedTopicInfo = reactive({});
 const showPromptButtons = ref(true);
-const showCreateTopicModal = ref(false); // 控制模态框显示
+// const showCreateTopicModal = ref(false); // 移除旧状态
+const showGenerateMdModal = ref(false); // 添加新模态框状态
 const fileInput = ref(null); // 用于触发文件输入
 
 // 从 store 加载 topics 并监听变化
 const topics = ref([...store.topics]); // 初始化时从 store 获取
 watch(() => store.topics, (newTopics) => {
   topics.value = [...newTopics]; // 监听 store 变化并更新本地 ref
-  // 可能需要重新计算 savedTopicInfo 或其他依赖 topics 的数据
-  // ... 
+  // TODO: 可能需要重新计算 savedTopicInfo 或其他依赖 topics 的数据
+  updateSavedTopicInfo(); // 调用更新函数
 }, { deep: true });
 
-onMounted(async () => {
-    // 初始化时从 store 加载 topics
-    // topics.value = [...store.topics]; // 确保初始加载
-    
-    // 后续逻辑保持不变，但应该基于 topics.value (来自 store)
-    // ... (省略原有 onMounted 内容)
-    
-    // 确保在 store 初始化 topics 后再执行依赖 topics 的逻辑
-    if (topics.value.length === 0) {
-        // 如果 store 初始为空，可能需要等待 store 初始化完成
-        // 这里可以添加一个 watcher 或等待 store 的 action 完成
-        // 简单处理：假设 store 在组件挂载前已初始化
-        console.warn("TopicSelector mounted, but card store topics are empty. Ensure store is initialized before this component mounts.");
-    }
-    
+// 提取更新 savedTopicInfo 的逻辑为一个函数
+const updateSavedTopicInfo = async () => {
     // 构建一个简单的查找表，将 topicId 映射到期望的文件路径键 (相对于当前文件)
     const expectedPathKeys = {};
     topics.value.forEach(topic => {
         expectedPathKeys[topic.id] = `../content/${topic.id}_content.js`;
     });
+    
+    // 清空旧信息，以防 topic 列表变化导致残留
+    Object.keys(savedTopicInfo).forEach(key => delete savedTopicInfo[key]);
 
     await Promise.all(topics.value.map(async (topic) => {
         const savedContentJson = localStorage.getItem(`cardgen_topic_content_${topic.id}`);
         let cardCount = 0;
-        let existsInLocalStorage = false; // 重命名以区分文件是否存在
+        let existsInLocalStorage = false;
 
         if (savedContentJson) {
             try {
@@ -140,55 +131,51 @@ onMounted(async () => {
             }
         }
 
-        // 如果 localStorage 中不存在，尝试检查原始文件是否存在并获取卡片数
+        // 文件检查逻辑（如果需要保留）
+        // if (!existsInLocalStorage) { ... }
+        // 暂时简化，主要依赖 localStorage
         if (!existsInLocalStorage) {
-            const expectedPathKey = expectedPathKeys[topic.id];
-            // 检查 import.meta.glob 的结果中是否有这个文件
-            if (contentModules[expectedPathKey]) {
-                try {
-                    // 调用动态导入函数加载模块
-                    const moduleLoader = contentModules[expectedPathKey];
-                    const contentModule = await moduleLoader();
-                    const exportName = `${topic.id}_contentData`;
-                    const originalTopic = contentModule[exportName];
-
-                    if (originalTopic && originalTopic.contentCards) {
-                        cardCount = 1 + (Array.isArray(originalTopic.contentCards) ? originalTopic.contentCards.length : 0);
-                    } else {
-                        // 文件存在但导出不正确或没有内容卡片
-                        console.warn(`原始文件模块加载成功但未找到有效内容 (ID: ${topic.id}, Path: ${expectedPathKey})`);
-                        cardCount = 1; // 至少有封面
-                    }
-                } catch (loadError) {
-                    // 文件存在但加载模块失败
-                    console.error(`加载原始文件模块失败 (ID: ${topic.id}, Path: ${expectedPathKey}):`, loadError);
-                    cardCount = 1; // 出错了，默认算一张
-                }
-            } else {
-                // 文件在 import.meta.glob 中未找到，即原始文件不存在
-                console.warn(`原始文件未找到 (ID: ${topic.id}, Path: ${expectedPathKey})`);
-                cardCount = 1; // 文件不存在，默认算一张（封面）
-            }
+             cardCount = 1; // 假设至少有封面
         }
-        // 注意：按钮显示文字的逻辑依赖 existsInLocalStorage
+
         savedTopicInfo[topic.id] = { exists: existsInLocalStorage, cardCount: cardCount };
     }));
+}
+
+
+onMounted(async () => {
+    // 初始化时从 store 加载 topics
+    if (store.topics.length > 0) {
+         topics.value = [...store.topics];
+    } else {
+        // 如果 store 初始为空，可能需要等待 store 初始化完成
+        // 监听一次 topics 变化
+        const unwatch = watch(() => store.topics, (newTopics) => {
+            if (newTopics.length > 0) {
+                topics.value = [...newTopics];
+                updateSavedTopicInfo(); // 获取到 topics 后更新状态
+                unwatch(); // 获取到后停止监听
+            }
+        }, { deep: true, immediate: true }); // immediate 确保立即执行一次
+         console.warn("TopicSelector mounted, waiting for card store topics...");
+    }
+    
+    // 初始加载 savedTopicInfo
+    await updateSavedTopicInfo();
 });
 
 const selectTopic = (topicId) => {
     emit('select-topic', { key: topicId });
 };
 
-// 序数词格式化函数 - 返回对象
 function getOrdinal(n) {
-    if (typeof n !== 'number' || n < 1) return { number: n, suffix: '' }; // 处理无效输入
+    if (typeof n !== 'number' || n < 1) return { number: n, suffix: '' };
     const s = ['th', 'st', 'nd', 'rd'];
     const v = n % 100;
     const suffix = s[(v - 20) % 10] || s[v] || s[0];
     return { number: n, suffix: suffix };
 }
 
-// 生成并显示 Prompt 的方法
 const generatePrompt = (topic) => {
     if (!topic || !topic.id || !topic.title) {
         console.error('Invalid topic object passed to generatePrompt:', topic);
@@ -221,98 +208,81 @@ const generatePrompt = (topic) => {
     }
 };
 
-// 新增方法
+// --- 修改和新增方法 ---
 
 // 触发文件输入点击
 const triggerFileInput = () => {
   fileInput.value.click();
 };
 
-// 处理文件导入
+// 处理文件导入 (保持不变，调用 store.importTopicFromMarkdown)
 const handleFileImport = async (event) => {
-  const files = event.target.files;
-  if (!files || files.length === 0) {
-    return;
-  }
-
-  let updatedCount = 0;
-  let errorCount = 0;
-  const totalFiles = files.length;
-  const processingToastId = toast.info(`开始处理 ${totalFiles} 个 Markdown 文件...`, { timeout: false });
-
-  // 使用 Promise.allSettled 来处理所有文件，无论成功或失败
-  const results = await Promise.allSettled(Array.from(files).map(file => {
-    if (!file.name.endsWith('.md')) {
-        toast.warning(`文件 "${file.name}" 不是 Markdown 文件，已跳过。`, { timeout: 2000 });
-        // 返回一个 resolved Promise 以便 allSettled 继续处理，但标记为跳过
-        return Promise.resolve({ status: 'skipped', filename: file.name }); 
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+        return;
     }
-    // 调用 store action，它返回一个 Promise
-    return store.importTopicFromMarkdown(file);
-  }));
 
-  toast.dismiss(processingToastId); // 关闭处理中提示
+    let updatedCount = 0;
+    let errorCount = 0;
+    const totalFiles = files.length;
+    const processingToastId = toast.info(`开始处理 ${totalFiles} 个 Markdown 文件...`, { timeout: false });
 
-  // 遍历处理结果
-  results.forEach((result, index) => {
-    const originalFile = files[index]; // 获取原始文件名
-    if (result.status === 'fulfilled') {
-        if(result.value?.status === 'skipped') {
-            // 跳过的文件，之前已经提示过了
-        } else {
-            // store.importTopicFromMarkdown 成功 resolve
-            const { topicId, title } = result.value; // 从 resolve 的值获取信息
-            toast.success(`选题 "${title}" (ID: ${topicId}) 已成功导入/更新。`);
-            updatedCount++;
+    const results = await Promise.allSettled(Array.from(files).map(file => {
+        if (!file.name.endsWith('.md')) {
+            toast.warning(`文件 "${file.name}" 不是 Markdown 文件，已跳过。`, { timeout: 2000 });
+            return Promise.resolve({ status: 'skipped', filename: file.name });
         }
-    } else if (result.status === 'rejected') {
-        // store.importTopicFromMarkdown reject
-        console.error(`处理文件 "${originalFile.name}" 时出错:`, result.reason);
-        toast.error(`处理文件 "${originalFile.name}" 失败: ${result.reason?.message || result.reason}`);
-        errorCount++;
+        return store.importTopicFromMarkdown(file);
+    }));
+
+    toast.dismiss(processingToastId);
+
+    results.forEach((result, index) => {
+        const originalFile = files[index];
+        if (result.status === 'fulfilled') {
+            if (result.value?.status === 'skipped') {
+                // Skipped
+            } else {
+                const { topicId, title } = result.value;
+                toast.success(`选题 "${title}" (ID: ${topicId}) 已成功导入/更新。`);
+                updatedCount++;
+            }
+        } else if (result.status === 'rejected') {
+            console.error(`处理文件 "${originalFile.name}" 时出错:`, result.reason);
+            toast.error(`处理文件 "${originalFile.name}" 失败: ${result.reason?.message || result.reason}`);
+            errorCount++;
+        }
+    });
+
+    if (fileInput.value) {
+        fileInput.value.value = '';
     }
-  });
 
-
-  // 清空文件输入，以便可以再次选择相同的文件
-  if (fileInput.value) {
-    fileInput.value.value = '';
-  }
-
-  // 显示最终结果总结
-  if (updatedCount > 0 || errorCount > 0) {
-      let summaryMessage = '';
-      if (updatedCount > 0) summaryMessage += `${updatedCount} 个文件成功导入/更新。`;
-      if (errorCount > 0) summaryMessage += `${errorCount > 0 ? (updatedCount > 0 ? ' ' : '') + errorCount + ' 个文件处理失败。' : ''}`;
-      if (updatedCount > 0 && errorCount === 0) {
-          toast.success(summaryMessage);
-      } else if (errorCount > 0 && updatedCount === 0) {
-          toast.error(summaryMessage);
-      } else {
-          toast.warning(summaryMessage); // 混合结果用 warning
-      }
-  } else if (results.every(r => r.value?.status === 'skipped')) {
-       toast.info("没有有效的 Markdown 文件被处理。");
-  }
-  
-  // 可以在这里添加逻辑，例如如果当前选中的 topic 内容被更新了，刷新界面等
-  // (store.importTopicFromMarkdown 内部已经处理了重新加载当前 topic)
+    if (updatedCount > 0 || errorCount > 0) {
+        let summaryMessage = '';
+        if (updatedCount > 0) summaryMessage += `${updatedCount} 个文件成功导入/更新。`;
+        if (errorCount > 0) summaryMessage += `${errorCount > 0 ? (updatedCount > 0 ? ' ' : '') + errorCount + ' 个文件处理失败。' : ''}`;
+        if (updatedCount > 0 && errorCount === 0) {
+            toast.success(summaryMessage);
+        } else if (errorCount > 0 && updatedCount === 0) {
+            toast.error(summaryMessage);
+        } else {
+            toast.warning(summaryMessage);
+        }
+    } else if (results.every(r => r.value?.status === 'skipped')) {
+        toast.info("没有有效的 Markdown 文件被处理。");
+    }
 };
 
-// 处理创建新选题
-const handleCreateTopic = ({ topicId, title }) => {
-  console.log('Creating topic:', topicId, title);
-  // 1. 检查 ID 是否已存在 (可以在 store action 中处理)
-  if (store.topics.some(t => t.id === topicId)) {
-      toast.error(`Topic ID "${topicId}" 已存在，请使用不同的 ID。`);
-      return;
-  }
+// 修改：处理从 GenerateMdModal 过来的生成请求
+const handleGenerateMdForTopic = ({ topicId, title }) => {
+  console.log('Generating MD template for topic:', topicId, title);
 
-  // 2. 生成 Markdown 模板内容
+  // 生成 Markdown 模板内容 (逻辑与之前 handleCreateTopic 类似，但使用传入的 topicId 和 title)
   const templateContent = `---
 topicId: '${topicId}'
 title: '${title.replace(/'/g, "''")}' # 使用单引号包裹，并转义标题中的单引号
-description: '' # 可选描述
+description: '${(store.topics.find(t => t.id === topicId)?.description || '').replace(/'/g, "''")}' # 从 store 获取描述
 headerText: '' # 可选全局页眉
 footerText: '' # 可选全局页脚
 coverShowHeader: true
@@ -350,26 +320,20 @@ contentDefaultShowFooter: true
 #${title.replace(/\s+/g, '')} #${topicId} #知识分享
 `;
 
-  // 3. 使用 file-saver 下载文件
+  // 使用 file-saver 下载文件
   const blob = new Blob([templateContent], { type: "text/markdown;charset=utf-8" });
   saveAs(blob, `${topicId}.md`);
 
-  // 4. 关闭模态框并提示
-  showCreateTopicModal.value = false;
+  // 关闭模态框并提示
+  showGenerateMdModal.value = false;
   toast.success(`Markdown 模板 "${topicId}.md" 已生成并开始下载。`);
-  
-  // 可选：是否立即将新选题添加到 store 中？
-  // 这取决于产品逻辑，如果希望下载后手动导入，则不需要在这里添加
-  // 如果希望创建后立即可见（即使没有内容），则需要添加:
-  // store.addOrUpdateTopicMeta({ id: topicId, title: title, description: '' });
 };
 
-// 新增：切换 Prompt 按钮可见性的方法
+// 切换 Prompt 按钮可见性的方法 (保持不变)
 const togglePromptButtons = () => {
     showPromptButtons.value = !showPromptButtons.value;
 };
 
-// 使用 import.meta.glob 获取所有 content 文件信息
-// 注意：路径是相对于当前文件的，所以是 '../content/'
+// 使用 import.meta.glob 获取所有 content 文件信息 (保持不变，用于 onMounted 检查原始文件，虽然现在主要依赖 localStorage)
 const contentModules = import.meta.glob('../content/*_content.js'); // 非 eager 模式
 </script>
