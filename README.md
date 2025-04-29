@@ -51,6 +51,7 @@
 *   **前端**: Vue.js 3 (组合式 API), Vite
 *   **状态管理**: Pinia (使用 Action 管理部分 Markdown 操作逻辑)
 *   **样式**: Tailwind CSS, PostCSS (autoprefixer)
+*   **图标**: Font Awesome (@fortawesome/fontawesome-free)
 *   **Markdown/LaTeX**: marked, KaTeX
 *   **图片/文件处理**: html2canvas, file-saver, JSZip
 *   **拖拽**: vuedraggable
