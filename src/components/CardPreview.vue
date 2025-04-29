@@ -94,7 +94,7 @@
 import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted, onUpdated, onUnmounted } from 'vue';
 // 导入 store
 import { useCardStore } from '../stores/cardStore'; 
-import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard } from '../utils/cardExport';
+import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard, getFormattedDate } from '../utils/cardExport';
 // 导入 vue-toastification
 import { useToast } from "vue-toastification";
 
@@ -102,8 +102,8 @@ import { useToast } from "vue-toastification";
 import { useTemplateLoader } from '../composables/useTemplateLoader';
 // 导入文本域自动高度 hook
 import { useTextareaAutoHeight } from '../composables/useTextareaAutoHeight';
-// 导入重构后的 getFormattedDate
-import { getFormattedDate } from '../utils/cardExport';
+// 导入滚动逻辑 composable
+import { useCardPreviewScroll } from '../composables/useCardPreviewScroll'; 
 
 export default {
     name: 'CardPreview',
@@ -128,12 +128,22 @@ export default {
             return getAsyncTemplateComponent(store.selectedTemplate); 
         });
 
-        const previewScrollContainer = ref(null);
-        const coverCardContainer = ref(null);
-        const coverCard = ref(null);
-        const contentCardRefs = ref([]);
-        const showLeftScroll = ref(false);
-        const showRightScroll = ref(false);
+        // --- Refs for Scroll Composable --- 
+        const coverCardContainer = ref(null); // 传递给 composable
+        const coverCard = ref(null); // 用于导出
+        const contentCardRefs = ref([]); // 传递给 composable，并在 v-for 中维护
+
+        // --- 使用滚动逻辑 Composable ---
+        const {
+            previewScrollContainer, // 从 composable 获取，用于模板绑定
+            showLeftScroll,         // 从 composable 获取
+            showRightScroll,        // 从 composable 获取
+            scrollLeft,             // 从 composable 获取
+            scrollRight,            // 从 composable 获取
+            handleScroll            // 从 composable 获取
+        } = useCardPreviewScroll(store, coverCardContainer, contentCardRefs);
+
+        // --- 其他逻辑 (保持不变) ---
 
         // 计算属性，直接读写 store.cardContent.mainText
         const mainTextModel = computed({
@@ -149,6 +159,7 @@ export default {
         };
 
         onBeforeUpdate(() => {
+            // 清空 contentCardRefs 数组，准备在 v-for 中重新填充
             contentCardRefs.value = [];
         });
 
@@ -161,274 +172,43 @@ export default {
             });
         }, { immediate: false });
 
-        // 监听 store.focusedPreviewIndex 变化，只负责滚动
-        watch(() => store.focusedPreviewIndex, (newIndex) => {
-            console.log(`[CardPreview] Watcher triggered. Received newIndex: ${newIndex} (Type: ${typeof newIndex})`);
+        // --- 滚动/焦点相关逻辑 (已移除) ---
+        // watch(() => store.focusedPreviewIndex, ...) // 移至 composable
+        // const getAllCardElements = () => { ... }; // 移至 composable
+        // const findCurrentCardIndex = () => { ... }; // 移至 composable
+        // const debounce = (func, delay) => { ... }; // 移至 composable
+        // const throttle = (func, limit) => { ... }; // 移至 composable
+        // const onScrollEnd = debounce(() => { ... }); // 移至 composable
+        // const checkScrollButtons = () => { ... }; // 移至 composable
+        // const throttledCheckScrollButtons = throttle(checkScrollButtons, 150); // 移至 composable
+        // const handleScroll = () => { ... }; // 移至 composable
+        // const scrollLeft = () => { ... }; // 移至 composable
+        // const scrollRight = () => { ... }; // 移至 composable
+        // onMounted(() => { ... }); // 部分移至 composable
+        // onUpdated(() => { ... }); // 部分移至 composable
+        // watch(() => store.cardContent?.contentCards?.length, ...) // 移至 composable
+        // onUnmounted(() => { ... }); // 部分移至 composable
 
-            // 严格检查 newIndex 是否是有效的定位请求 (-1 或 0+)
-            const isValidFocusRequest = (newIndex === -1 || (typeof newIndex === 'number' && newIndex >= 0));
-
-            if (isValidFocusRequest) {
-                console.log('[CardPreview] Valid focus request confirmed. Initiating scroll.');
-                console.log('[CardPreview] Inside post-flush watcher for scroll request.');
-                let targetElementContainer = null;
-                const scrollContainer = previewScrollContainer.value;
-
-                if (!scrollContainer) {
-                    console.warn('[CardPreview] Scroll container ref not available. Cannot scroll.');
-                    return;
-                }
-
-                if (newIndex === -1) { // 封面卡片
-                    if (coverCardContainer.value) {
-                        targetElementContainer = coverCardContainer.value;
-                    } else {
-                        console.warn('[CardPreview] Cover card container ref not available.');
-                    }
-                } else { // 内容卡片 (newIndex >= 0)
-                    if (contentCardRefs.value && contentCardRefs.value[newIndex]) {
-                        targetElementContainer = contentCardRefs.value[newIndex];
-                    } else {
-                        console.warn(`[CardPreview] Content card ref for index ${newIndex} not available.`);
-                    }
-                }
-
-                if (targetElementContainer) {
-                    console.log(`[CardPreview] Calling scrollIntoView for target (index ${newIndex}):`, targetElementContainer);
-                    targetElementContainer.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'nearest',
-                        inline: 'center'
-                    });
-                } else {
-                    console.warn(`[CardPreview] Target element ref could not be found for index ${newIndex}. Cannot scroll.`);
-                }
-            } 
-            // 如果 newIndex 不是有效请求 (是 null 或其他意外类型)，则忽略
-            else {
-                 console.log('[CardPreview] Watcher triggered, but newIndex is NOT a valid focus request. Ignoring scroll command.');
-            }
-        }, { flush: 'post' });
-        
-        // 获取所有卡片容器元素 (稍作调整)
-        const getAllCardElements = () => {
-            const cover = coverCardContainer.value; 
-            const contents = contentCardRefs.value || []; 
-            const elements = [];
-            if (cover) elements.push(cover); // coverCardContainer 是 DOM 元素
-            elements.push(...contents.filter(el => el)); // contentCardRefs 也是 DOM 元素数组
-            return elements;
-        };
-
-        // 查找当前中心卡片的索引 (返回 -1 代表封面, 0+ 代表内容卡片索引)
-        const findCurrentCardIndex = () => {
-            const container = previewScrollContainer.value;
-            if (!container) return null; // 无法判断时返回 null (无焦点)
-            const containerCenter = container.scrollLeft + container.clientWidth / 2;
-            const cards = getAllCardElements();
-            let minIndex = -2; // 使用 -2 初始值，区分未找到和封面的 -1
-            let minDistance = Infinity;
-
-            cards.forEach((card, arrayIndex) => { // arrayIndex 是 0 (封面), 1 (内容0), 2 (内容1)...
-                if (!card) return;
-                const cardCenter = card.offsetLeft + card.clientWidth / 2;
-                const distance = Math.abs(cardCenter - containerCenter);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    minIndex = arrayIndex;
-                }
-            });
-            
-            // 将数组索引转换为 Store 使用的索引
-            if (minIndex === 0) return -1; // 数组索引 0 对应封面 (-1)
-            if (minIndex > 0) return minIndex - 1; // 数组索引 1+ 对应内容卡片索引 (0+)
-            
-            return null; // 未找到或发生错误，返回 null (无焦点)
-        };
-        
-        // 防抖函数 (用于滚动结束时触发 store action)
-        const debounce = (func, delay) => {
-            let timeoutId;
-            return (...args) => {
-                clearTimeout(timeoutId);
-                timeoutId = setTimeout(() => {
-                    func.apply(this, args);
-                }, delay);
-            };
-        };
-        
-        // 滚动结束时触发的函数，更新编辑器焦点并按需重置预览请求
-        const onScrollEnd = debounce(() => {
-            const currentEditorIndex = findCurrentCardIndex(); // 可能返回 null, -1, 0+
-            console.log('[CardPreview] Scroll ended. Detected editor index:', currentEditorIndex);
-            
-            // 1. 更新编辑器焦点状态
-            store.setFocusedEditor(currentEditorIndex); 
-            
-            // 2. 检查是否需要重置预览定位请求状态
-            // 如果之前有一个定位请求 (focusedPreviewIndex 不是 null)
-            // 并且 滚动结束的位置 正好是 请求的位置
-            if (store.focusedPreviewIndex !== null && store.focusedPreviewIndex === currentEditorIndex) {
-                console.log(`[CardPreview] Scroll ended at the requested index (${currentEditorIndex}). Resetting focusedPreviewIndex to null.`);
-                store.resetFocus(); // 调用 action 将 focusedPreviewIndex 设为 null
-            } else if (store.focusedPreviewIndex !== null) {
-                // 滚动结束了，但位置不是之前请求的位置 (可能用户手动干扰了)
-                // 此时也应该重置请求状态，因为它没有被满足
-                console.log(`[CardPreview] Scroll ended, but not at the requested index (${store.focusedPreviewIndex}, ended at ${currentEditorIndex}). Resetting focusedPreviewIndex to null.`);
-                store.resetFocus();
-            }
-        }, 200); 
-
-        // 节流函数 (限制函数在指定时间内最多执行一次)
-        const throttle = (func, limit) => {
-            let inThrottle;
-            return function() {
-                const args = arguments;
-                const context = this;
-                if (!inThrottle) {
-                    func.apply(context, args);
-                    inThrottle = true;
-                    setTimeout(() => inThrottle = false, limit);
-                }
-            }
-        };
-        
-        // 检查滚动按钮显隐 (保持不变)
-        const checkScrollButtons = () => {
-            const el = previewScrollContainer.value;
-            if (!el) return;
-            showLeftScroll.value = el.scrollLeft > 1;
-            showRightScroll.value = el.scrollWidth - el.clientWidth - el.scrollLeft > 1; // 修复右侧按钮判断
-        };
-
-        // 创建 checkScrollButtons 的节流版本，例如每 150ms 检查一次
-        const throttledCheckScrollButtons = throttle(checkScrollButtons, 150);
-
-        // 处理滚动事件
-        const handleScroll = () => {
-            // 使用节流版本检查按钮
-            throttledCheckScrollButtons(); 
-            onScrollEnd(); // 调用防抖函数
-        };
-
-        // 向左滚动，完成后更新编辑器焦点
-        const scrollLeft = () => {
-            const container = previewScrollContainer.value;
-            if (!container) return;
-            
-            const cards = getAllCardElements();
-            // 使用 findCurrentCardIndex 找到的是 store 索引 (-1 代表封面, 0+ 代表内容)
-            const currentStoreIndex = findCurrentCardIndex(); 
-            // 修改：正确将 store 索引转换为 cards 数组索引 (0 代表封面, 1+ 代表内容)
-            let currentArrayIndex = -1;
-            if (currentStoreIndex === -1) { // 封面
-                currentArrayIndex = 0;
-            } else if (currentStoreIndex !== null && currentStoreIndex >= 0) { // 内容卡片
-                currentArrayIndex = currentStoreIndex + 1;
-            } else if (currentStoreIndex === null) {
-                console.warn('[CardPreview scrollLeft] findCurrentCardIndex returned null, assuming index 0.');
-                currentArrayIndex = 0;
-            }
-            
-            const targetArrayIndex = currentArrayIndex - 1;
-
-            if (targetArrayIndex >= 0 && targetArrayIndex < cards.length) {
-                const targetElement = cards[targetArrayIndex];
-                if (targetElement) {
-                    const containerWidth = container.clientWidth;
-                    const targetOffsetLeft = targetElement.offsetLeft;
-                    const targetWidth = targetElement.clientWidth;
-                    // 计算目标滚动位置，使目标元素居中
-                    const targetScrollLeft = targetOffsetLeft + targetWidth / 2 - containerWidth / 2;
-                    
-                    container.scrollTo({
-                        left: Math.max(0, targetScrollLeft), // 确保不小于0
-                        behavior: 'smooth'
-                    });
-                    // 滚动结束后由 handleScroll -> onScrollEnd 触发编辑器焦点更新
-                    store.resetFocus(); // 立即重置预览区焦点请求
-                }
-            }
-        };
-
-        // 向右滚动，完成后更新编辑器焦点
-        const scrollRight = () => {
-            const container = previewScrollContainer.value;
-            if (!container) return;
-            
-            const cards = getAllCardElements();
-            const currentStoreIndex = findCurrentCardIndex(); // Store 索引 (-1, 0+)
-            // 修改：正确将 store 索引转换为 cards 数组索引 (0, 1+)
-            let currentArrayIndex = -1;
-            if (currentStoreIndex === -1) { // 封面
-                currentArrayIndex = 0;
-            } else if (currentStoreIndex !== null && currentStoreIndex >= 0) { // 内容卡片
-                currentArrayIndex = currentStoreIndex + 1;
-            } else if (currentStoreIndex === null) {
-                console.warn('[CardPreview scrollRight] findCurrentCardIndex returned null, assuming index 0.');
-                currentArrayIndex = 0;
-            }
-
-            const targetArrayIndex = currentArrayIndex + 1;
-
-            if (targetArrayIndex >= 0 && targetArrayIndex < cards.length) {
-                const targetElement = cards[targetArrayIndex];
-                if (targetElement) {
-                    const containerWidth = container.clientWidth;
-                    const targetOffsetLeft = targetElement.offsetLeft;
-                    const targetWidth = targetElement.clientWidth;
-                    // 计算目标滚动位置，使目标元素居中
-                    const targetScrollLeft = targetOffsetLeft + targetWidth / 2 - containerWidth / 2;
-                    
-                    container.scrollTo({
-                        // 确保不超过最大滚动距离
-                        left: Math.min(container.scrollWidth - containerWidth, targetScrollLeft),
-                        behavior: 'smooth'
-                    });
-                    store.resetFocus(); // 立即重置预览区焦点请求
-                }
-            }
-        };
-
+         // --- 生命周期钩子 (仅保留非滚动相关部分) ---
         onMounted(() => {
+            // 初始调整主文案 textarea 高度 (保留)
             nextTick(() => {
-                // 立即检查一次按钮状态
-                checkScrollButtons(); 
-                 // 初始调整主文案 textarea 高度
-                if (mainTextareaRef.value) {
+                 if (mainTextareaRef.value) {
                     adjustSingleTextarea(mainTextareaRef.value);
                 }
             });
-            // resize 事件也使用节流版本
-            window.addEventListener('resize', throttledCheckScrollButtons);
         });
 
-        onUpdated(() => {
-             nextTick(checkScrollButtons); 
-        });
-        
-        // 监听内容卡片数量变化，更新滚动按钮状态
-        watch(() => store.cardContent?.contentCards?.length, () => {
-            nextTick(checkScrollButtons);
-        });
-
-        onUnmounted(() => {
-          // 移除节流版本的 resize 监听器
-          window.removeEventListener('resize', throttledCheckScrollButtons);
-        });
-
+        // --- 导出相关逻辑 (保持不变) ---
         const _getExportableCardElement = (containerElement) => {
             if (!containerElement) {
                 console.warn('尝试获取卡片元素但容器元素不存在');
                 return null;
             }
-            // 修改查找逻辑以使用 data-exportable-card 属性
             let actualCard = containerElement.querySelector('[data-exportable-card="true"]');
-            
             if (!actualCard) {
                  console.error('在容器元素内找不到具有 [data-exportable-card="true"] 属性的可导出卡片元素。', containerElement);
             }
-
             return actualCard;
         };
 
@@ -559,18 +339,25 @@ export default {
             }
         };
 
+        // --- 返回给模板的值 ---
         return {
             store,
             activeTemplateComponent,
-            previewScrollContainer,
-            coverCardContainer,
-            coverCard,
-            contentCardRefs,
+            
+            // --- Scroll Composable 返回值 ---
+            previewScrollContainer, 
+            showLeftScroll,
+            showRightScroll,
             handleScroll,
             scrollLeft,
             scrollRight,
-            showLeftScroll,
-            showRightScroll,
+            
+            // --- 传递给 Scroll Composable 的 Refs ---
+            coverCardContainer,
+            contentCardRefs,
+
+            // --- 其他 Refs 和方法 ---
+            coverCard, // 用于导出
             mainTextModel,
             handleTextareaInput,
             cardPreviewRoot,
