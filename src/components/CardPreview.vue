@@ -103,7 +103,7 @@
 </template>
 
 <script>
-import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted, onUpdated, onUnmounted } from 'vue';
+import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted } from 'vue';
 // 导入 store
 import { useCardStore } from '../stores/cardStore'; 
 // 移除 cardExportUtils 直接导入
