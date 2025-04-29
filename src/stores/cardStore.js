@@ -442,6 +442,24 @@ export const useCardStore = defineStore('card', () => {
 
     // --- Card Manipulation Actions ---
 
+    // --- 新增：内部辅助函数，用于更新状态并保存到 localStorage ---
+    const _updateStateAndSave = (updateFn, actionName = 'Unknown Action') => {
+        if (!cardContent.value) {
+            console.warn(`[Store Action - ${actionName}] Cannot perform update: cardContent is not loaded.`);
+            return;
+        }
+        try {
+            // 执行实际的状态更新逻辑
+            updateFn();
+            console.log(`[Store Action - ${actionName}] State updated successfully.`);
+            // 调用保存逻辑
+            saveCurrentContentToLocalStorage();
+        } catch (error) {
+            console.error(`[Store Action - ${actionName}] Error updating state:`, error);
+            toast.error(`执行 ${actionName} 时出错: ${error.message}`); // 可以在这里添加 toast
+        }
+    };
+
     // 创建一个空卡片对象模板
     const createEmptyCard = () => ({
         title: "",
@@ -450,87 +468,62 @@ export const useCardStore = defineStore('card', () => {
         showFooter: true
     });
 
-    // 在指定索引处添加内容卡片
+    // 在指定索引处添加内容卡片 (使用辅助函数)
     const addContentCard = (index) => {
-        if (!cardContent.value || !cardContent.value.contentCards) {
-            console.warn('[Store Action] Cannot add card: contentCards array does not exist.');
-            return;
-        }
-        try {
+        _updateStateAndSave(() => {
+            if (!cardContent.value.contentCards) {
+                // 如果在这里检查，可以抛出错误让 _updateStateAndSave 捕获
+                throw new Error('Cannot add card: contentCards array does not exist.');
+            }
             const newCard = createEmptyCard();
-            // 确保索引在有效范围内
             const safeIndex = Math.max(0, Math.min(index, cardContent.value.contentCards.length));
             cardContent.value.contentCards.splice(safeIndex, 0, newCard);
-            console.log(`[Store Action] Content card added at index: ${safeIndex}`);
-            // 保存到 localStorage
-            saveCurrentContentToLocalStorage();
-        } catch (error) {
-            console.error('[Store Action] Error adding content card:', error);
-            toast.error('添加卡片时出错');
-        }
+            // 日志移到辅助函数内部
+        }, 'addContentCard');
     };
 
-    // 移除指定索引的内容卡片
+    // 移除指定索引的内容卡片 (使用辅助函数)
     const removeContentCard = (index) => {
-        if (!cardContent.value || !cardContent.value.contentCards) {
-            console.warn('[Store Action] Cannot remove card: contentCards array does not exist.');
-            return;
-        }
-        if (index < 0 || index >= cardContent.value.contentCards.length) {
-            console.warn(`[Store Action] Cannot remove card: invalid index ${index}.`);
-            return;
-        }
-        if (cardContent.value.contentCards.length <= 1) {
+        if (cardContent.value?.contentCards?.length <= 1) {
             toast.warning('至少需要保留一张内容卡片。');
             return;
         }
-        try {
+        _updateStateAndSave(() => {
+            if (!cardContent.value.contentCards) {
+                throw new Error('Cannot remove card: contentCards array does not exist.');
+            }
+            if (index < 0 || index >= cardContent.value.contentCards.length) {
+                throw new Error(`Cannot remove card: invalid index ${index}.`);
+            }
             cardContent.value.contentCards.splice(index, 1);
-            console.log(`[Store Action] Content card removed at index: ${index}`);
-            // 保存到 localStorage
-            saveCurrentContentToLocalStorage();
-        } catch (error) {
-            console.error('[Store Action] Error removing content card:', error);
-            toast.error('移除卡片时出错');
-        }
+        }, 'removeContentCard');
     };
 
-    // 切换卡片（封面或内容）的可见性字段 (showHeader/showFooter)
+    // 切换卡片（封面或内容）的可见性字段 (showHeader/showFooter) (使用辅助函数)
     const toggleCardVisibility = ({ cardType, field, index = null }) => {
-        if (!cardContent.value) {
-            console.warn('[Store Action] Cannot toggle visibility: cardContent is not loaded.');
-            return;
-        }
-        let target;
-        try {
+        _updateStateAndSave(() => {
+            let target;
             if (cardType === 'coverCard' && cardContent.value.coverCard) {
                 target = cardContent.value.coverCard;
             } else if (cardType === 'contentCard' && index !== null && cardContent.value.contentCards && index >= 0 && index < cardContent.value.contentCards.length) {
                 target = cardContent.value.contentCards[index];
             } else {
-                console.warn(`[Store Action] Cannot find target for toggleVisibility:`, { cardType, field, index });
-                return;
+                throw new Error(`Cannot find target for toggleVisibility: { cardType: ${cardType}, field: ${field}, index: ${index} }`);
             }
 
             if (target && (field === 'showHeader' || field === 'showFooter') && typeof target[field] === 'boolean') {
                 target[field] = !target[field];
-                console.log(`[Store Action] Toggled ${field} for ${cardType} ${index !== null ? 'index ' + index : ''} to ${target[field]}`);
-                // 保存到 localStorage
-                saveCurrentContentToLocalStorage();
+                // 日志移到辅助函数内部: console.log(`Toggled ${field} for ${cardType} ${index !== null ? 'index ' + index : ''} to ${target[field]}`);
             } else {
-                console.warn(`[Store Action] Invalid field or target type for toggleVisibility:`, { target, field });
+                throw new Error(`Invalid field or target type for toggleVisibility: { target: ${target}, field: ${field} }`);
             }
-        } catch (error) {
-            console.error('[Store Action] Error toggling visibility:', error);
-            toast.error('切换显隐状态时出错');
-        }
+        }, `toggleCardVisibility (${field})`);
     };
 
-    // 新增：辅助函数，用于将当前 cardContent 保存到 localStorage
+    // 新增：辅助函数，用于将当前 cardContent 保存到 localStorage (保持不变)
     const saveCurrentContentToLocalStorage = () => {
         if (!currentTopicId.value) return;
         try {
-            // 移除 topicDescription，因为它不属于原始内容结构
             const contentToSave = { ...cardContent.value };
             delete contentToSave.topicDescription;
             localStorage.setItem(`cardgen_topic_content_${currentTopicId.value}`, JSON.stringify(contentToSave));
@@ -541,64 +534,58 @@ export const useCardStore = defineStore('card', () => {
         }
     };
 
-    // --- Other Actions ---
+    // --- Other Actions --- 
 
-    // 更新卡片部分内容 (例如 Header/Footer 文本)
+    // 更新卡片部分内容 (例如 Header/Footer 文本) (使用辅助函数)
     const updateCardContent = (newContent) => {
-        cardContent.value = { ...cardContent.value, ...newContent };
-        console.log('[Store] Card content updated');
-        saveCurrentContentToLocalStorage(); // 保存更改
+        _updateStateAndSave(() => {
+            cardContent.value = { ...cardContent.value, ...newContent };
+        }, 'updateCardContent');
     };
 
-    // 更新卡片文本内容 (封面标题/副标题, 内容卡片标题/正文)
+    // 更新卡片文本内容 (封面标题/副标题, 内容卡片标题/正文) (使用辅助函数)
     const updateCardText = ({ index, field, value }) => {
-        if (!cardContent.value) return;
-        try {
+        _updateStateAndSave(() => {
             if (index === -1 && cardContent.value.coverCard) { // 封面
                 if (field === 'title' || field === 'subtitle') {
                     cardContent.value.coverCard[field] = value;
+                } else {
+                    throw new Error(`Invalid field '${field}' for cover card.`);
                 }
             } else if (index >= 0 && cardContent.value.contentCards && index < cardContent.value.contentCards.length) { // 内容卡片
                 if (field === 'title' || field === 'body') {
                     cardContent.value.contentCards[index][field] = value;
+                } else {
+                    throw new Error(`Invalid field '${field}' for content card index ${index}.`);
                 }
             } else {
-                console.warn(`[Store Action] Invalid index or field for updateCardText:`, { index, field });
-                return;
+                throw new Error(`Invalid index ${index} for updateCardText.`);
             }
-            console.log(`[Store Action] Updated text for card ${index}, field ${field}`);
-            saveCurrentContentToLocalStorage(); // 保存更改
-        } catch (error) {
-            console.error('[Store Action] Error updating card text:', error);
-            toast.error('更新卡片文本时出错。');
-        }
+        }, `updateCardText (Card ${index}, Field ${field})`);
     };
 
-    // 更新主文案
+    // 更新主文案 (使用辅助函数)
     const updateMainText = (newText) => {
-        if (cardContent.value) {
+        _updateStateAndSave(() => {
+            // 之前的检查已包含在 _updateStateAndSave 中
             cardContent.value.mainText = newText;
-            console.log('[Store] Main text updated');
-            saveCurrentContentToLocalStorage(); // 保存更改
-        }
+        }, 'updateMainText');
     };
 
-    // 更新主题描述 (由 CardConfig 触发)
+    // 更新主题描述 (这个不保存到 localStorage，保持原样)
     const updateTopicDescription = (newDescription) => {
         if (cardContent.value) {
             cardContent.value.topicDescription = newDescription;
             console.log('[Store] Topic description updated');
-            // 描述不属于核心内容数据，不触发 localStorage 保存
         }
     };
 
-    // 拖拽内容卡片排序
+    // 拖拽内容卡片排序 (使用辅助函数)
     const updateContentCardsOrder = (newOrder) => {
-        if (cardContent.value) {
+        _updateStateAndSave(() => {
+            // 之前的检查已包含在 _updateStateAndSave 中
             cardContent.value.contentCards = newOrder;
-            console.log('[Store] Content cards order updated');
-            saveCurrentContentToLocalStorage(); // 保存更改
-        }
+        }, 'updateContentCardsOrder');
     };
 
     // 生成并下载 JS 内容文件
