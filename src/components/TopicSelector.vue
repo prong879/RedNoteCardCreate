@@ -188,12 +188,11 @@ const generatePrompt = (topic) => {
     }
 };
 
-// 生成 Markdown 模板并处理保存/下载
+// 生成 Markdown 模板并处理保存/下载 (修改：使用 store action)
 const handleGenerateMdForTopic = async (options) => {
   const { topicId, title, description, numCards, includeMainText } = options;
 
-  // --- 调整 Markdown 内容以匹配 create_md_Template.js ---
-  // 使用 JSON.stringify 确保 YAML Front Matter 中的字符串安全转义
+  // --- Markdown 内容生成 (保持不变) ---
   let mdContent = `--- 
 topicId: ${topicId}
 title: ${JSON.stringify(title)}
@@ -211,9 +210,6 @@ contentDefaultShowFooter: true
 封面副标题
 
 `;
-
-  // 卡片部分可以保持与之前类似，或者根据需要简化成 create_md_Template.js 的单卡片示例
-  // 这里我们暂时保持多卡片生成，但可以根据需要调整
   for (let i = 1; i <= numCards; i++) {
     mdContent += `---
 
@@ -227,8 +223,6 @@ contentDefaultShowFooter: true
 
 `;
   }
-
-  // 主文案部分
   if (includeMainText) {
     mdContent += `---
 
@@ -240,71 +234,57 @@ contentDefaultShowFooter: true
   }
   // --- Markdown 内容生成完毕 ---
 
-  const filename = `${topicId}.md`; // <--- CHANGE: filename format
+  const filename = `${topicId}.md`;
   const isDevMode = import.meta.env.DEV;
-  let shouldDownload = !isDevMode; // Default: download if not in dev mode
-  let apiErrorOccurred = false; // Track if API call failed (excluding file exists)
+  let shouldDownload = !isDevMode; // 生产模式默认下载
+  let apiErrorOccurred = false; // 跟踪 API 相关问题
 
   if (isDevMode) {
-    let response = null; // Declare response outside try for wider scope if needed
-    let result = null;
     try {
-      response = await fetch('/api/save-markdown-template', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ filename: filename, content: mdContent }),
-      });
+        // --- 修改：调用 Store Action ---
+        console.log(`[TopicSelector] Calling store.saveMarkdownTemplate for ${filename}`);
+        const result = await store.saveMarkdownTemplate({ filename, content: mdContent, topicId });
+        console.log(`[TopicSelector] Store action result for saving ${filename}:`, result);
 
-      // --- 修改：先解析 JSON --- 
-      result = await response.json(); 
-      console.log('[TopicSelector] API save response status:', response.status, 'result:', result); // 调试日志
-
-      if (response.ok && result.success) {
-        // --- API 保存成功 --- 
-        toast.success(`模板 ${filename} 已成功保存到本地 src/markdown/ 目录！`);
-        console.log(`[TopicSelector] Successfully saved MD template locally via API: ${filename} to src/markdown/`);
-        
-        // --- 修改：调用 Store Action 更新状态 --- 
-        store.addDetectedMarkdownFile(topicId); // 通知 Store 添加此文件
-        
-        showGenerateMdModal.value = false; 
-        return; // 成功保存，无需下载
-      }
-      
-      // --- 处理 API 返回的错误 --- 
-      apiErrorOccurred = true; // Mark that an API issue occurred
-      if (response.status === 409 && result.code === 'FILE_EXISTS') {
-        // 特定错误：文件已存在
-        toast.error(result.message || `文件 ${filename} 已存在于 src/markdown/，无法覆盖。`);
-        // 文件已存在，不应该触发下载
-        shouldDownload = false; 
-      } else {
-        // 其他 API 业务错误或非 2xx 状态码
-        console.error('[TopicSelector] API save failed:', result.message || `Status: ${response.status}`);
-        toast.warning(`尝试本地保存失败 (${result.message || `HTTP ${response.status}`})，将启动文件下载。`);
-        shouldDownload = true; // 其他 API 错误，回退到下载
-      }
-      
+        if (result.success) {
+            // --- Store Action 成功 ---
+            toast.success(result.message || `模板 ${filename} 已成功保存！`);
+            console.log(`[TopicSelector] Successfully saved MD template via store action: ${filename}`);
+            shouldDownload = false; // 本地保存成功，无需下载
+            showGenerateMdModal.value = false;
+            return; // 操作完成
+        } else {
+            // --- Store Action 失败或部分失败 (如文件存在) ---
+            apiErrorOccurred = true; // 标记 API 相关问题
+            if (result.code === 'FILE_EXISTS') {
+                // 特定错误：文件已存在
+                toast.error(result.message || `文件 ${filename} 已存在，无法覆盖。`);
+                shouldDownload = false; // 文件存在，不下载
+            } else {
+                // 其他 Store Action 业务错误
+                console.error('[TopicSelector] Store action failed:', result.message);
+                toast.warning(`尝试本地保存失败 (${result.message || '未知错误'})，将启动文件下载。`);
+                shouldDownload = true; // 其他错误，回退到下载
+            }
+        }
     } catch (error) {
-      // --- 处理 fetch 调用本身或其他意外 JS 错误 ---
-      apiErrorOccurred = true;
-      shouldDownload = true; // 网络错误等，回退到下载
-      console.error('[TopicSelector] Error calling save API:', error);
-      toast.warning(`调用本地保存 API 出错 (${error.message || '网络错误'})，将启动文件下载。`);
+        // --- 处理调用 Store Action 本身时发生的意外错误 ---
+        // (例如网络问题导致 fetch 失败，或者 Store Action 内部抛出未捕获的异常)
+        apiErrorOccurred = true;
+        shouldDownload = true; // 意外错误，回退到下载
+        console.error('[TopicSelector] Error calling store.saveMarkdownTemplate:', error);
+        toast.warning(`调用本地保存操作时出错 (${error.message || '未知错误'})，将启动文件下载。`);
     }
   }
 
-  // --- 根据标志位决定是否执行下载 --- 
+  // --- 根据标志位决定是否执行下载 ---
   if (shouldDownload) {
     try {
-      console.log(`[TopicSelector] Proceeding with download for ${filename}. DevMode: ${isDevMode}, API Error: ${apiErrorOccurred}`); // 调试日志
+      console.log(`[TopicSelector] Proceeding with download for ${filename}. DevMode: ${isDevMode}, API Error Occurred: ${apiErrorOccurred}`);
       const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
       saveAs(blob, filename);
-      // 如果是因为 API 失败才下载，用户已收到 warning toast，这里可以用 info 或 success
       if (apiErrorOccurred) {
-          toast.info(`已启动 ${filename} 的下载。`); 
+          toast.info(`已启动 ${filename} 的下载。`); // 如果是因为保存失败才下载，给个 info
       } else {
           toast.success(`已生成 ${filename} 供下载。`); // 非开发模式下的正常下载
       }
@@ -313,7 +293,7 @@ contentDefaultShowFooter: true
       toast.error(`生成文件 ${filename} 失败: ${saveError.message}`);
     }
   }
-  
+
   showGenerateMdModal.value = false; // 无论结果如何，最后都关闭模态框
 };
 

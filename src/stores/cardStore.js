@@ -215,6 +215,46 @@ export const useCardStore = defineStore('card', () => {
         // 如果需要全局的转换 loading 状态，可以在 store 中添加。
     };
 
+    // --- 新增：Action - 保存 Markdown 模板到本地 (开发模式) ---
+    const saveMarkdownTemplate = async ({ filename, content, topicId }) => {
+        console.log(`[Store] Attempting to save Markdown template: ${filename} for topic: ${topicId}`);
+        try {
+            const response = await fetch('/api/save-markdown-template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, content }),
+            });
+
+            const result = await response.json();
+            console.log(`[Store] API response for saving ${filename}:`, result);
+
+            if (response.ok && result.success) {
+                // 保存成功!
+                const successMessage = result.message || `模板 ${filename} 已成功保存。`;
+                console.info(`[Store] Markdown template saved successfully: ${filename}`);
+
+                // 关键：重新获取文件列表以更新 store 状态
+                // 可以选择更精细的更新：addDetectedMarkdownFile(topicId)
+                // 但 fetchFileLists 更简单可靠
+                await fetchFileLists();
+
+                return { success: true, message: successMessage };
+            } else if (response.status === 409 && result.code === 'FILE_EXISTS') {
+                // 文件已存在是特定业务错误，不算完全失败，但需要特殊处理
+                console.warn(`[Store] File already exists: ${filename}`);
+                return { success: false, message: result.message || `文件 ${filename} 已存在`, code: 'FILE_EXISTS' };
+            } else {
+                // 其他 API 业务错误或非 2xx 状态码
+                throw new Error(result.message || `HTTP error ${response.status}`);
+            }
+
+        } catch (error) {
+            console.error(`[Store] Error saving Markdown template ${filename}:`, error);
+            // 返回通用错误信息给组件处理
+            return { success: false, message: error.message || `保存模板 ${filename} 时出错` };
+        }
+    };
+
     // --- 新增：Action - 添加一个已检测到的 MD 文件 --- 
     const addDetectedMarkdownFile = (topicId) => {
         if (!detectedMarkdownFiles.value.has(topicId)) {
@@ -729,7 +769,8 @@ export const useCardStore = defineStore('card', () => {
         setFocusedEditor,
         resetFocus,
         returnToTopicSelection,
-        convertMarkdownToJs
+        convertMarkdownToJs,
+        saveMarkdownTemplate
     };
 }, {
     // 可以在这里配置持久化等插件选项
