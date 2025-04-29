@@ -1,5 +1,5 @@
 // src/content/topicsMeta.js
-// Generated/Updated by script at 2025-04-28T09:58:32.880Z
+// Generated/Updated by script at 2025-04-28T17:52:30.273Z
 // 用于存储选题的核心信息，与具体每次编辑的内容分开
 
 export const topicsMeta = [
@@ -16,7 +16,7 @@ export const topicsMeta = [
     {
         id: 'topic03',
         title: '时间序列 VS 截面数据 VS 面板数据：三者的区别？',
-        description: '核心：用简洁图表或实例清晰对比三者关键不同点'
+        description: '在这里填写选题描述...'
     },
     {
         id: 'topic04',

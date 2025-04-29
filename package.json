@@ -11,6 +11,7 @@
     },
     "dependencies": {
         "@agentdeskai/browser-tools-mcp": "^1.2.0",
+        "@fortawesome/fontawesome-free": "^6.7.2",
         "file-saver": "^2.0.5",
         "html2canvas": "^1.4.1",
         "jszip": "^3.10.1",
@@ -18,7 +19,6 @@
         "marked": "^15.0.9",
         "pinia": "^3.0.2",
         "vue": "^3.3.4",
-        "vue-draggable-next": "^2.2.1",
         "vue-toastification": "^2.0.0-rc.5",
         "vuedraggable": "^4.1.0"
     },

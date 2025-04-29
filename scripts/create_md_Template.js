@@ -73,7 +73,7 @@ const template = `---
 topicId: ${topicId}
 title: ${JSON.stringify(mainTitle)}
 description: '在这里填写选题描述...'
-headerText: '' 
+headerText: ${JSON.stringify("@园丁小区詹姆斯")}
 footerText: '' 
 coverShowHeader: true 
 coverShowFooter: true 
