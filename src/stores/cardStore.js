@@ -167,8 +167,10 @@ export const useCardStore = defineStore('card', () => {
 
         } catch (error) {
             console.error("[Store] Error fetching file lists:", error);
-            fileLoadingError.value = error.message;
-            toast.error(`加载文件列表失败: ${error.message}`);
+            fileLoadingError.value = error.message; // 保持更新错误状态
+            // toast.error(\`加载文件列表失败: ${error.message}\`); // <--- 移除 Store 中的 Toast 调用
+            // 可选：重新抛出错误，如果调用者需要 try/catch 处理
+            // throw error;\n        } finally {\n            isLoadingFiles.value = false;\n        }\n    };\n\n    // --- 新增：Action - 转换 Markdown 到 JS 文件 --- \n// ... existing code ...\n
         } finally {
             isLoadingFiles.value = false;
         }
@@ -216,13 +218,13 @@ export const useCardStore = defineStore('card', () => {
     };
 
     // --- 新增：Action - 保存 Markdown 模板到本地 (开发模式) ---
-    const saveMarkdownTemplate = async ({ filename, content, topicId }) => {
-        console.log(`[Store] Attempting to save Markdown template: ${filename} for topic: ${topicId}`);
+    const saveMarkdownTemplate = async ({ filename, content, topicId, overwrite = false }) => {
+        console.log(`[Store] Attempting to save Markdown template: ${filename} for topic: ${topicId}, overwrite: ${overwrite}`);
         try {
             const response = await fetch('/api/save-markdown-template', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename, content }),
+                body: JSON.stringify({ filename, content, overwrite }), // 添加 overwrite 参数到请求体
             });
 
             const result = await response.json();
@@ -239,9 +241,9 @@ export const useCardStore = defineStore('card', () => {
                 await fetchFileLists();
 
                 return { success: true, message: successMessage };
-            } else if (response.status === 409 && result.code === 'FILE_EXISTS') {
-                // 文件已存在是特定业务错误，不算完全失败，但需要特殊处理
-                console.warn(`[Store] File already exists: ${filename}`);
+            } else if (response.status === 409 && result.code === 'FILE_EXISTS' && !overwrite) {
+                // 文件已存在是特定业务错误，但如果设置了 overwrite=false，才当作错误处理
+                console.warn(`[Store] File already exists: ${filename} (overwrite not allowed)`);
                 return { success: false, message: result.message || `文件 ${filename} 已存在`, code: 'FILE_EXISTS' };
             } else {
                 // 其他 API 业务错误或非 2xx 状态码

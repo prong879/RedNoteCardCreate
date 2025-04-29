@@ -153,7 +153,7 @@ export default function localSavePlugin() {
                 req.on('data', chunk => { body += chunk.toString(); });
                 req.on('end', async () => {
                     try {
-                        const { filename, content } = JSON.parse(body);
+                        const { filename, content, overwrite = false } = JSON.parse(body);
 
                         // --- 安全性检查 (Markdown) ---
                         // 1. 检查文件名和类型
@@ -175,19 +175,30 @@ export default function localSavePlugin() {
                         }
                         // --- 安全性检查结束 ---
 
-                        // --- 新增：检查文件是否已存在 ---
+                        // --- 检查文件是否已存在（已修改：支持overwrite参数） ---
+                        let fileExists = false;
                         try {
                             await fs.access(targetPath, fs.constants.F_OK);
-                            // 如果 fs.access 成功，说明文件已存在
+                            // 如果fs.access成功，说明文件已存在
+                            fileExists = true;
+                        } catch (accessError) {
+                            // 如果是ENOENT错误，文件不存在，可以继续
+                            if (accessError.code !== 'ENOENT') {
+                                // 如果是其他错误（如权限问题），则抛出
+                                throw accessError;
+                            }
+                        }
+
+                        // 如果文件存在且未设置覆盖，返回409 Conflict
+                        if (fileExists && !overwrite) {
                             res.writeHead(409, { 'Content-Type': 'application/json' }); // 409 Conflict
                             res.end(JSON.stringify({ success: false, code: 'FILE_EXISTS', message: `文件 ${filename} 已存在于 src/markdown/ 目录，无法覆盖。` }));
                             return;
-                        } catch (accessError) {
-                            // 如果 fs.access 失败 (通常是 ENOENT: no such file or directory)，说明文件不存在，可以继续
-                            if (accessError.code !== 'ENOENT') {
-                                // 如果是其他错误 (如权限问题)，则抛出
-                                throw accessError;
-                            }
+                        }
+
+                        // 如果文件存在且设置了覆盖，添加日志
+                        if (fileExists && overwrite) {
+                            console.log(`[LocalSavePlugin] Overwriting existing file: ${filename} (overwrite=true)`);
                         }
                         // --- 文件存在性检查结束 ---
 
@@ -203,9 +214,12 @@ export default function localSavePlugin() {
                         // 写入 Markdown 文件
                         await fs.writeFile(targetPath, content, 'utf-8');
 
-                        // 返回成功响应
+                        // 返回成功响应，包含覆盖信息
                         res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: true, message: `Markdown 文件 ${filename} 已成功保存到本地 src/markdown/。` }));
+                        const successMessage = fileExists && overwrite
+                            ? `Markdown 文件 ${filename} 已成功更新（覆盖）到本地 src/markdown/。`
+                            : `Markdown 文件 ${filename} 已成功保存到本地 src/markdown/。`;
+                        res.end(JSON.stringify({ success: true, message: successMessage }));
                     } catch (error) {
                         console.error('[LocalSavePlugin] MD Save: Error saving file:', error);
                         res.writeHead(500, { 'Content-Type': 'application/json' });

@@ -168,9 +168,9 @@ async function refreshFileList() {
         toast.info("文件列表已刷新");
     } catch (error) {
         // Store action 应该处理自己的错误并更新 loadingError 状态
-        // 这里可能不需要额外的 toast，除非 store action 没有 toast
         console.error('[MarkdownManager] Error calling store.fetchFileLists:', error);
-        // toast.error(\`刷新列表失败: \${error.message}\`); // 如果 store action 未处理 toast
+        // 现在 Store 不再显示 Toast，组件需要负责显示
+        toast.error(`刷新列表失败: ${error?.message || '未知错误'}`);
     }
 }
 

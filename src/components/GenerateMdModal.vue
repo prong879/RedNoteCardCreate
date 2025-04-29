@@ -171,7 +171,8 @@ const handleConfirmGeneration = () => {
     emit('generate', { 
         topicId: topicToConfirm.value.id, 
         title: topicToConfirm.value.title, // Use original title
-        description: topicToConfirm.value.description // Pass description too
+        description: topicToConfirm.value.description, // Pass description too
+        overwrite: true // 添加覆盖参数，表示用户已确认覆盖
     }); 
   }
   showConfirmationModal.value = false;

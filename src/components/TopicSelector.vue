@@ -190,7 +190,7 @@ const generatePrompt = (topic) => {
 
 // 生成 Markdown 模板并处理保存/下载 (修改：使用 store action)
 const handleGenerateMdForTopic = async (options) => {
-  const { topicId, title, description, numCards, includeMainText } = options;
+  const { topicId, title, description, numCards, includeMainText, overwrite = false } = options;
 
   // --- Markdown 内容生成 (保持不变) ---
   let mdContent = `--- 
@@ -241,9 +241,14 @@ contentDefaultShowFooter: true
 
   if (isDevMode) {
     try {
-        // --- 修改：调用 Store Action ---
-        console.log(`[TopicSelector] Calling store.saveMarkdownTemplate for ${filename}`);
-        const result = await store.saveMarkdownTemplate({ filename, content: mdContent, topicId });
+        // --- 修改：调用 Store Action 并传递 overwrite 参数 ---
+        console.log(`[TopicSelector] Calling store.saveMarkdownTemplate for ${filename}, overwrite=${overwrite}`);
+        const result = await store.saveMarkdownTemplate({ 
+          filename, 
+          content: mdContent, 
+          topicId,
+          overwrite // 新增: 传递覆盖标志
+        });
         console.log(`[TopicSelector] Store action result for saving ${filename}:`, result);
 
         if (result.success) {
@@ -256,8 +261,8 @@ contentDefaultShowFooter: true
         } else {
             // --- Store Action 失败或部分失败 (如文件存在) ---
             apiErrorOccurred = true; // 标记 API 相关问题
-            if (result.code === 'FILE_EXISTS') {
-                // 特定错误：文件已存在
+            if (result.code === 'FILE_EXISTS' && !overwrite) {
+                // 特定错误：文件已存在，且未指定覆盖
                 toast.error(result.message || `文件 ${filename} 已存在，无法覆盖。`);
                 shouldDownload = false; // 文件存在，不下载
             } else {
