@@ -104,6 +104,8 @@ import { useTemplateLoader } from '../composables/useTemplateLoader';
 import { useTextareaAutoHeight } from '../composables/useTextareaAutoHeight';
 // 导入滚动逻辑 composable
 import { useCardPreviewScroll } from '../composables/useCardPreviewScroll'; 
+// 导入新的异步任务处理器
+import { handleAsyncTask } from '../utils/asyncHandler'; 
 
 export default {
     name: 'CardPreview',
@@ -119,8 +121,6 @@ export default {
         const mainTextareaRef = ref(null);
         // 使用文本域自动高度 hook
         const { adjustSingleTextarea, adjustAllTextareas } = useTextareaAutoHeight(cardPreviewRoot);
-        // 获取 toast 实例
-        const toast = useToast();
         const selectedFormat = ref('jpg');
 
         // 计算属性，依赖 store.selectedTemplate
@@ -193,149 +193,134 @@ export default {
         onMounted(() => {
             // 初始调整主文案 textarea 高度 (保留)
             nextTick(() => {
-                 if (mainTextareaRef.value) {
+                if (mainTextareaRef.value) {
                     adjustSingleTextarea(mainTextareaRef.value);
                 }
             });
         });
-
-        // --- 导出相关逻辑 (保持不变) ---
+        
+        // --- 导出相关逻辑 (重构) ---
         const _getExportableCardElement = (containerElement) => {
             if (!containerElement) {
-                console.warn('尝试获取卡片元素但容器元素不存在');
+                // console.warn('尝试获取卡片元素但容器元素不存在'); // handleAsyncTask 会处理错误，这里可以移除
                 return null;
             }
             let actualCard = containerElement.querySelector('[data-exportable-card="true"]');
             if (!actualCard) {
-                 console.error('在容器元素内找不到具有 [data-exportable-card="true"] 属性的可导出卡片元素。', containerElement);
+                 // console.error(...) // 移除，让调用者处理错误
+                 // 返回 null 或抛出错误，让 handleAsyncTask 捕获
+                 throw new Error('在容器元素内找不到具有 [data-exportable-card="true"] 属性的可导出卡片元素。');
             }
             return actualCard;
         };
 
         const exportSingleCard = async (cardElementRefOrActualElement, rawFileName) => {
             const cardElement = cardElementRefOrActualElement?.$el || cardElementRefOrActualElement;
-            if (!store.currentTopicId) { // 使用 store.currentTopicId
-                toast.error('无法获取主题ID，无法导出。');
+            if (!store.currentTopicId) {
+                useToast().error('无法获取主题ID，无法导出。'); // 直接使用 useToast()
                 return;
             }
             const finalFileName = rawFileName;
-            try {
                 const format = selectedFormat.value;
+
+            // 使用 handleAsyncTask 包装异步逻辑
+            await handleAsyncTask(async () => {
                 const actualCardToExport = _getExportableCardElement(cardElement);
-                if (!actualCardToExport) {
-                    throw new Error("找不到可导出的卡片元素");
-                }
+                // _getExportableCardElement 现在会抛出错误，如果找不到元素
                 await exportCardAsImage(actualCardToExport, finalFileName, format);
-                toast.success(`成功导出 ${finalFileName}.${format}`);
-            } catch (error) {
-                console.error('导出失败:', error);
-                toast.error('导出失败: ' + error.message);
-            }
+            }, {
+                successMessage: `成功导出 ${finalFileName}.${format}`,
+                errorMessagePrefix: "导出单张卡片失败"
+            });
         };
 
         const _getAllExportableElements = () => {
             const elements = [];
-            // 1. 创建包含所有卡片源信息的数组
             const cardSources = [
-                // 封面卡片信息
                 { ref: coverCardContainer, type: 'cover', index: -1 },
-                // 内容卡片信息 (动态生成)
                 ...(store.cardContent?.contentCards?.map((_, index) => ({
-                    // 注意：contentCardRefs.value[index] 直接是 DOM 元素
                     ref: contentCardRefs.value[index],
                     type: 'content',
                     index: index
-                })) || []) // 使用空数组以防 contentCards 不存在
+                })) || [])
             ];
-
-            // 2. 遍历 cardSources 数组
             cardSources.forEach(source => {
-                // 3. 获取容器 DOM 元素
-                //    - coverCardContainer 是一个 ref，需要 .value
-                //    - contentCardRefs.value[index] 已经是 DOM 元素
                 const containerElement = source.ref?.value || source.ref;
-
-                if (!containerElement) {
-                     console.warn(`容器元素未找到，类型: ${source.type}, 索引: ${source.index}`);
-                     return; // 如果容器不存在，跳过
-                }
-
-                // 4. 调用 _getExportableCardElement 查找
-                const exportableElement = _getExportableCardElement(containerElement);
-
-                // 5. 如果找到，添加到结果数组
-                if (exportableElement) {
-                    elements.push({ element: exportableElement, type: source.type, index: source.index });
+                if (containerElement) {
+                    try {
+                        const exportableElement = _getExportableCardElement(containerElement);
+                         // 如果上面没有抛错，则添加到数组
+                        elements.push({ element: exportableElement, type: source.type, index: source.index });
+                    } catch (error) {
+                         // 记录警告，但不阻止其他卡片被查找
+                        console.warn(`无法为 ${source.type} 卡片 (索引 ${source.index}) 找到可导出元素: ${error.message}`);
+                    }
                 } else {
-                    // 保留之前的警告，现在更通用
-                    console.warn(`无法为 ${source.type} 卡片 (索引 ${source.index}) 找到可导出元素。`, containerElement);
+                     console.warn(`容器元素未找到，类型: ${source.type}, 索引: ${source.index}`);
                 }
             });
-
-            console.log("All exportable elements found:", elements.length, elements);
+            // console.log("All exportable elements found:", elements.length, elements); // 保持日志用于调试
             return elements;
         };
 
         const exportAllAsImages = async () => {
-            if (!store.currentTopicId) { // 使用 store.currentTopicId
-                toast.error('无法获取主题ID，无法导出。');
+            if (!store.currentTopicId) {
+                 useToast().error('无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                toast.warning("没有可导出的卡片。");
+                 useToast().warning("没有可导出的卡片。");
                 return;
             }
             const format = selectedFormat.value;
-            const loadingToastId = toast.info(`正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`, { timeout: false });
             const dateString = getFormattedDate();
-            try {
+
+            // 使用 handleAsyncTask
+            await handleAsyncTask(async () => {
                 await exportCardsAsImages(elementsToExport, store.currentTopicId, dateString, format);
-                toast.dismiss(loadingToastId);
-                toast.success('所有图片导出完成！');
-            } catch(error) {
-                console.error('批量导出图片失败:', error);
-                toast.dismiss(loadingToastId);
-                toast.error('批量导出图片失败: ' + error.message);
-            }
+            }, {
+                loadingMessage: `正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`,
+                successMessage: '所有图片导出完成！',
+                errorMessagePrefix: "批量导出图片失败"
+            });
         };
 
         const exportAllAsZip = async () => {
-             if (!store.currentTopicId) { // 使用 store.currentTopicId
-                toast.error('无法获取主题ID，无法导出。');
+             if (!store.currentTopicId) {
+                 useToast().error('无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                toast.warning("没有可导出的卡片。");
+                 useToast().warning("没有可导出的卡片。");
                 return;
             }
             const format = selectedFormat.value;
-            const loadingToastId = toast.info(`正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包...`, { timeout: false });
             const dateString = getFormattedDate();
-            try {
                 const zipFileName = `${store.currentTopicId}_${dateString}.zip`;
+
+            // 使用 handleAsyncTask
+            await handleAsyncTask(async () => {
                 await exportCardsAsZip(elementsToExport, store.currentTopicId, dateString, format);
-                toast.dismiss(loadingToastId);
-                toast.success(`打包文件 ${zipFileName} 已开始下载！`);
-            } catch(error) {
-                console.error('打包下载失败:', error);
-                toast.dismiss(loadingToastId);
-                toast.error('打包下载失败: ' + error.message);
-            }
+             }, {
+                 loadingMessage: `正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包...`,
+                 successMessage: `打包文件 ${zipFileName} 已开始下载！`,
+                 errorMessagePrefix: "打包下载失败"
+             });
         };
 
-        const copyMainText = async () => {
+        const copyMainText = async () => { // 保持原样
             try {
-                const result = await copyTextToClipboard(store.cardContent?.mainText || ''); // 使用 store.cardContent.mainText
+                const result = await copyTextToClipboard(store.cardContent?.mainText || '');
                 if (result.success) {
-                    toast.success('主文案已复制到剪贴板！');
+                     useToast().success('主文案已复制到剪贴板！');
                 } else {
-                    toast.error(result.message);
+                     useToast().error(result.message || '复制失败'); // 使用 result.message
                 }
             } catch (error) {
                 console.error('复制主文案时出错:', error);
-                toast.error('复制失败: ' + error.message);
+                 useToast().error('复制失败: ' + error.message);
             }
         };
 
@@ -345,7 +330,7 @@ export default {
             activeTemplateComponent,
             
             // --- Scroll Composable 返回值 ---
-            previewScrollContainer, 
+            previewScrollContainer,
             showLeftScroll,
             showRightScroll,
             handleScroll,
@@ -362,7 +347,6 @@ export default {
             handleTextareaInput,
             cardPreviewRoot,
             mainTextareaRef,
-            toast,
             selectedFormat,
             exportSingleCard,
             exportAllAsImages,

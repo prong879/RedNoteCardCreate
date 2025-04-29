@@ -356,42 +356,45 @@ export const useCardStore = defineStore('card', () => {
         const description = currentTopicDescription.value;
 
         try {
-            // 优先从 localStorage 加载 (模拟更新后的状态)
-            const savedContentJson = localStorage.getItem(`cardgen_topic_content_${topicId}`);
-            if (savedContentJson && !forceRefresh) { // 如果强制刷新，则跳过 localStorage
-                try {
-                    cardContent.value = {
-                        ...JSON.parse(savedContentJson),
-                        topicDescription: description // 确保描述是最新的
-                    };
-                    console.log(`[Store] Successfully loaded content from localStorage for ${topicId}`);
-                    showTopicSelector.value = false; // 加载后隐藏选择器
-                    return; // 从 localStorage 加载成功，结束
-                } catch (e) {
-                    console.error(`[Store] Error parsing localStorage content for ${topicId}, falling back. Error:`, e);
-                    // 清除无效的 localStorage 数据
-                    localStorage.removeItem(`cardgen_topic_content_${topicId}`);
-                }
-            }
-
             // --- 修改：使用 store 中的 detectedContentJsModules --- 
-            // const modules = import.meta.glob('../content/*_content.js'); // 不再在此处调用
-            const modules = detectedContentJsModules.value; // 使用 store 中的状态
+            const modules = detectedContentJsModules.value;
             const path = `../content/${topicId}_content.js`;
 
             if (modules[path]) {
-                const contentModule = await modules[path](); // 执行函数加载模块
+                const contentModule = await modules[path]();
                 const exportName = `${topicId}_contentData`;
 
                 if (contentModule && contentModule[exportName]) {
                     const originalContent = contentModule[exportName];
+
+                    // 检查 localStorage 是否有"更新"的数据 (仅当 forceRefresh 为 false 时)
+                    let contentToLoad = originalContent;
+                    const savedContentJson = localStorage.getItem(`cardgen_topic_content_${topicId}`);
+                    if (savedContentJson && !forceRefresh) {
+                        try {
+                            const parsedSavedContent = JSON.parse(savedContentJson);
+                            // 可选：添加逻辑判断 localStorage 数据是否比文件新？
+                            // 暂时简单地优先使用 localStorage (如果存在且未强制刷新)
+                            // 如果希望总是文件优先，则移除下面这行和判断
+                            contentToLoad = parsedSavedContent;
+                            console.log(`[Store] Found potentially newer content in localStorage for ${topicId}. Using it.`);
+                        } catch (e) {
+                            console.warn(`[Store] Error parsing localStorage for ${topicId}, using file content.`, e);
+                            // 清除无效的 localStorage
+                            localStorage.removeItem(`cardgen_topic_content_${topicId}`);
+                        }
+                    }
+
                     cardContent.value = {
-                        ...originalContent,
+                        ...contentToLoad, // 使用 contentToLoad
                         topicDescription: description // 添加描述字段
                     };
-                    console.log(`[Store] Successfully loaded content from file for ${topicId}`);
-                    // 将从文件加载的内容也存入 localStorage，以便后续编辑
-                    localStorage.setItem(`cardgen_topic_content_${topicId}`, JSON.stringify(originalContent));
+                    console.log(`[Store] Successfully loaded content for ${topicId}`);
+
+                    // 如果是从文件加载的，更新 localStorage
+                    if (contentToLoad === originalContent) {
+                        localStorage.setItem(`cardgen_topic_content_${topicId}`, JSON.stringify(originalContent));
+                    }
                 } else {
                     console.warn(`[Store] Data export not found in ${topicId}_content.js, loading placeholder.`);
                     loadPlaceholderContent(topicId, description);
@@ -402,7 +405,7 @@ export const useCardStore = defineStore('card', () => {
             }
         } catch (error) {
             console.error(`[Store] Error loading topic ${topicId}:`, error);
-            toast.error(`加载主题内容失败: ${error.message}`);
+            // toast.error(`加载主题内容失败: ${error.message}`); // 不在 store 中调用 toast
             loadPlaceholderContent(topicId, description); // 加载失败时也显示占位符
         }
         showTopicSelector.value = false; // 加载后隐藏选择器
