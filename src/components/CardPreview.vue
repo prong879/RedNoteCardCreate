@@ -191,8 +191,6 @@ export default {
             const result = await handleAsyncTask(async () => {
                 // 确保导入了 copyTextToClipboard，或者直接使用 navigator.clipboard
                  await navigator.clipboard.writeText(store.cardContent?.mainText || '');
-                // 或者，如果 cardExportUtils 也导出了 copyTextToClipboard:
-                // await cardExportUtils.copyTextToClipboard(store.cardContent?.mainText || '');
             }, {
                 errorMessagePrefix: "复制主文案失败"
             });
