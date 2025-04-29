@@ -3,15 +3,24 @@
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold">卡片预览</h2>
             <div class="flex gap-2 items-center">
+                <!-- 导出进度显示 -->
+                <div v-if="isExporting" class="text-sm text-gray-600">
+                    正在导出 {{ exportProgress.type }}... ({{ exportProgress.current }} / {{ exportProgress.total }})
+                    <span class="ml-1 spinner"></span> <!-- 添加一个简单的加载动画 -->
+                </div>
                 <div class="flex items-center">
                     <label for="format-select" class="mr-1 text-sm text-gray-600">格式:</label>
-                    <select id="format-select" v-model="selectedFormat" class="h-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                    <select id="format-select" v-model="selectedFormat" :disabled="isExporting" class="h-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50">
                         <option value="jpg">JPG</option>
                         <option value="png">PNG</option>
                     </select>
                 </div>
-                <button @click="exportAllAsImages" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">全部导出</button>
-                <button @click="exportAllAsZip" class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors">打包下载</button>
+                <button @click="exportAllAsImages" :disabled="isExporting" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ isExporting && exportProgress.type === 'images' ? '导出中...' : '全部导出' }}
+                </button>
+                <button @click="exportAllAsZip" :disabled="isExporting" class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ isExporting && exportProgress.type === 'zip' ? '打包中...' : '打包下载' }}
+                </button>
             </div>
         </div>
 
@@ -94,7 +103,7 @@
 import { computed, ref, watch, onBeforeUpdate, nextTick, onMounted, onUpdated, onUnmounted } from 'vue';
 // 导入 store
 import { useCardStore } from '../stores/cardStore'; 
-import { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard, getFormattedDate } from '../utils/cardExport';
+import cardExportUtils from '../utils/cardExport';
 // 导入 vue-toastification
 import { useToast } from "vue-toastification";
 
@@ -121,7 +130,7 @@ export default {
         const mainTextareaRef = ref(null);
         // 使用文本域自动高度 hook
         const { adjustSingleTextarea, adjustAllTextareas } = useTextareaAutoHeight(cardPreviewRoot);
-        const toast = useToast(); // 在 setup 中获取 toast 实例
+        const toast = useToast();
         const selectedFormat = ref('jpg');
 
         // 计算属性，依赖 store.selectedTemplate
@@ -200,7 +209,15 @@ export default {
             });
         });
         
-        // --- 导出相关逻辑 (重构) ---
+        // --- 新增：导出状态和进度 --- 
+        const isExporting = ref(false);
+        const exportProgress = ref({ type: '', current: 0, total: 0 });
+        const currentLoadingToastId = ref(null);
+
+        // --- 修改：使用导入的对象访问导出函数 --- 
+        const { exportCardAsImage, exportCardsAsImages, exportCardsAsZip, copyTextToClipboard, getFormattedDate } = cardExportUtils;
+
+        // --- 导出相关逻辑 (重构以支持进度) ---
         const _getExportableCardElement = (containerElement) => {
             if (!containerElement) {
                 // console.warn('尝试获取卡片元素但容器元素不存在'); // handleAsyncTask 会处理错误，这里可以移除
@@ -227,6 +244,7 @@ export default {
             // 使用 handleAsyncTask 并处理结果
             const result = await handleAsyncTask(async () => {
                 const actualCardToExport = _getExportableCardElement(cardElement);
+                // 调用导入的函数
                 await exportCardAsImage(actualCardToExport, finalFileName, format);
             }, {
                 errorMessagePrefix: "导出单张卡片失败"
@@ -270,64 +288,114 @@ export default {
             return elements;
         };
 
+        // --- 新增：进度更新回调 --- 
+        const updateExportProgress = (current, total) => {
+            exportProgress.value.current = current;
+            exportProgress.value.total = total; // 确保 total 也更新
+            // 更新 Toast 内容
+            if (currentLoadingToastId.value !== null) {
+                const message = `正在导出 ${exportProgress.value.type === 'images' ? '图片' : 'ZIP 包'} (${current}/${total})...`;
+                toast.update(currentLoadingToastId.value, { content: message });
+            }
+        };
+
         const exportAllAsImages = async () => {
-            if (!store.currentTopicId) {
-                 toast.error('无法获取主题ID，无法导出。');
+            if (isExporting.value || !store.currentTopicId) {
+                toast.error(isExporting.value ? '已有导出任务进行中。' : '无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                 toast.warning("没有可导出的卡片。");
+                toast.warning("没有可导出的卡片。");
                 return;
             }
-            const format = selectedFormat.value;
-            const dateString = getFormattedDate();
-            const loadingMessage = `正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`;
-            const loadingToastId = toast.info(loadingMessage, { timeout: false }); // 手动处理加载提示
 
-            // 使用 handleAsyncTask
+            isExporting.value = true;
+            exportProgress.value = { type: 'images', current: 0, total: elementsToExport.length };
+            const format = selectedFormat.value;
+            const dateString = getFormattedDate(); // 使用导入的函数
+            const initialLoadingMessage = `准备导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`;
+            currentLoadingToastId.value = toast.info(initialLoadingMessage, { timeout: false });
+
             const result = await handleAsyncTask(async () => {
-                await exportCardsAsImages(elementsToExport, store.currentTopicId, dateString, format);
+                // 调用导入的函数，并传入进度回调
+                await exportCardsAsImages(
+                    elementsToExport, 
+                    store.currentTopicId, 
+                    dateString, 
+                    format,
+                    updateExportProgress // 传入回调
+                    // 可以选择传入 batchSize: 5 等
+                );
             }, {
                 errorMessagePrefix: "批量导出图片失败"
             });
 
-            toast.dismiss(loadingToastId); // 关闭加载提示
+            if (currentLoadingToastId.value !== null) {
+                 toast.dismiss(currentLoadingToastId.value);
+                 currentLoadingToastId.value = null;
+            }
+            isExporting.value = false;
+
             if (result.success) {
                 toast.success('所有图片导出完成！');
             } else if (result.error) {
-                toast.error(`批量导出图片失败: ${result.error.message}`);
+                 // result.error.message 现在可能包含部分失败的信息
+                toast.error(`${result.error.message || '批量导出图片时发生未知错误'}`);
+                if(result.error.details && result.error.details.errors?.length > 0){
+                     console.error("详细失败列表:", result.error.details.errors);
+                }
             }
         };
 
         const exportAllAsZip = async () => {
-             if (!store.currentTopicId) {
-                 toast.error('无法获取主题ID，无法导出。');
+            if (isExporting.value || !store.currentTopicId) {
+                toast.error(isExporting.value ? '已有导出任务进行中。' : '无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                 toast.warning("没有可导出的卡片。");
+                toast.warning("没有可导出的卡片。");
                 return;
             }
-            const format = selectedFormat.value;
-            const dateString = getFormattedDate();
-            const zipFileName = `${store.currentTopicId}_${dateString}.zip`;
-            const loadingMessage = `正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包...`;
-            const loadingToastId = toast.info(loadingMessage, { timeout: false }); // 手动处理加载提示
 
-            // 使用 handleAsyncTask
+            isExporting.value = true;
+            exportProgress.value = { type: 'zip', current: 0, total: elementsToExport.length };
+            const format = selectedFormat.value;
+            const dateString = getFormattedDate(); // 使用导入的函数
+            const zipFileNameBase = `${store.currentTopicId}_${dateString}`;
+            const initialLoadingMessage = `准备生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包...`;
+            currentLoadingToastId.value = toast.info(initialLoadingMessage, { timeout: false });
+
             const result = await handleAsyncTask(async () => {
-                 await exportCardsAsZip(elementsToExport, store.currentTopicId, dateString, format);
+                // 调用导入的函数，并传入进度回调
+                 await exportCardsAsZip(
+                    elementsToExport, 
+                    store.currentTopicId, 
+                    dateString, 
+                    format, 
+                    updateExportProgress // 传入回调
+                    // 可以选择传入 batchSize: 5 等
+                 );
              }, {
                  errorMessagePrefix: "打包下载失败"
              });
 
-            toast.dismiss(loadingToastId); // 关闭加载提示
+             if (currentLoadingToastId.value !== null) {
+                 toast.dismiss(currentLoadingToastId.value);
+                 currentLoadingToastId.value = null;
+             }
+            isExporting.value = false;
+
             if (result.success) {
-                 toast.success(`打包文件 ${zipFileName} 已开始下载！`);
+                 // 成功消息现在由 exportCardsAsZip 内部处理或返回信息
+                 toast.success(`打包文件 ${zipFileNameBase}.zip 已开始下载！`);
             } else if (result.error) {
-                 toast.error(`打包下载失败: ${result.error.message}`);
+                 // result.error.message 现在可能包含部分失败的信息
+                 toast.error(`${result.error.message || '打包下载时发生未知错误'}`);
+                 if(result.error.details && result.error.details.errors?.length > 0){
+                     console.error("详细失败列表:", result.error.details.errors);
+                 }
             }
         };
 
@@ -370,6 +438,9 @@ export default {
             cardPreviewRoot,
             mainTextareaRef,
             selectedFormat,
+            // --- 新增/修改 --- 
+            isExporting,
+            exportProgress,
             exportSingleCard,
             exportAllAsImages,
             exportAllAsZip,
@@ -410,5 +481,21 @@ export default {
 .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+/* 简单加载动画 */
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: #3498db; /* 蓝色 */
+  animation: spin 1s ease-infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
