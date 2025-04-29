@@ -78,8 +78,8 @@ function parseMarkdownContent(content) {
 }
 
 // 获取 JS 内容模块信息 (在 store 定义外部执行，确保只执行一次)
-const contentJsModules = import.meta.glob('../content/*_content.js');
-console.log('[Store Init] Found content JS modules:', Object.keys(contentJsModules));
+// const contentJsModules = import.meta.glob('../content/*_content.js'); // 不再在这里直接获取
+// console.log('[Store Init] Found content JS modules:', Object.keys(contentJsModules));
 
 // 使用 defineStore 定义 store
 // 第一个参数是 store 的唯一 ID
@@ -100,8 +100,12 @@ export const useCardStore = defineStore('card', () => {
     // 新增：存储所有话题元数据
     const topics = ref([...topicsMeta]); // 从原始文件初始化
 
-    // 新增：存储检测到的 JS 内容模块信息
-    const detectedContentJsModules = ref(contentJsModules);
+    // --- 新增：用于存储检测到的文件列表状态 --- 
+    const detectedMarkdownFiles = ref(new Set()); // Set<string> topicId
+    const detectedContentJsModules = ref({}); // { [filePath: string]: Function } 存储动态导入函数
+    const detectedJsFilesInfo = ref({}); // { [topicId: string]: { cardCount: number } }
+    const isLoadingFiles = ref(false); // 新增：文件列表加载状态
+    const fileLoadingError = ref(null); // 新增：文件列表加载错误信息
 
     // --- Getters ---
     // 使用 computed() 定义 getter
@@ -118,6 +122,65 @@ export const useCardStore = defineStore('card', () => {
     // --- Actions ---
     // 使用函数定义 action
     const toast = useToast(); // 获取 toast 实例
+
+    // --- 修改：Action - 获取文件列表 --- 
+    const fetchFileLists = async () => {
+        if (isLoadingFiles.value) return;
+        isLoadingFiles.value = true;
+        fileLoadingError.value = null;
+        console.log('[Store] Fetching file lists from API...');
+        try {
+            const response = await fetch('/api/list-content-files');
+            if (!response.ok) {
+                let errorMsg = `HTTP error! status: ${response.status}`;
+                try {
+                    const errorResult = await response.json();
+                    errorMsg = errorResult.message || errorMsg;
+                } catch { /* Ignore */ }
+                throw new Error(errorMsg);
+            }
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to list files (server error)');
+            }
+
+            // 更新 Markdown 文件列表 Set (假设 API 返回 mdFiles: string[] of topicIds)
+            detectedMarkdownFiles.value = new Set(data.mdFiles || []);
+            console.log('[Store] Updated detectedMarkdownFiles:', detectedMarkdownFiles.value);
+
+            // --- 新增：处理并存储 JS 文件详情 --- 
+            const jsInfoMap = {};
+            if (Array.isArray(data.jsFileDetails)) {
+                data.jsFileDetails.forEach(detail => {
+                    if (detail.topicId && typeof detail.cardCount === 'number') {
+                        jsInfoMap[detail.topicId] = { cardCount: detail.cardCount };
+                    }
+                });
+            }
+            detectedJsFilesInfo.value = jsInfoMap;
+            console.log('[Store] Updated detectedJsFilesInfo:', detectedJsFilesInfo.value);
+
+            // --- 保持更新 JS 模块字典，用于动态加载 --- 
+            const modules = import.meta.glob('../content/*_content.js');
+            detectedContentJsModules.value = modules;
+            console.log('[Store] Updated detectedContentJsModules:', Object.keys(detectedContentJsModules.value));
+
+        } catch (error) {
+            console.error("[Store] Error fetching file lists:", error);
+            fileLoadingError.value = error.message;
+            toast.error(`加载文件列表失败: ${error.message}`);
+        } finally {
+            isLoadingFiles.value = false;
+        }
+    };
+
+    // --- 新增：Action - 添加一个已检测到的 MD 文件 --- 
+    const addDetectedMarkdownFile = (topicId) => {
+        if (!detectedMarkdownFiles.value.has(topicId)) {
+            detectedMarkdownFiles.value.add(topicId);
+            console.log(`[Store] Added ${topicId} to detectedMarkdownFiles.`);
+        }
+    };
 
     // 新增：添加或更新话题元数据
     const addOrUpdateTopicMeta = (topicMeta) => {
@@ -228,8 +291,9 @@ export const useCardStore = defineStore('card', () => {
                 }
             }
 
-            // 使用 Vite 的动态导入 glob 获取模块 (作为后备)
-            const modules = import.meta.glob('../content/*_content.js');
+            // --- 修改：使用 store 中的 detectedContentJsModules --- 
+            // const modules = import.meta.glob('../content/*_content.js'); // 不再在此处调用
+            const modules = detectedContentJsModules.value; // 使用 store 中的状态
             const path = `../content/${topicId}_content.js`;
 
             if (modules[path]) {
@@ -250,13 +314,13 @@ export const useCardStore = defineStore('card', () => {
                     loadPlaceholderContent(topicId, description);
                 }
             } else {
-                console.log(`[Store] Content file for ${topicId} not found, loading placeholder.`);
+                console.warn(`[Store] JS module not found in detected list for ${topicId}, loading placeholder.`);
                 loadPlaceholderContent(topicId, description);
             }
         } catch (error) {
-            console.error(`[Store] Failed to load content for ${topicId}, loading placeholder. Error:`, error);
-            toast.error(`加载主题 ${topicId} 内容失败: ${error.message}`);
-            loadPlaceholderContent(topicId, description);
+            console.error(`[Store] Error loading topic ${topicId}:`, error);
+            toast.error(`加载主题内容失败: ${error.message}`);
+            loadPlaceholderContent(topicId, description); // 加载失败时也显示占位符
         }
         showTopicSelector.value = false; // 加载后隐藏选择器
     };
@@ -591,7 +655,11 @@ export const useCardStore = defineStore('card', () => {
         focusedPreviewIndex,
         focusedEditorIndex,
         topics,
+        detectedMarkdownFiles,
         detectedContentJsModules,
+        detectedJsFilesInfo,
+        isLoadingFiles,
+        fileLoadingError,
 
         // Getters
         currentTopic,
@@ -600,11 +668,14 @@ export const useCardStore = defineStore('card', () => {
         // Actions
         addOrUpdateTopicMeta,
         importTopicFromMarkdown,
+        fetchFileLists,
+        addDetectedMarkdownFile,
         loadTopic,
         loadPlaceholderContent,
         addContentCard,
         removeContentCard,
         toggleCardVisibility,
+        saveCurrentContentToLocalStorage,
         updateCardContent,
         updateCardText,
         updateMainText,
@@ -616,8 +687,7 @@ export const useCardStore = defineStore('card', () => {
         setFocusedPreview,
         setFocusedEditor,
         resetFocus,
-        returnToTopicSelection,
-        saveCurrentContentToLocalStorage
+        returnToTopicSelection
     };
 }, {
     // 可以在这里配置持久化等插件选项

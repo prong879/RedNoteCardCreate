@@ -4,12 +4,77 @@ import { fileURLToPath } from 'url';
 // 引入 gray-matter 和 metaUtils (使用 require, 因为 metaUtils 是 CommonJS)
 import matter from 'gray-matter';
 import { readTopicsMeta, writeTopicsMeta } from '../scripts/metaUtils.js'; // 直接 import
+// --- 新增：引入 Acorn 和 acorn-walk ---
+import * as acorn from 'acorn';
+import * as walk from 'acorn-walk';
 
 // 获取当前文件的目录和项目根目录
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // 假设插件位于项目根目录下的 'plugins' 文件夹
 const projectRoot = path.resolve(__dirname, '..');
+
+/**
+ * Helper function to extract card count from JS content string using Acorn AST parser.
+ * @param {string} jsContent The content of the _content.js file.
+ * @param {string} topicId The topic ID, used to find the correct export variable.
+ * @returns {number} The calculated card count (cover + content cards), or 1 if parsing fails or structure is unexpected.
+ */
+function extractCardCount(jsContent, topicId) {
+    try {
+        // 1. 解析 JS 内容为 AST
+        const ast = acorn.parse(jsContent, { ecmaVersion: 'latest', sourceType: 'module' });
+
+        let contentCardsLength = 0; // 初始化内容卡片数量
+        let foundExport = false;
+
+        // 2. 遍历 AST 查找目标导出和 contentCards 属性
+        walk.simple(ast, {
+            // 查找命名导出 (export const ...)
+            ExportNamedDeclaration(node) {
+                if (node.declaration && node.declaration.type === 'VariableDeclaration') {
+                    node.declaration.declarations.forEach(declaration => {
+                        // 检查变量名是否匹配 topicId + "_contentData"
+                        if (declaration.id && declaration.id.type === 'Identifier' && declaration.id.name === `${topicId}_contentData`) {
+                            foundExport = true;
+                            // 检查初始化值是否为对象表达式 {...}
+                            if (declaration.init && declaration.init.type === 'ObjectExpression') {
+                                // 查找对象中的 'contentCards' 属性
+                                const properties = declaration.init.properties;
+                                const contentCardsProp = properties.find(prop =>
+                                    prop.type === 'Property' &&
+                                    prop.key.type === 'Literal' &&
+                                    prop.key.value === 'contentCards'
+                                );
+                                // 如果找到 'contentCards' 属性并且其值是数组表达式 [...]
+                                if (contentCardsProp && contentCardsProp.value.type === 'ArrayExpression') {
+                                    contentCardsLength = contentCardsProp.value.elements.length; // 获取数组元素数量
+                                } else {
+                                    console.warn(`[LocalSavePlugin] extractCardCount[${topicId}]: 'contentCards' property not found (key check modified) or not an array in exported object.`);
+                                }
+                            } else {
+                                console.warn(`[LocalSavePlugin] extractCardCount[${topicId}]: Exported variable is not an ObjectExpression.`);
+                            }
+                        }
+                    });
+                }
+            }
+        });
+
+        if (!foundExport) {
+            console.warn(`[LocalSavePlugin] extractCardCount[${topicId}]: Export variable '${topicId}_contentData' not found.`);
+        }
+
+        // 3. 返回结果 (封面卡片 + 内容卡片)
+        console.log(`[LocalSavePlugin] extractCardCount[${topicId}]: Found ${contentCardsLength} content cards.`);
+        return 1 + contentCardsLength;
+
+    } catch (error) {
+        // 处理 Acorn 解析错误或其他意外错误
+        console.error(`[LocalSavePlugin] extractCardCount[${topicId}]: Error parsing JS content:`, error);
+        return 1; // 解析失败，默认返回 1
+    }
+}
 
 /**
  * Vite 插件，用于在开发模式下处理来自前端的本地文件保存请求。
@@ -150,35 +215,65 @@ export default function localSavePlugin() {
             });
             console.log('[LocalSavePlugin] API endpoint /api/save-markdown-template configured.');
 
-            // --- 新增中间件 3: 列出 Markdown 和 JS 文件 ---
+            // --- 修改中间件 3: 列出 Markdown 和 JS 文件 (使用 Acorn 计算卡片数量) ---
             server.middlewares.use('/api/list-content-files', async (req, res, next) => {
                 if (req.method !== 'GET') {
                     return next();
                 }
+                console.log('[LocalSavePlugin] /api/list-content-files requested');
                 try {
-                    // --- Restore Original Code --- 
                     const markdownDir = path.resolve(projectRoot, 'src', 'markdown');
                     const contentDir = path.resolve(projectRoot, 'src', 'content');
 
+                    // 1. List Markdown files and extract topic IDs
                     let mdFiles = [];
                     try {
-                        const allMdFiles = await fs.readdir(markdownDir);
-                        mdFiles = allMdFiles.filter(f => f.endsWith('.md'));
+                        const allMdFileNames = await fs.readdir(markdownDir);
+                        mdFiles = allMdFileNames
+                            .filter(f => f.endsWith('.md'))
+                            .map(f => f.replace('.md', '')); // Return only topic IDs
                     } catch (err) {
-                        if (err.code !== 'ENOENT') throw err;
+                        if (err.code === 'ENOENT') {
+                            console.warn('[LocalSavePlugin] Markdown directory not found, returning empty list.');
+                        } else {
+                            throw err; // Rethrow other errors
+                        }
                     }
+                    console.log(`[LocalSavePlugin] Found MD files (topic IDs): ${mdFiles.join(', ')}`);
 
-                    let jsFiles = [];
+                    // 2. List JS files and get details (topicId, cardCount)
+                    let jsFileDetails = [];
                     try {
-                        const allJsFiles = await fs.readdir(contentDir);
-                        jsFiles = allJsFiles.filter(f => f.endsWith('_content.js'));
-                    } catch (err) {
-                        if (err.code !== 'ENOENT') throw err;
-                    }
+                        const allJsFileNames = await fs.readdir(contentDir);
+                        const jsContentFileNames = allJsFileNames.filter(f => f.endsWith('_content.js'));
 
+                        for (const jsFilename of jsContentFileNames) {
+                            const topicId = jsFilename.replace('_content.js', ''); // <--- 获取 topicId
+                            const jsFilePath = path.join(contentDir, jsFilename);
+                            try {
+                                console.log(`[LocalSavePlugin] Processing JS file: ${jsFilename}`);
+                                const jsContent = await fs.readFile(jsFilePath, 'utf-8');
+                                // --- 修改：调用新的 extractCardCount 并传入 topicId ---
+                                const cardCount = extractCardCount(jsContent, topicId);
+                                console.log(`[LocalSavePlugin] Calculated cardCount for ${topicId}: ${cardCount}`);
+                                jsFileDetails.push({ topicId, cardCount });
+                            } catch (fileReadError) {
+                                console.error(`[LocalSavePlugin] Error reading JS file ${jsFilename}:`, fileReadError);
+                                // jsFileDetails.push({ topicId, cardCount: -1 }); // Indicate error
+                            }
+                        }
+                    } catch (err) {
+                        if (err.code === 'ENOENT') {
+                            console.warn('[LocalSavePlugin] Content directory not found, returning empty list.');
+                        } else {
+                            throw err;
+                        }
+                    }
+                    console.log(`[LocalSavePlugin] Found JS file details:`, jsFileDetails);
+
+                    // 3. Send the combined response
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: true, mdFiles, jsFiles }));
-                    // --- End Restore --- 
+                    res.end(JSON.stringify({ success: true, mdFiles, jsFileDetails }));
 
                 } catch (error) {
                     console.error('[LocalSavePlugin] List Files: Error processing request:', error);
@@ -186,7 +281,7 @@ export default function localSavePlugin() {
                     res.end(JSON.stringify({ success: false, message: '列出文件时发生服务器内部错误。', error: error.message }));
                 }
             });
-            console.log('[LocalSavePlugin] API endpoint /api/list-content-files configured.');
+            console.log('[LocalSavePlugin] API endpoint /api/list-content-files configured (with card counts).');
 
             // --- 新增中间件 4: 处理 Markdown 到 JS 的转换 ---
             server.middlewares.use('/api/convert-md-to-js', async (req, res, next) => {

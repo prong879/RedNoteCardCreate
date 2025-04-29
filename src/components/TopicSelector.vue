@@ -165,30 +165,55 @@ const store = useCardStore(); // 获取 store 实例
 const emit = defineEmits(['select-topic']);
 const toast = useToast();
 
-const savedTopicInfo = reactive({});
+// --- 修改：移除旧的 reactive savedTopicInfo ---
+// const savedTopicInfo = reactive({}); 
 const showPromptButtons = ref(true);
-// const showCreateTopicModal = ref(false); // 移除旧状态
-const showGenerateMdModal = ref(false); // 添加新模态框状态
-// const fileInput = ref(null); // Remove file input ref
+const showGenerateMdModal = ref(false); 
 
 // --- New state for Markdown Manager ---
-const isDevMode = import.meta.env.DEV; // Check dev mode
+const isDevMode = import.meta.env.DEV;
 const showMarkdownManager = ref(false);
-const markdownFileStatus = ref([]); // [{ topicId: string, title: string, status: 'md_only' | 'js_only' | 'both' }] 
-const loadingFiles = ref(false);
-const fileError = ref(null);
-const converting = reactive({}); // { [topicId]: boolean }
-const confirmingOverwrite = reactive({}); // <--- Add state for confirmation
+const markdownFileStatus = ref([]); 
+const loadingFiles = ref(false); // Note: store has isLoadingFiles too, consider unifying if manager becomes separate component
+const fileError = ref(null); // Note: store has fileLoadingError too
+const converting = reactive({});
+const confirmingOverwrite = reactive({});
 
-// --- 修改：移除本地 ref 和 watch，改用 computed 属性 ---
 const topics = computed(() => store.topics);
 
+// --- 新增：将 savedTopicInfo 改为 computed 属性 --- 
+const savedTopicInfo = computed(() => {
+    const infoMap = {};
+    // console.log('[TopicSelector] Computing savedTopicInfo based on store:', store.topics, store.detectedJsFilesInfo); // 调试日志
+    
+    // 确保 store.detectedJsFilesInfo 是一个对象
+    const jsInfo = typeof store.detectedJsFilesInfo === 'object' && store.detectedJsFilesInfo !== null 
+                   ? store.detectedJsFilesInfo 
+                   : {};
+                   
+    topics.value.forEach(topic => {
+        const topicJsInfo = jsInfo[topic.id];
+        if (topicJsInfo) {
+            // JS 文件信息存在于 Store 中
+            infoMap[topic.id] = {
+                exists: true,
+                cardCount: topicJsInfo.cardCount || 0 // 从 store 获取卡片数量，如果 API 没提供则为 0
+            };
+        } else {
+            // JS 文件信息不存在
+            infoMap[topic.id] = { exists: false, cardCount: 0 };
+        }
+    });
+    // console.log('[TopicSelector] Computed savedTopicInfo:', infoMap);
+    return infoMap;
+});
+
+// --- 修改：在 onMounted 中显式调用 fetchFileLists --- 
 onMounted(async () => {
-    // --- 修改：简化 onMounted，移除本地 topics 初始化和临时 watch ---
-    // 组件挂载时，始终尝试更新 savedTopicInfo
-    // updateSavedTopicInfo 函数内部会读取最新的 store.topics
-    console.log("[TopicSelector] Mounted. Initializing savedTopicInfo..."); // 添加日志
-    await updateSavedTopicInfo();
+    console.log("[TopicSelector] Mounted. Explicitly fetching file lists...");
+    // 主动触发一次 Store 的文件列表获取
+    await store.fetchFileLists(); 
+    console.log("[TopicSelector] File lists fetch initiated from onMounted.");
 });
 
 const selectTopic = (topicId) => {
@@ -235,57 +260,9 @@ const generatePrompt = (topic) => {
     }
 };
 
-// --- 修改：提取更新 savedTopicInfo 的逻辑为一个函数 ---
-// 使用 API 获取 JS 文件存在状态，localStorage 作为 cardCount 的临时来源
-const updateSavedTopicInfo = async () => {
-    console.log('[TopicSelector] Updating savedTopicInfo...'); // 调试日志
-    const fileData = await fetchMarkdownFiles(); // 使用已有的函数获取文件列表
-
-    // 清空旧信息
-    Object.keys(savedTopicInfo).forEach(key => delete savedTopicInfo[key]);
-
-    if (!fileData || !fileData.success) {
-        console.error('[TopicSelector] Failed to fetch file list for updateSavedTopicInfo.');
-        // 可以在这里添加一些错误处理，例如显示一个全局错误提示
-        // 暂时保持 savedTopicInfo 为空
-        return;
-    }
-
-    const existingJsFiles = new Set(fileData.jsFiles.map(f => f.replace('_content.js', '')));
-    console.log('[TopicSelector] Existing JS files found:', existingJsFiles); // 调试日志
-
-    topics.value.forEach(topic => {
-        const jsFileExists = existingJsFiles.has(topic.id);
-        let cardCount = 0;
-
-        if (jsFileExists) {
-            // 文件存在，尝试从 localStorage 获取数量
-            const savedContentJson = localStorage.getItem(`cardgen_topic_content_${topic.id}`);
-            if (savedContentJson) {
-                try {
-                    const savedContent = JSON.parse(savedContentJson);
-                    // 计算方式保持不变: 封面(1) + 内容卡片数组长度
-                    cardCount = 1 + (Array.isArray(savedContent.contentCards) ? savedContent.contentCards.length : 0);
-                } catch (e) {
-                    console.warn(`[TopicSelector] 解析 localStorage (topic ${topic.id}) 出错，卡片数可能不准:`, e);
-                    cardCount = 1; // 解析失败，至少有封面
-                }
-            } else {
-                // 文件存在但 localStorage 无数据，默认至少有封面
-                cardCount = 1;
-                console.log(`[TopicSelector] JS file exists for ${topic.id}, but no localStorage data found. Defaulting cardCount to 1.`); // 调试日志
-            }
-        } else {
-            // JS 文件不存在
-            cardCount = 0;
-        }
-
-        savedTopicInfo[topic.id] = { exists: jsFileExists, cardCount: cardCount };
-    });
-    console.log('[TopicSelector] Updated savedTopicInfo:', JSON.parse(JSON.stringify(savedTopicInfo))); // 调试日志
-}
-
 // Fetch and process file list from API
+// --- 注意：这个函数现在主要给 Markdown 管理器使用 --- 
+// --- 如果提取管理器，此函数应移到管理器组件或从 store 调用 fetchFileLists --- 
 const fetchMarkdownFiles = async () => {
     loadingFiles.value = true;
     fileError.value = null;
@@ -316,19 +293,29 @@ const fetchMarkdownFiles = async () => {
 };
 
 // Update the status list based on fetched files
+// --- 注意：这个函数也主要给 Markdown 管理器使用 --- 
 const updateMarkdownFileStatus = async () => {
-    const data = await fetchMarkdownFiles();
-    loadingFiles.value = false; // Set loading false after fetch attempt
-    if (!data) return; // Exit if fetch failed
+   // ... (修改：应从 store 获取状态而不是重新 fetch) ...
+   // **临时保留，但在管理器提取后应重构或移除**
+    console.warn('[TopicSelector] updateMarkdownFileStatus should be refactored to use store state.');
+    // 暂时还依赖 fetchMarkdownFiles
+    const data = await fetchMarkdownFiles(); 
+    loadingFiles.value = false; 
+    if (!data) return;
 
-    const mdSet = new Set(data.mdFiles.map(f => f.replace('.md', '')));
-    const jsSet = new Set(data.jsFiles.map(f => f.replace('_content.js', '')));
+    // --- 修改：使用 store 的 detectedMarkdownFiles 和 detectedJsFilesInfo --- 
+    const mdSet = store.detectedMarkdownFiles instanceof Set ? store.detectedMarkdownFiles : new Set();
+    const jsInfo = typeof store.detectedJsFilesInfo === 'object' && store.detectedJsFilesInfo !== null 
+                   ? store.detectedJsFilesInfo 
+                   : {};
+    const jsSet = new Set(Object.keys(jsInfo)); // 从 store 获取 JS topic ID 列表
+    
     const allTopicIds = new Set([...mdSet, ...jsSet]);
     
     const statusList = [];
     for (const topicId of allTopicIds) {
         const hasMd = mdSet.has(topicId);
-        const hasJs = jsSet.has(topicId);
+        const hasJs = jsSet.has(topicId); // JS 是否存在
         let status = 'unknown';
         if (hasMd && !hasJs) {
             status = 'md_only';
@@ -345,7 +332,7 @@ const updateMarkdownFileStatus = async () => {
         });
     }
     
-    markdownFileStatus.value = statusList.sort((a, b) => a.topicId.localeCompare(b.topicId)); // Sort by topicId
+    markdownFileStatus.value = statusList.sort((a, b) => a.topicId.localeCompare(b.topicId));
 };
 
 // Open the markdown manager modal
@@ -365,6 +352,7 @@ const closeMarkdownManager = () => {
 };
 
 // Trigger conversion via API
+// --- 修改：convertMd 成功后应确保 store 状态更新 --- 
 const convertMd = async (topicId, overwrite = false) => {
     converting[topicId] = true;
     resetConfirmation(topicId);
@@ -384,24 +372,23 @@ const convertMd = async (topicId, overwrite = false) => {
             throw new Error(result.message || `HTTP error ${response.status}`);
         }
         toast.success(result.message || `成功转换 ${topicId}.md`);
-        console.info(`[TopicSelector] Conversion success: ${result.message}`, result);
+        console.info(`[TopicSelector] Conversion success: ${result.message}`, result); 
 
-        // --- 修改：简化更新逻辑 ---
-        // 1. 清除可能过时的 localStorage 数据
-        localStorage.removeItem(`cardgen_topic_content_${topicId}`);
-
-        // 2. 触发 savedTopicInfo 刷新 (它会从 API 获取最新文件列表)
-        await updateSavedTopicInfo();
-
-        // 3. 刷新 Markdown 管理器状态（如果需要）
-        await updateMarkdownFileStatus();
-        // --- 修改结束 ---
+        // --- 修改：确保 store 状态刷新 --- 
+        localStorage.removeItem(`cardgen_topic_content_${topicId}`); // 清理可能过时的 localStorage
+        await store.fetchFileLists(); // <--- 调用 store action 刷新文件列表和状态
+        // 移除 await updateSavedTopicInfo(); // 因为 savedTopicInfo 是 computed
+        // 移除 await updateMarkdownFileStatus(); // 因为 store.fetchFileLists 已更新状态
+        
+        // updateMarkdownFileStatus(); // 如果管理器仍在此组件，可能需要手动触发更新其使用的 markdownFileStatus
+        // 临时保留调用，因为 updateMarkdownFileStatus 还没完全重构
+        await updateMarkdownFileStatus(); 
 
     } catch (error) {
         console.error(`[TopicSelector] Error converting ${topicId}.md:`, error);
         toast.error(`转换 ${topicId}.md 失败: ${error.message}`);
     } finally {
-        converting[topicId] = false;
+        converting[topicId] = false; 
     }
 };
 
@@ -464,12 +451,15 @@ contentDefaultShowFooter: true
   // --- Markdown 内容生成完毕 ---
 
   const filename = `${topicId}.md`; // <--- CHANGE: filename format
-
   const isDevMode = import.meta.env.DEV;
+  let shouldDownload = !isDevMode; // Default: download if not in dev mode
+  let apiErrorOccurred = false; // Track if API call failed (excluding file exists)
 
   if (isDevMode) {
+    let response = null; // Declare response outside try for wider scope if needed
+    let result = null;
     try {
-      const response = await fetch('/api/save-markdown-template', {
+      response = await fetch('/api/save-markdown-template', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -477,50 +467,64 @@ contentDefaultShowFooter: true
         body: JSON.stringify({ filename: filename, content: mdContent }),
       });
 
-      const result = await response.json();
+      // --- 修改：先解析 JSON --- 
+      result = await response.json(); 
+      console.log('[TopicSelector] API save response status:', response.status, 'result:', result); // 调试日志
 
       if (response.ok && result.success) {
-        toast.success(`模板 ${filename} 已成功保存到本地 src/markdown/ 目录！`); // <--- CHANGE: message
-        console.log(`[TopicSelector] Successfully saved MD template locally via API: ${filename} to src/markdown/`); // <--- CHANGE: log
+        // --- API 保存成功 --- 
+        toast.success(`模板 ${filename} 已成功保存到本地 src/markdown/ 目录！`);
+        console.log(`[TopicSelector] Successfully saved MD template locally via API: ${filename} to src/markdown/`);
+        
+        // --- 修改：调用 Store Action 更新状态 --- 
+        store.addDetectedMarkdownFile(topicId); // 通知 Store 添加此文件
+        
         showGenerateMdModal.value = false; 
-        return; 
-      } else {
-        // 处理特定错误：文件已存在
-        if (response.status === 409 && result.code === 'FILE_EXISTS') {
-             toast.error(result.message || `文件 ${filename} 已存在于 src/markdown/，无法覆盖。`);
-        } else {
-            // 其他 API 错误
-            console.error('[TopicSelector] API save failed:', result.message || `Status: ${response.status}`);
-            toast.warning(`尝试本地保存失败 (${result.message || `HTTP ${response.status}`})，将启动文件下载。`);
-            // 继续执行下载逻辑
-        }
+        return; // 成功保存，无需下载
       }
+      
+      // --- 处理 API 返回的错误 --- 
+      apiErrorOccurred = true; // Mark that an API issue occurred
+      if (response.status === 409 && result.code === 'FILE_EXISTS') {
+        // 特定错误：文件已存在
+        toast.error(result.message || `文件 ${filename} 已存在于 src/markdown/，无法覆盖。`);
+        // 文件已存在，不应该触发下载
+        shouldDownload = false; 
+      } else {
+        // 其他 API 业务错误或非 2xx 状态码
+        console.error('[TopicSelector] API save failed:', result.message || `Status: ${response.status}`);
+        toast.warning(`尝试本地保存失败 (${result.message || `HTTP ${response.status}`})，将启动文件下载。`);
+        shouldDownload = true; // 其他 API 错误，回退到下载
+      }
+      
     } catch (error) {
+      // --- 处理 fetch 调用本身或其他意外 JS 错误 ---
+      apiErrorOccurred = true;
+      shouldDownload = true; // 网络错误等，回退到下载
       console.error('[TopicSelector] Error calling save API:', error);
-      toast.warning(`调用本地保存 API 出错 (${error.message})，将启动文件下载。`);
-      // 继续执行下载逻辑
+      toast.warning(`调用本地保存 API 出错 (${error.message || '网络错误'})，将启动文件下载。`);
     }
-    // 如果 API 调用失败或遇到已知错误（如文件存在），则可能需要继续执行下载
-    // 但如果文件已存在，通常不应再下载。我们根据上面的逻辑调整：
-    // 如果是文件存在错误，我们只提示错误，不下载。
-    if (response?.status === 409 && (await response?.json())?.code === 'FILE_EXISTS') { // 需要重新解析 json 或缓存 result
-        showGenerateMdModal.value = false; // 关闭模态框
-        return; // 阻止下载
-    }
-    // 对于其他 API 错误或网络错误，我们会继续尝试下载
   }
 
-  // 非开发模式或本地保存失败时（非文件存在错误），执行文件下载
-  try {
-    const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
-    saveAs(blob, filename);
-    toast.success(`已生成 ${filename} 供下载。`);
-  } catch (saveError) {
-    console.error('[TopicSelector] Error saving file with file-saver:', saveError);
-    toast.error(`生成文件 ${filename} 失败: ${saveError.message}`);
+  // --- 根据标志位决定是否执行下载 --- 
+  if (shouldDownload) {
+    try {
+      console.log(`[TopicSelector] Proceeding with download for ${filename}. DevMode: ${isDevMode}, API Error: ${apiErrorOccurred}`); // 调试日志
+      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
+      saveAs(blob, filename);
+      // 如果是因为 API 失败才下载，用户已收到 warning toast，这里可以用 info 或 success
+      if (apiErrorOccurred) {
+          toast.info(`已启动 ${filename} 的下载。`); 
+      } else {
+          toast.success(`已生成 ${filename} 供下载。`); // 非开发模式下的正常下载
+      }
+    } catch (saveError) {
+      console.error('[TopicSelector] Error saving file with file-saver:', saveError);
+      toast.error(`生成文件 ${filename} 失败: ${saveError.message}`);
+    }
   }
   
-  showGenerateMdModal.value = false;
+  showGenerateMdModal.value = false; // 无论结果如何，最后都关闭模态框
 };
 
 // 切换 Prompt 按钮可见性的方法 (保持不变)
@@ -528,8 +532,8 @@ const togglePromptButtons = () => {
     showPromptButtons.value = !showPromptButtons.value;
 };
 
-// 使用 import.meta.glob 获取所有 content 文件信息 (保持不变，用于 onMounted 检查原始文件，虽然现在主要依赖 localStorage)
-const contentModules = import.meta.glob('../content/*_content.js'); // 非 eager 模式
+// 使用 import.meta.glob (移除，不再需要)
+// const contentModules = import.meta.glob('../content/*_content.js');
 
 // --- Helper function: Reset confirmation state ---
 const resetConfirmation = (topicId = null) => {
