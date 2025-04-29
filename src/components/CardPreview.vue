@@ -281,6 +281,20 @@ export default {
             }
         }, 200); 
 
+        // 节流函数 (限制函数在指定时间内最多执行一次)
+        const throttle = (func, limit) => {
+            let inThrottle;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            }
+        };
+        
         // 检查滚动按钮显隐 (保持不变)
         const checkScrollButtons = () => {
             const el = previewScrollContainer.value;
@@ -289,9 +303,13 @@ export default {
             showRightScroll.value = el.scrollWidth - el.clientWidth - el.scrollLeft > 1; // 修复右侧按钮判断
         };
 
+        // 创建 checkScrollButtons 的节流版本，例如每 150ms 检查一次
+        const throttledCheckScrollButtons = throttle(checkScrollButtons, 150);
+
         // 处理滚动事件
         const handleScroll = () => {
-            checkScrollButtons();
+            // 使用节流版本检查按钮
+            throttledCheckScrollButtons(); 
             onScrollEnd(); // 调用防抖函数
         };
 
@@ -376,15 +394,15 @@ export default {
 
         onMounted(() => {
             nextTick(() => {
-                checkScrollButtons(); // First check after DOM exists
+                // 立即检查一次按钮状态
+                checkScrollButtons(); 
                  // 初始调整主文案 textarea 高度
                 if (mainTextareaRef.value) {
                     adjustSingleTextarea(mainTextareaRef.value);
                 }
-                // Add a slightly delayed check for browser layout finalization
-                setTimeout(checkScrollButtons, 100); // e.g., 100ms delay
             });
-            window.addEventListener('resize', checkScrollButtons);
+            // resize 事件也使用节流版本
+            window.addEventListener('resize', throttledCheckScrollButtons);
         });
 
         onUpdated(() => {
@@ -397,7 +415,8 @@ export default {
         });
 
         onUnmounted(() => {
-          window.removeEventListener('resize', checkScrollButtons);
+          // 移除节流版本的 resize 监听器
+          window.removeEventListener('resize', throttledCheckScrollButtons);
         });
 
         const _getExportableCardElement = (containerElement) => {
