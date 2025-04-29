@@ -438,24 +438,44 @@ export default {
 
         const _getAllExportableElements = () => {
             const elements = [];
-            const coverCardContainerElement = coverCardContainer.value; // 直接用 ref.value
-            const coverCardElement = _getExportableCardElement(coverCardContainerElement);
-            if (coverCardElement) {
-                elements.push({ element: coverCardElement, type: 'cover', index: -1 });
-            } else {
-                 console.warn('无法为封面卡片找到可导出元素。', coverCardContainerElement);
-            }
+            // 1. 创建包含所有卡片源信息的数组
+            const cardSources = [
+                // 封面卡片信息
+                { ref: coverCardContainer, type: 'cover', index: -1 },
+                // 内容卡片信息 (动态生成)
+                ...(store.cardContent?.contentCards?.map((_, index) => ({
+                    // 注意：contentCardRefs.value[index] 直接是 DOM 元素
+                    ref: contentCardRefs.value[index],
+                    type: 'content',
+                    index: index
+                })) || []) // 使用空数组以防 contentCards 不存在
+            ];
 
-            store.cardContent?.contentCards?.forEach((_, index) => { // 使用 store 数据迭代
-                const contentCardContainerElement = contentCardRefs.value[index]; 
-                const contentCardElement = _getExportableCardElement(contentCardContainerElement);
-                if (contentCardElement) {
-                    elements.push({ element: contentCardElement, type: 'content', index: index });
+            // 2. 遍历 cardSources 数组
+            cardSources.forEach(source => {
+                // 3. 获取容器 DOM 元素
+                //    - coverCardContainer 是一个 ref，需要 .value
+                //    - contentCardRefs.value[index] 已经是 DOM 元素
+                const containerElement = source.ref?.value || source.ref;
+
+                if (!containerElement) {
+                     console.warn(`容器元素未找到，类型: ${source.type}, 索引: ${source.index}`);
+                     return; // 如果容器不存在，跳过
+                }
+
+                // 4. 调用 _getExportableCardElement 查找
+                const exportableElement = _getExportableCardElement(containerElement);
+
+                // 5. 如果找到，添加到结果数组
+                if (exportableElement) {
+                    elements.push({ element: exportableElement, type: source.type, index: source.index });
                 } else {
-                    console.warn(`无法为索引 ${index} 的内容卡片找到可导出元素。`, contentCardContainerElement);
+                    // 保留之前的警告，现在更通用
+                    console.warn(`无法为 ${source.type} 卡片 (索引 ${source.index}) 找到可导出元素。`, containerElement);
                 }
             });
-             console.log("All exportable elements found:", elements.length, elements);
+
+            console.log("All exportable elements found:", elements.length, elements);
             return elements;
         };
 

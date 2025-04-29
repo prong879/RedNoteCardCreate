@@ -21,6 +21,7 @@ contentDefaultShowFooter: true
 ## 卡二是电信
 
 大大大
+![](media_final\B站置顶视频截图.jpg)
 
 ---
 
