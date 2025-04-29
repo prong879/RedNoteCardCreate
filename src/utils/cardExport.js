@@ -213,20 +213,24 @@ export const exportCardsAsZip = async (elementsToExport, topicId, dateString, fo
 /**
  * 将文本复制到剪贴板
  * @param {string} text - 要复制的文本
+ * @throws {Error} 如果复制失败，则抛出带有详细信息的错误
  */
 export const copyTextToClipboard = async (text) => {
     try {
         await navigator.clipboard.writeText(text);
-        return {
-            success: true,
-            message: '文本已复制到剪贴板'
-        };
+        // 成功时不再需要返回特定对象，调用者假设没有错误就是成功
     } catch (error) {
         console.error('复制文本失败:', error);
-        return {
-            success: false,
-            message: '复制失败: ' + error.message
-        };
+        // 确保抛出的错误包含有用的信息
+        if (error instanceof Error) {
+            // 如果已经是 Error 对象，直接抛出
+            // 可以选择性地添加或修改 message
+            error.message = `复制文本失败: ${error.message || '未知剪贴板错误'}`;
+            throw error;
+        } else {
+            // 如果捕获到的不是 Error 对象，创建一个新的 Error
+            throw new Error(`复制文本失败: ${error || '未知剪贴板错误'}`);
+        }
     }
 };
 

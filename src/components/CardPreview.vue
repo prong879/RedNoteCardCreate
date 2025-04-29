@@ -310,18 +310,14 @@ export default {
              });
         };
 
-        const copyMainText = async () => { // 保持原样
-            try {
-                const result = await copyTextToClipboard(store.cardContent?.mainText || '');
-                if (result.success) {
-                     useToast().success('主文案已复制到剪贴板！');
-                } else {
-                     useToast().error(result.message || '复制失败'); // 使用 result.message
-                }
-            } catch (error) {
-                console.error('复制主文案时出错:', error);
-                 useToast().error('复制失败: ' + error.message);
-            }
+        const copyMainText = async () => {
+            // 使用 handleAsyncTask 包装 copyTextToClipboard
+            await handleAsyncTask(async () => {
+                await copyTextToClipboard(store.cardContent?.mainText || '');
+            }, {
+                successMessage: '主文案已复制到剪贴板！',
+                errorMessagePrefix: "复制主文案失败" // handleAsyncTask 会自动附加 error.message
+            });
         };
 
         // --- 返回给模板的值 ---
