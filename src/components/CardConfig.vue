@@ -183,8 +183,9 @@ export default {
         // 获取 store 实例
         const store = useCardStore();
         const toast = useToast();
-        const showMarkdownManager = ref(false); // Markdown 管理器可见性
-        const showCreateTopicModal = ref(false); // 创建主题模态框可见性
+        // 移除 showMarkdownManager 和 showCreateTopicModal 定义
+        // const showMarkdownManager = ref(false);
+        // const showCreateTopicModal = ref(false);
 
         // --- Refs --- 
         const cardConfigRoot = ref(null);           // 组件根元素引用
@@ -337,24 +338,24 @@ export default {
         };
         
         // 打开 Markdown 管理器
-        const openMarkdownManager = () => {
-            showMarkdownManager.value = true;
-        };
+        // const openMarkdownManager = () => {
+        //     showMarkdownManager.value = true;
+        // };
 
         // 关闭 Markdown 管理器
-        const closeMarkdownManager = () => {
-            showMarkdownManager.value = false;
-        };
+        // const closeMarkdownManager = () => {
+        //     showMarkdownManager.value = false;
+        // };
         
         // 打开创建主题模态框
-        const openCreateTopicModal = () => {
-            showCreateTopicModal.value = true;
-        };
+        // const openCreateTopicModal = () => {
+        //     showCreateTopicModal.value = true;
+        // };
 
         // 关闭创建主题模态框
-        const closeCreateTopicModal = () => {
-            showCreateTopicModal.value = false;
-        };
+        // const closeCreateTopicModal = () => {
+        //     showCreateTopicModal.value = false;
+        // };
 
         // --- Return --- 
         return {
@@ -385,12 +386,14 @@ export default {
             handleDescriptionInput, // 保留
             saveLocally,
             generateJsFile,
-            showMarkdownManager,
-            openMarkdownManager,
-            closeMarkdownManager,
-            showCreateTopicModal,
-            openCreateTopicModal,
-            closeCreateTopicModal
+            // 移除 showMarkdownManager 和相关方法
+            // showMarkdownManager,
+            // openMarkdownManager,
+            // closeMarkdownManager,
+            // 移除 showCreateTopicModal 和相关方法
+            // showCreateTopicModal,
+            // openCreateTopicModal,
+            // closeCreateTopicModal
         };
     },
 }
