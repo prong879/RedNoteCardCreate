@@ -33,9 +33,10 @@ function getFormattedDate() {
  * @returns {string} 清理后的文件名
  */
 function sanitizeFilename(name) {
-    // 简单的实现，如果 cardExportUtils.js 中有更复杂的，应使用那个
+    // console.log("Inside sanitizeFilename, input:", name); // 移除调试日志
     if (!name) return 'untitled';
-    return name.replace(/[\\\\/:*?\"<>|.\\n\\r\\t]/g, '_').trim();
+    // 恢复原始实现
+    return name.replace(/[\\/:*?\"<>|.\\n\\r\\t]/g, '_').trim();
 }
 
 /**
@@ -150,6 +151,7 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
             return;
         }
         const rawFileName = `${baseName}_${dateString}`;
+        console.log('Raw filename created:', rawFileName); // 添加调试日志
         // --- 文件名生成结束 ---
 
         isExporting.value = true;
@@ -175,7 +177,10 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
         isExporting.value = false;
 
         if (result.success) {
-            toast.success(`成功导出 ${sanitizeFilename(rawFileName)}.${format}`);
+            // console.log('Filename for toast (raw):', rawFileName); // 移除调试日志
+            const sanitizedNameForToast = sanitizeFilename(rawFileName); // 调用 sanitize
+            // console.log('Filename for toast (sanitized):', sanitizedNameForToast); // 移除调试日志
+            toast.success(`成功导出 ${sanitizedNameForToast}.${format}`); // 使用 sanitize 后的结果
         } else if (result.error) {
             toast.error(`导出单张卡片失败: ${result.error.message}`);
         }
