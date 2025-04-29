@@ -80,22 +80,38 @@ const topicToConfirm = ref(null);
 
 // 计算包含状态的选题列表
 const availableTopics = computed(() => {
-  // Use index from map to calculate ordinal
-  return store.topics.map((topic, index) => { 
+  const mdFilesSet = store.detectedMarkdownFiles instanceof Set ? store.detectedMarkdownFiles : new Set();
+  // --- 修改：使用 detectedJsFilesInfo 检查 JS 文件存在性 --- 
+  const jsInfo = typeof store.detectedJsFilesInfo === 'object' && store.detectedJsFilesInfo !== null 
+                 ? store.detectedJsFilesInfo 
+                 : {};
+  
+  return store.topics.map((topic, index) => {
+    const hasMd = mdFilesSet.has(topic.id); 
+    // --- 修改：根据 jsInfo 判断 hasJsFile --- 
+    const hasJsFile = jsInfo[topic.id] !== undefined;
     const hasLocalStorage = localStorage.getItem(`cardgen_topic_content_${topic.id}`) !== null;
-    const jsFilePathKey = `../content/${topic.id}_content.js`;
-    const hasJsFile = store.detectedContentJsModules && store.detectedContentJsModules[jsFilePathKey] !== undefined;
-    const status = (hasLocalStorage || hasJsFile) ? 'exists' : 'generate';
-    
-    // 直接使用中文格式，不再调用 getOrdinal
-    const displayTitle = `第 ${index + 1} 期 - ${topic.title}`; 
+
+    // --- 状态判断逻辑：优先判断 MD 文件是否存在 --- 
+    // 如果 MD 文件存在，则状态为 'exists'
+    // 否则，如果 JS 文件存在或 localStorage 存在，状态也为 'exists' (表示某种形式的存档存在)
+    // 只有当三者都不存在时，状态才为 'generate'
+    let status = 'generate'; // 默认可生成
+    if (hasMd) {
+        status = 'exists'; // MD 存在，优先
+    } else if (hasJsFile || hasLocalStorage) {
+        status = 'exists'; // MD 不存在，但 JS 或 LocalStorage 存在
+    }
+
+    const displayTitle = `第 ${index + 1} 期 - ${topic.title}`;
 
     return {
-      ...topic, // Spread original topic properties (like id, title, description)
-      displayTitle: displayTitle, // Add the formatted title
-      status: status, 
-      hasJsFile: hasJsFile, 
-      hasLocalStorage: hasLocalStorage 
+      ...topic,
+      displayTitle: displayTitle,
+      status: status, // 更新后的状态
+      hasMd: hasMd, // 添加 MD 状态，方便后续使用
+      hasJsFile: hasJsFile, // 更新后的 hasJsFile 判断
+      hasLocalStorage: hasLocalStorage
     };
   });
 });
@@ -104,22 +120,29 @@ const availableTopics = computed(() => {
 const confirmationMessage = computed(() => {
   if (!topicToConfirm.value) return '';
 
-  // Use original title for confirmation message for clarity
-  const { title, hasJsFile, hasLocalStorage } = topicToConfirm.value; 
-  let reason = '';
+  // 从 topicToConfirm 获取更详细的状态
+  const { title, hasMd, hasJsFile, hasLocalStorage } = topicToConfirm.value;
+  let reasons = [];
 
-  if (hasJsFile && hasLocalStorage) {
-    reason = '既检测到对应的 JS 内容文件，也存在本地编辑记录 (localStorage)。';
-  } else if (hasJsFile) {
-    reason = '检测到对应的 JS 内容文件。';
-  } else if (hasLocalStorage) {
-    reason = '存在本地编辑记录 (localStorage)。';
-  } else {
-    reason = '检测到已有存档。'; 
+  if (hasMd) {
+      reasons.push('检测到对应的 Markdown 模板文件 (.md)');
+  }
+  if (hasJsFile) {
+      reasons.push('检测到对应的 JS 内容文件 (_content.js)');
+  }
+  if (hasLocalStorage) {
+      reasons.push('存在本地编辑记录 (localStorage)');
   }
 
-  // Keep using the original title in the confirmation message
-  return `选题 "${title}" ${reason}\n\n重新生成 Markdown 模板可能会导致后续导入时覆盖已有数据。\n\n确定要继续生成模板吗？`;
+  let reasonText = '';
+  if (reasons.length > 0) {
+      reasonText = reasons.join('，且') + '。';
+  } else {
+      // 理论上不应该到这里，因为 selectTopic 会检查
+      reasonText = '检测到已有存档。'; 
+  }
+
+  return `选题 "${title}" ${reasonText}\n\n重新生成 Markdown 模板可能会导致后续导入时覆盖已有数据，或与现有 JS 内容冲突。\n\n确定要继续生成模板吗？`;
 });
 
 const closeModal = () => {
@@ -131,11 +154,12 @@ const closeModal = () => {
 };
 
 const selectTopic = (topic) => {
-  if (topic.hasJsFile || topic.hasLocalStorage) {
+  // 如果 MD 文件存在，或者 JS 文件存在，或者 localStorage 存在，则需要确认
+  if (topic.hasMd || topic.hasJsFile || topic.hasLocalStorage) {
     topicToConfirm.value = topic; 
     showConfirmationModal.value = true;
   } else {
-    // Pass original title, not the formatted one
+    // 只有当没有任何形式的存档时，才直接触发生成
     emit('generate', { topicId: topic.id, title: topic.title, description: topic.description }); 
   }
 };
