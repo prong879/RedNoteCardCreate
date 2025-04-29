@@ -1,59 +1,40 @@
 import { useToast } from "vue-toastification";
 
 /**
- * 封装异步任务，提供统一的加载提示、成功/错误通知和错误日志记录。
+ * 封装异步任务，提供统一的错误捕获、日志记录，并返回结构化结果。
  * 
- * @param {Function} asyncFn 要执行的异步函数。该函数在出错时应抛出异常。
+ * @template T
+ * @param {() => Promise<T>} asyncFn 要执行的异步函数。该函数在出错时应抛出异常，成功时可以返回数据。
  * @param {object} [options={}] 配置选项。
- * @param {string} [options.loadingMessage] 可选，执行期间显示的加载提示信息。设置后会自动处理 toast 的显示与关闭。
- * @param {string} [options.successMessage] 可选，执行成功后显示的成功提示信息。
- * @param {string} [options.errorMessagePrefix="操作失败"] 可选，错误日志和错误提示的前缀。
- * @returns {Promise<boolean>} 返回一个 Promise，解析为 true 表示成功，false 表示失败。
+ * @param {string} [options.errorMessagePrefix="操作失败"] 可选，错误日志的前缀。
+ * @returns {Promise<{ success: boolean, data?: T, error?: Error }>} 返回一个 Promise，解析为一个包含成功状态、可选数据和可选错误的对象。
  */
 export async function handleAsyncTask(asyncFn, options = {}) {
-    const toast = useToast(); // 在函数内部获取 toast 实例
+    // const toast = useToast(); // 不再在此处获取 toast 实例
     const {
-        loadingMessage,
-        successMessage,
         errorMessagePrefix = "操作失败"
     } = options;
 
-    let loadingToastId = null;
+    // let loadingToastId = null; // 移除加载提示相关逻辑
 
     try {
-        // 1. 显示加载提示 (如果提供了消息)
-        if (loadingMessage) {
-            loadingToastId = toast.info(loadingMessage, { timeout: false });
-        }
+        // 执行核心异步函数，并获取其返回值
+        const data = await asyncFn();
 
-        // 2. 执行核心异步函数
-        await asyncFn();
-
-        // 3. 关闭加载提示
-        if (loadingToastId !== null) {
-            toast.dismiss(loadingToastId);
-        }
-
-        // 4. 显示成功提示 (如果提供了消息)
-        if (successMessage) {
-            toast.success(successMessage);
-        }
-
-        return true; // 表示成功
+        // 返回成功结果
+        return { success: true, data: data };
 
     } catch (error) {
-        console.error(`${errorMessagePrefix}错误:`, error); // 5. 记录详细错误
+        console.error(`${errorMessagePrefix}错误:`, error); // 记录详细错误
 
-        // 6. 关闭加载提示 (如果存在)
-        if (loadingToastId !== null) {
-            toast.dismiss(loadingToastId);
+        // 确保返回的是一个 Error 对象
+        const errorToReturn = error instanceof Error ? error : new Error(String(error));
+        if (!(error instanceof Error) && typeof error === 'object' && error !== null) {
+            // 尝试保留原始对象信息，如果它不是Error但可能是个包含信息的对象
+            try { errorToReturn.originalError = JSON.parse(JSON.stringify(error)); } catch { }
         }
 
-        // 7. 显示错误提示
-        // 优先使用 error.message，如果不存在则显示通用错误信息
-        const displayErrorMessage = error?.message ? error.message : '发生未知错误';
-        toast.error(`${errorMessagePrefix}: ${displayErrorMessage}`);
-
-        return false; // 表示失败
+        // 返回失败结果，包含错误对象
+        return { success: false, error: errorToReturn };
     }
 } 

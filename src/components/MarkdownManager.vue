@@ -2,10 +2,10 @@
     <!-- 新增: Markdown 文件管理器模态框 (仅开发) -->
     <div v-if="isVisible" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50" @click.self="closeModal">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[80vh] flex flex-col">
-            <h3 class="text-lg font-medium mb-4">Markdown 文件状态与转换</h3>
-            <div class="flex justify-end mb-3">
-                <!-- 修改：按钮调用 store action -->
-                 <button @click="refreshFileList" class="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50" :disabled="isLoading">
+            <!-- 新容器：将标题和刷新按钮放在同一行 -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium">Markdown 文件状态与转换</h3>
+                <button @click="refreshFileList" class="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50" :disabled="isLoading">
                      <i class="fas fa-redo mr-1"></i> {{ isLoading ? '刷新中...' : '刷新列表' }}
                  </button>
             </div>
@@ -177,28 +177,21 @@ async function refreshFileList() {
 // 处理转换（调用 Store Action）
 async function handleConvert(topicId, overwrite = false) {
     converting[topicId] = true;
-    resetConfirmation(topicId); // 处理转换时，清除该 topic 的确认状态
-    try {
-        // --- 假设 Store 有一个 convertMarkdownToJs action ---
-        // 这个 action 应该负责调用 API，并在成功后调用 fetchFileLists 或直接更新 Store 状态
-        const result = await store.convertMarkdownToJs(topicId, overwrite); 
+    resetConfirmation(topicId);
+    
+    // 调用 store action 并处理返回结果
+    const result = await store.convertMarkdownToJs(topicId, overwrite);
 
-        // Store action 应该返回类似 { success: boolean, message: string } 的结果
-        if (result && result.success) {
-            toast.success(result.message || '成功转换 ' + topicId + '.md');
-            console.info('[MarkdownManager] Conversion success via store action: ' + topicId, result);
-            // Store action 内部应该已经更新了文件列表状态，这里不需要手动刷新
-            // localStorage.removeItem(\`cardgen_topic_content_\${topicId}\`); // 如果 Store action 没处理，这里可以清理
-        } else {
-            // Store action 返回失败
-            throw new Error(result?.message || '转换失败 (来自 Store)');
-        }
-    } catch (error) {
-        console.error('[MarkdownManager] Error converting ' + topicId + '.md via store action:', error);
-        toast.error('转换 ' + topicId + '.md 失败: ' + error.message);
-    } finally {
-        converting[topicId] = false;
+    if (result && result.success) {
+        toast.success(result.message || '成功转换 ' + topicId + '.md');
+        console.info('[MarkdownManager] Conversion success via store action: ' + topicId, result);
+    } else {
+        // Store action 返回失败或 handleAsyncTask 捕获到错误
+        console.error('[MarkdownManager] Error converting ' + topicId + '.md via store action:', result?.message);
+        toast.error(result?.message || '转换 ' + topicId + '.md 失败');
     }
+    
+    converting[topicId] = false; // 无论成功失败，都结束转换状态
 }
 
 // 重置确认状态

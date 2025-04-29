@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useToast } from 'vue-toastification';
 import { topicsMeta } from '../content/topicsMeta'; // 调整路径
 import matter from 'gray-matter'; // 引入 gray-matter
+import { handleAsyncTask } from '../utils/asyncHandler'; // 导入新的处理器
 
 // Helper function to parse Markdown content into card structure
 // (This is a simplified parser based on the README description)
@@ -129,131 +130,120 @@ export const useCardStore = defineStore('card', () => {
         isLoadingFiles.value = true;
         fileLoadingError.value = null;
         console.log('[Store] Fetching file lists from API...');
-        try {
+
+        // 使用 handleAsyncTask 包装 fetch 调用
+        const result = await handleAsyncTask(async () => {
             const response = await fetch('/api/list-content-files');
             if (!response.ok) {
                 let errorMsg = `HTTP error! status: ${response.status}`;
-                try {
-                    const errorResult = await response.json();
-                    errorMsg = errorResult.message || errorMsg;
-                } catch { /* Ignore */ }
+                try { const errorResult = await response.json(); errorMsg = errorResult.message || errorMsg; } catch { }
                 throw new Error(errorMsg);
             }
             const data = await response.json();
             if (!data.success) {
                 throw new Error(data.message || 'Failed to list files (server error)');
             }
+            return data; // 返回成功获取的数据
+        }, {
+            errorMessagePrefix: "加载文件列表失败"
+        });
 
-            // 更新 Markdown 文件列表 Set (假设 API 返回 mdFiles: string[] of topicIds)
-            detectedMarkdownFiles.value = new Set(data.mdFiles || []);
-            console.log('[Store] Updated detectedMarkdownFiles:', detectedMarkdownFiles.value);
-
-            // --- 新增：处理并存储 JS 文件详情 --- 
+        if (result.success && result.data) {
+            // 更新状态
+            detectedMarkdownFiles.value = new Set(result.data.mdFiles || []);
             const jsInfoMap = {};
-            if (Array.isArray(data.jsFileDetails)) {
-                data.jsFileDetails.forEach(detail => {
+            if (Array.isArray(result.data.jsFileDetails)) {
+                result.data.jsFileDetails.forEach(detail => {
                     if (detail.topicId && typeof detail.cardCount === 'number') {
                         jsInfoMap[detail.topicId] = { cardCount: detail.cardCount };
                     }
                 });
             }
             detectedJsFilesInfo.value = jsInfoMap;
-            console.log('[Store] Updated detectedJsFilesInfo:', detectedJsFilesInfo.value);
-
-            // --- 保持更新 JS 模块字典，用于动态加载 --- 
             const modules = import.meta.glob('../content/*_content.js');
             detectedContentJsModules.value = modules;
-            console.log('[Store] Updated detectedContentJsModules:', Object.keys(detectedContentJsModules.value));
-
-        } catch (error) {
-            console.error("[Store] Error fetching file lists:", error);
-            fileLoadingError.value = error.message; // 保持更新错误状态
-            // toast.error(\`加载文件列表失败: ${error.message}\`); // <--- 移除 Store 中的 Toast 调用
-            // 可选：重新抛出错误，如果调用者需要 try/catch 处理
-            // throw error;\n        } finally {\n            isLoadingFiles.value = false;\n        }\n    };\n\n    // --- 新增：Action - 转换 Markdown 到 JS 文件 --- \n// ... existing code ...\n
-        } finally {
-            isLoadingFiles.value = false;
+            // 可以在这里添加成功日志
+        } else if (!result.success) {
+            // 更新错误状态
+            fileLoadingError.value = result.error?.message || '未知错误';
         }
+
+        isLoadingFiles.value = false;
+        // 不再需要在 Store 中抛出错误，调用者如果需要可以检查 isLoadingFiles 和 fileLoadingError
     };
 
     // --- 新增：Action - 转换 Markdown 到 JS 文件 --- 
     const convertMarkdownToJs = async (topicId, overwrite = false) => {
         console.log(`[Store] Attempting to convert MD to JS for topic: ${topicId}, Overwrite: ${overwrite}`);
-        try {
+
+        // 使用 handleAsyncTask
+        const result = await handleAsyncTask(async () => {
             const response = await fetch('/api/convert-md-to-js', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // 注意：当前 API 可能只接收 topicId，如果需要处理 overwrite，API 端点或请求体可能需要调整
                 body: JSON.stringify({ topicId })
             });
-
-            const result = await response.json();
-            console.log(`[Store] API response for ${topicId} conversion:`, result);
-
-            if (!response.ok || !result.success) {
-                throw new Error(result.message || `HTTP error ${response.status}`);
+            const apiResult = await response.json();
+            if (!response.ok || !apiResult.success) {
+                throw new Error(apiResult.message || `HTTP error ${response.status}`);
             }
+            return apiResult; // 返回 API 的成功结果
+        }, {
+            errorMessagePrefix: `转换 ${topicId}.md 失败`
+        });
 
-            // 转换成功!
-            const successMessage = result.message || `成功转换 ${topicId}.md`;
+        if (result.success && result.data) {
+            const successMessage = result.data.message || `成功转换 ${topicId}.md`;
             console.info(`[Store] Conversion successful: ${successMessage}`);
-
-            // 清理可能过时的 localStorage 内容
             localStorage.removeItem(`cardgen_topic_content_${topicId}`);
-            console.log(`[Store] Removed localStorage cache for ${topicId}`);
-
-            // 关键：重新获取文件列表以更新 store 状态
-            await fetchFileLists(); // 注意：这里直接调用，因为在同一个 setup 函数作用域内
-
+            await fetchFileLists(); // 重新获取列表
+            // 直接返回成功结果给调用者
             return { success: true, message: successMessage };
-
-        } catch (error) {
-            console.error(`[Store] Error converting ${topicId}.md:`, error);
-            // 让调用者（组件）处理 Toast
-            return { success: false, message: error.message || `转换 ${topicId}.md 失败` };
+        } else {
+            // handleAsyncTask 已记录错误，直接返回失败结果
+            return { success: false, message: result.error?.message || `转换 ${topicId}.md 失败` };
         }
-        // 注意：这里没有 finally 块来设置 loading 状态，因为转换是单个操作，
-        // 组件本身会管理按钮的 disabled 状态。
-        // 如果需要全局的转换 loading 状态，可以在 store 中添加。
     };
 
     // --- 新增：Action - 保存 Markdown 模板到本地 (开发模式) ---
     const saveMarkdownTemplate = async ({ filename, content, topicId, overwrite = false }) => {
         console.log(`[Store] Attempting to save Markdown template: ${filename} for topic: ${topicId}, overwrite: ${overwrite}`);
-        try {
+
+        // 使用 handleAsyncTask
+        const result = await handleAsyncTask(async () => {
             const response = await fetch('/api/save-markdown-template', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename, content, overwrite }), // 添加 overwrite 参数到请求体
+                body: JSON.stringify({ filename, content, overwrite }),
             });
-
-            const result = await response.json();
-            console.log(`[Store] API response for saving ${filename}:`, result);
-
-            if (response.ok && result.success) {
-                // 保存成功!
-                const successMessage = result.message || `模板 ${filename} 已成功保存。`;
-                console.info(`[Store] Markdown template saved successfully: ${filename}`);
-
-                // 关键：重新获取文件列表以更新 store 状态
-                // 可以选择更精细的更新：addDetectedMarkdownFile(topicId)
-                // 但 fetchFileLists 更简单可靠
-                await fetchFileLists();
-
-                return { success: true, message: successMessage };
-            } else if (response.status === 409 && result.code === 'FILE_EXISTS' && !overwrite) {
-                // 文件已存在是特定业务错误，但如果设置了 overwrite=false，才当作错误处理
-                console.warn(`[Store] File already exists: ${filename} (overwrite not allowed)`);
-                return { success: false, message: result.message || `文件 ${filename} 已存在`, code: 'FILE_EXISTS' };
-            } else {
-                // 其他 API 业务错误或非 2xx 状态码
-                throw new Error(result.message || `HTTP error ${response.status}`);
+            const apiResult = await response.json();
+            // 特殊处理 409 Conflict
+            if (!response.ok && response.status !== 409) {
+                throw new Error(apiResult.message || `HTTP error ${response.status}`);
             }
+            // 将 response status 包含在返回数据中，以便后续判断
+            return { ...apiResult, status: response.status };
+        }, {
+            errorMessagePrefix: `保存模板 ${filename} 失败`
+        });
 
-        } catch (error) {
-            console.error(`[Store] Error saving Markdown template ${filename}:`, error);
-            // 返回通用错误信息给组件处理
-            return { success: false, message: error.message || `保存模板 ${filename} 时出错` };
+        if (result.success && result.data) {
+            const apiData = result.data;
+            if (apiData.success) {
+                const successMessage = apiData.message || `模板 ${filename} 已成功保存。`;
+                console.info(`[Store] Markdown template saved successfully: ${filename}`);
+                await fetchFileLists();
+                return { success: true, message: successMessage };
+            } else if (apiData.status === 409 && apiData.code === 'FILE_EXISTS' && !overwrite) {
+                console.warn(`[Store] File already exists: ${filename} (overwrite not allowed)`);
+                return { success: false, message: apiData.message || `文件 ${filename} 已存在`, code: 'FILE_EXISTS' };
+            } else {
+                // 处理 API 返回 success: false 的情况
+                return { success: false, message: apiData.message || `保存模板 ${filename} 时服务器返回失败` };
+            }
+        } else {
+            // handleAsyncTask 已记录错误
+            return { success: false, message: result.error?.message || `保存模板 ${filename} 失败` };
         }
     };
 
@@ -628,60 +618,46 @@ export const useCardStore = defineStore('card', () => {
     // 保存内容到本地 (调用后端 API - 当前未实现，仅保存到 localStorage)
     const saveContentLocally = async () => {
         if (!currentTopicId.value) {
-            toast.error("错误：无法获取当前主题 ID");
-            return;
+            // 直接返回错误信息给调用者（组件）处理 toast
+            return { success: false, message: "错误：无法获取当前主题 ID" };
         }
         if (!cardContent.value || Object.keys(cardContent.value).length === 0) {
-            toast.error("错误：没有内容可以保存");
-            return;
+            return { success: false, message: "错误：没有内容可以保存" };
         }
 
-        // 1. 准备要保存的数据和文件名
         const topicId = currentTopicId.value;
         const filename = `${topicId}_content.js`;
-
-        // 从当前 store 中的内容准备要保存的对象，移除 topicDescription
         const contentToSave = { ...cardContent.value };
         delete contentToSave.topicDescription;
-
-        // 格式化为 JS 文件内容字符串
         const fileContentString = `// src/content/${filename}\n// Updated at: ${new Date().toISOString()}\n\nexport const ${topicId}_contentData = ${JSON.stringify(contentToSave, null, 2)};\n`;
 
-        try {
-            // 2. 发送 POST 请求到 Vite 开发服务器的自定义端点
+        // 使用 handleAsyncTask
+        const result = await handleAsyncTask(async () => {
             const response = await fetch('/api/save-local-content', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename: filename, content: fileContentString }),
             });
-
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                toast.success(`主题 "${currentTopicTitle.value}" 的内容已成功更新到本地文件 ${filename}！`);
-                console.log(`[Store] Successfully saved content locally for ${topicId} via API.`);
-                // 可选：同时更新 localStorage 以防万一或用于其他目的
-                // saveCurrentContentToLocalStorage();
-            } else {
-                // 如果服务器返回错误信息，则抛出错误
-                throw new Error(result.message || '保存到本地文件失败，服务器未返回明确错误信息。');
+            const apiResult = await response.json();
+            if (!response.ok || !apiResult.success) {
+                // 特殊处理文件名格式错误
+                if (apiResult.message && apiResult.message.includes('无效的文件名或类型')) {
+                    throw new Error(`主题 ID (当前为 \"${currentTopicId.value}\") 必须以 \"topic\" 开头`);
+                }
+                throw new Error(apiResult.message || '服务器未返回明确错误信息。');
             }
-        } catch (error) {
-            // 网络错误或服务器端处理错误
-            console.error('[Store] Error saving content locally via API:', error);
+            return apiResult; // 返回成功结果
+        }, {
+            errorMessagePrefix: "保存到本地文件失败"
+        });
 
-            // 检查是否是特定的文件名格式错误
-            if (error && error.message && error.message.includes('无效的文件名或类型')) {
-                toast.error(`保存失败：主题 ID (当前为 "${currentTopicId.value}") 必须以 "topic" 开头 (例如 "topic1", "topic2")。请检查或修改选题 ID。`, { timeout: 8000 }); // 增加显示时间
-            } else {
-                // 其他类型的错误，显示通用消息
-                toast.error(`保存到本地文件失败: ${error?.message || '未知错误'}`);
-            }
-            // 失败时，可以选择保存到 localStorage 作为回退 (保持注释状态)
-            // saveCurrentContentToLocalStorage();
-            // toast.warning('内容已保存到浏览器本地存储作为备份。请检查开发服务器控制台获取详细错误。');
+        if (result.success && result.data) {
+            console.log(`[Store] Successfully saved content locally for ${topicId} via API.`);
+            return { success: true, message: `主题 "${currentTopicTitle.value}" 的内容已成功更新到本地文件 ${filename}！` };
+        } else {
+            // 错误已被 handleAsyncTask 记录
+            // 将具体的错误消息传递回去
+            return { success: false, message: result.error?.message || "保存到本地文件失败" };
         }
     };
 

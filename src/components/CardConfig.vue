@@ -14,9 +14,9 @@
             <!-- 操作按钮组 -->
             <div class="flex gap-2">
               <!-- 本地保存按钮 (仅开发环境) -->
-              <button v-if="isDevMode" @click="store.saveContentLocally" class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors" title="仅开发环境：直接保存到本地 JS 文件">保存到本地</button>
-              <!-- 生成 JS 文件按钮 -->
-              <button @click="store.generateContentJsFile" class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">生成 JS 文件</button>
+              <button v-if="isDevMode" @click="saveLocally" class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors" title="仅开发环境：直接保存到本地 JS 文件">保存到本地</button>
+              <!-- 修改按钮文本 -->
+              <button @click="generateJsFile" class="px-3 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors">备份下载</button>
             </div>
         </div>
 
@@ -168,6 +168,7 @@ import { useCardStore } from '../stores/cardStore';
 // import { useCardManagement } from '../composables/useCardManagement';
 import { useTextareaAutoHeight } from '../composables/useTextareaAutoHeight';
 import { useTemplatePreviewScaling } from '../composables/useTemplatePreviewScaling';
+import { useToast } from 'vue-toastification';
 
 export default {
     name: 'CardConfig',
@@ -181,6 +182,9 @@ export default {
     setup() { // 移除 props, { emit } 参数
         // 获取 store 实例
         const store = useCardStore();
+        const toast = useToast();
+        const showMarkdownManager = ref(false); // Markdown 管理器可见性
+        const showCreateTopicModal = ref(false); // 创建主题模态框可见性
 
         // --- Refs --- 
         const cardConfigRoot = ref(null);           // 组件根元素引用
@@ -316,6 +320,42 @@ export default {
         
         // focusPreview 方法已移除，模板中直接调用 store.setFocusedPreview
 
+        // --- 修改：处理保存到本地的返回结果 ---
+        const saveLocally = async () => {
+            // 调用 store action 并处理返回结果
+            const result = await store.saveContentLocally();
+            if (result && result.success) {
+                toast.success(result.message);
+            } else {
+                // Store action 返回失败或 handleAsyncTask 捕获到错误
+                 toast.error(result?.message || '保存到本地失败');
+            }
+        };
+
+        const generateJsFile = () => {
+            store.generateContentJsFile();
+        };
+        
+        // 打开 Markdown 管理器
+        const openMarkdownManager = () => {
+            showMarkdownManager.value = true;
+        };
+
+        // 关闭 Markdown 管理器
+        const closeMarkdownManager = () => {
+            showMarkdownManager.value = false;
+        };
+        
+        // 打开创建主题模态框
+        const openCreateTopicModal = () => {
+            showCreateTopicModal.value = true;
+        };
+
+        // 关闭创建主题模态框
+        const closeCreateTopicModal = () => {
+            showCreateTopicModal.value = false;
+        };
+
         // --- Return --- 
         return {
             // Store
@@ -343,6 +383,14 @@ export default {
             isDevMode,
             handleTextareaInput, // 保留
             handleDescriptionInput, // 保留
+            saveLocally,
+            generateJsFile,
+            showMarkdownManager,
+            openMarkdownManager,
+            closeMarkdownManager,
+            showCreateTopicModal,
+            openCreateTopicModal,
+            closeCreateTopicModal
         };
     },
 }
