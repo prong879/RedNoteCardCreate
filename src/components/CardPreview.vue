@@ -40,8 +40,8 @@
                     </div>
                     <div class="mt-2 text-center text-sm text-xhs-gray">
                         封面卡片
-                        <!-- 使用 exporter 的方法 -->
-                        <button @click="exporter.exportSingleCard(coverCardContainer, `${store.currentTopicId}_封面_${getFormattedDate()}`)"
+                        <!-- 使用 exporter 的方法, 传递标识符和 Ref -->
+                        <button @click="exporter.exportSingleCard({ type: 'cover' }, coverCardContainer)"
                             class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                             导出
                         </button>
@@ -60,8 +60,8 @@
                     </div>
                     <div class="mt-2 text-center text-sm text-xhs-gray">
                         内容卡片 {{ index + 1 }}
-                         <!-- 使用 exporter 的方法 -->
-                        <button @click="exporter.exportSingleCard(contentCardRefs[index], `${store.currentTopicId}_内容${String(index + 1).padStart(2, '0')}_${getFormattedDate()}`)"
+                         <!-- 使用 exporter 的方法, 传递标识符和 Ref -->
+                        <button @click="exporter.exportSingleCard({ type: 'content', index: index }, contentCardRefs[index])"
                             class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                             导出
                         </button>
@@ -120,8 +120,6 @@ import { useCardPreviewScroll } from '../composables/useCardPreviewScroll';
 import { handleAsyncTask } from '../utils/asyncHandler'; 
 // 导入新的导出 Composable
 import { useCardExporter } from '../composables/useCardExporter';
-// 导入辅助函数（如果模板中需要）
-import { getFormattedDate } from '../utils/cardExport';
 
 export default {
     name: 'CardPreview',
@@ -234,12 +232,10 @@ export default {
             // Exporter Composable (暴露整个对象或解构的值)
             exporter, 
             isExporting, // 直接暴露 isExporting 简化模板
-            // exportProgress, // 可以直接用 exporter.exportProgress.value
             
             // Methods
             handleTextareaInput,
             copyMainText,
-            getFormattedDate // 暴露给模板中的文件名生成
         };
     },
 }
