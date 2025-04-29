@@ -25,7 +25,7 @@ export const topic02_contentData = {
         },
         {
             "title": "",
-            "body": "![](media\\images\\topic01_timeseries_examples\\TimeSeriesExamples8x9_ManimCE_v0.19.0.png)",
+            "body": "![](media/images/topic01_timeseries_examples/TimeSeriesExamples8x9_ManimCE_v0.19.0.png)",
             "showHeader": true,
             "showFooter": true
         },
@@ -37,7 +37,7 @@ export const topic02_contentData = {
         },
         {
             "title": "",
-            "body": "![](media\\images\\topic01_future_uncertainty\\UncertaintyIllustration_ManimCE_v0.19.0.png)",
+            "body": "![](media/images/topic01_future_uncertainty/UncertaintyIllustration_ManimCE_v0.19.0.png)",
             "showHeader": true,
             "showFooter": true
         },

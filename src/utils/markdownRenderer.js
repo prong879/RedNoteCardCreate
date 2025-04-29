@@ -1,8 +1,39 @@
 import { marked } from 'marked';
 import katex from 'katex';
 
-// 配置 marked (可选，例如启用 GFM 风格)
+// 创建自定义渲染器
+const renderer = new marked.Renderer();
+
+// 重写 image 方法
+renderer.image = (token) => {
+    let href = token.href;     // 从 token 对象中获取 href
+    let title = token.title;   // 从 token 对象中获取 title
+    let text = token.text;     // 从 token 对象中获取 text (alt text)
+
+    let correctedHref = href; // 默认使用原始 href
+
+    // 检查 href 是否为字符串
+    if (typeof href === 'string') {
+        // 将 href 中的反斜杠替换为正斜杠
+        correctedHref = href.replace(/\\/g, '/');
+    } else {
+        // 如果 href 不是字符串，记录错误信息
+        console.error(`[markdownRenderer] Encountered non-string href within image token:`, href, `(Type: ${typeof href})`, `Alt text: "${text}"`, 'Token:', token);
+        correctedHref = ""; // 使用空 src
+    }
+
+    // 生成 img 标签
+    let out = `<img src="${correctedHref}" alt="${text}"`;
+    if (title) {
+        out += ` title="${title}"`;
+    }
+    out += '>';
+    return out;
+};
+
+// 配置 marked，使用自定义渲染器
 marked.setOptions({
+    renderer: renderer, // 使用自定义渲染器
     gfm: true, // 启用 GitHub Flavored Markdown
     breaks: true, // 将 GFM 的换行符渲染为 <br>
 });
@@ -16,7 +47,8 @@ export function renderMarkdownAndLaTeX(text) {
     if (!text) return '';
 
     try {
-        // 1. 使用 marked 解析 Markdown 为 HTML
+        // 1. 使用配置好的 marked 解析 Markdown 为 HTML
+        // marked.parse 现在会使用我们自定义的渲染器
         let html = marked.parse(text);
 
         // 2. 渲染块级 LaTeX ($$ ... $$)
