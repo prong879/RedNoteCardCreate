@@ -92,6 +92,7 @@ import { useCardStore } from '../stores/cardStore'; // 引入 store
 import GenerateMdModal from './GenerateMdModal.vue'; // 引入新模态框
 import MarkdownManager from './MarkdownManager.vue'; // <--- 新增：导入 Markdown 管理器
 import { saveAs } from 'file-saver'; // 引入 file-saver
+import { getOrdinal } from '../utils/formatters'; // <--- 新增：导入 getOrdinal 工具函数
 // import matter from 'gray-matter'; // handleFileImport 中已引入 store action，这里不再需要
 
 const store = useCardStore(); // 获取 store 实例
@@ -147,14 +148,6 @@ onMounted(async () => {
 const selectTopic = (topicId) => {
     emit('select-topic', { key: topicId });
 };
-
-function getOrdinal(n) {
-    if (typeof n !== 'number' || n < 1) return { number: n, suffix: '' };
-    const s = ['th', 'st', 'nd', 'rd'];
-    const v = n % 100;
-    const suffix = s[(v - 20) % 10] || s[v] || s[0];
-    return { number: n, suffix: suffix };
-}
 
 const generatePrompt = (topic) => {
     if (!topic || !topic.id || !topic.title) {
