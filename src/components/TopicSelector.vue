@@ -93,6 +93,7 @@ import GenerateMdModal from './GenerateMdModal.vue'; // 引入新模态框
 import MarkdownManager from './MarkdownManager.vue'; // <--- 新增：导入 Markdown 管理器
 import { saveAs } from 'file-saver'; // 引入 file-saver
 import { getOrdinal } from '../utils/formatters'; // <--- 新增：导入 getOrdinal 工具函数
+import { generateMarkdownTemplate } from '../utils/templateUtils'; // <--- 新增：导入模板生成函数
 // import matter from 'gray-matter'; // handleFileImport 中已引入 store action，这里不再需要
 
 const store = useCardStore(); // 获取 store 实例
@@ -183,51 +184,17 @@ const generatePrompt = (topic) => {
 
 // 生成 Markdown 模板并处理保存/下载 (修改：使用 store action)
 const handleGenerateMdForTopic = async (options) => {
-  const { topicId, title, description, numCards, includeMainText, overwrite = false } = options;
+  // const { topicId, title, description, numCards, includeMainText, overwrite = false } = options;
 
-  // --- Markdown 内容生成 (保持不变) ---
-  let mdContent = `--- 
-topicId: ${topicId}
-title: ${JSON.stringify(title)}
-description: ${JSON.stringify(description || '在这里填写选题描述...')}
-headerText: ${JSON.stringify("@园丁小区詹姆斯")}
-footerText: '' 
-coverShowHeader: true
-coverShowFooter: true
-contentDefaultShowHeader: true
-contentDefaultShowFooter: true
----
+  // --- 修改：使用导入的函数生成 Markdown 内容 ---
+  // 注意：generateMarkdownTemplate 现在期望一个包含所有选项的对象
+  // 我们需要确保从 modal 传递过来的 options 包含 numCards 和 includeMainText
+  // 如果 modal 不传递这些，我们需要在这里提供默认值或修改 modal
+  // 假设 GenerateMdModal 会传递 numCards 和 includeMainText (如果需要)
+  const mdContent = generateMarkdownTemplate(options); 
+  // -------------------------------------------
 
-# ${title}
-
-封面副标题
-
-`;
-  for (let i = 1; i <= numCards; i++) {
-    mdContent += `---
-
-## 内容卡片 ${i} 标题
-
-内容卡片 ${i} 正文
-
-<!-- 可选：单独控制此卡片的页眉/页脚显隐 -->
-<!-- cardShowHeader: true -->
-<!-- cardShowFooter: true -->
-
-`;
-  }
-  if (includeMainText) {
-    mdContent += `---
-
-## Main Text
-
-在这里编写你的小红书主文案...
-
-`;
-  }
-  // --- Markdown 内容生成完毕 ---
-
-  const filename = `${topicId}.md`;
+  const filename = `${options.topicId}.md`;
   const isDevMode = import.meta.env.DEV;
   let shouldDownload = !isDevMode; // 生产模式默认下载
   let apiErrorOccurred = false; // 跟踪 API 相关问题
@@ -235,12 +202,12 @@ contentDefaultShowFooter: true
   if (isDevMode) {
     try {
         // --- 修改：调用 Store Action 并传递 overwrite 参数 ---
-        console.log(`[TopicSelector] Calling store.saveMarkdownTemplate for ${filename}, overwrite=${overwrite}`);
+        console.log(`[TopicSelector] Calling store.saveMarkdownTemplate for ${filename}, overwrite=${options.overwrite}`);
         const result = await store.saveMarkdownTemplate({ 
           filename, 
           content: mdContent, 
-          topicId,
-          overwrite // 新增: 传递覆盖标志
+          topicId: options.topicId, // 确保使用 options 中的 topicId
+          overwrite: options.overwrite // 使用 options 中的 overwrite
         });
         console.log(`[TopicSelector] Store action result for saving ${filename}:`, result);
 
@@ -254,7 +221,7 @@ contentDefaultShowFooter: true
         } else {
             // --- Store Action 失败或部分失败 (如文件存在) ---
             apiErrorOccurred = true; // 标记 API 相关问题
-            if (result.code === 'FILE_EXISTS' && !overwrite) {
+            if (result.code === 'FILE_EXISTS' && !options.overwrite) {
                 // 特定错误：文件已存在，且未指定覆盖
                 toast.error(result.message || `文件 ${filename} 已存在，无法覆盖。`);
                 shouldDownload = false; // 文件存在，不下载
