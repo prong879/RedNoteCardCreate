@@ -5,7 +5,7 @@
         <div class="mx-auto">
           <div class="text-center mb-10">
             <h1 class="text-3xl font-bold text-xhs-pink">小红书知识卡片生成器</h1>
-            <p class="mt-2 text-xhs-gray">{{ store.currentTopicTitle || '请选择一个主题开始' }}</p>
+            <p class="mt-2 text-xhs-gray">{{ displayTitle || '请选择一个主题开始' }}</p>
           </div>
           
           <!-- 主题选择器 -->
@@ -31,6 +31,7 @@
 </template>
 
 <script>
+import { computed } from 'vue';
 import { useCardStore } from './stores/cardStore'
 import CardConfig from './components/CardConfig.vue'
 import CardPreview from './components/CardPreview.vue'
@@ -46,13 +47,28 @@ export default {
   setup() {
     const store = useCardStore();
     
+    const issueNumber = computed(() => {
+      if (!store.currentTopicId) return null;
+      const match = store.currentTopicId.match(/^topic(\d+)$/i);
+      return match ? parseInt(match[1], 10) : null;
+    });
+
+    const displayTitle = computed(() => {
+      if (!store.currentTopicTitle) return null;
+      if (issueNumber.value !== null) {
+        return `第${issueNumber.value}期 - ${store.currentTopicTitle}`;
+      }
+      return store.currentTopicTitle;
+    });
+    
     const handleSelectTopic = ({ key: topicId }) => {
       store.loadTopic(topicId);
     };
 
     return {
       store,
-      handleSelectTopic
+      handleSelectTopic,
+      displayTitle
     }
   }
 }

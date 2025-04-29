@@ -2,10 +2,10 @@
     <!-- 新增: Markdown 文件管理器模态框 (仅开发) -->
     <div v-if="isVisible" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50" @click.self="closeModal">
         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl max-h-[80vh] flex flex-col">
-            <h3 class="text-lg font-medium mb-4">Markdown 文件状态与转换</h3>
-            <div class="flex justify-end mb-3">
-                <!-- 修改：按钮调用 store action -->
-                 <button @click="refreshFileList" class="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50" :disabled="isLoading">
+            <!-- 新容器：将标题和刷新按钮放在同一行 -->
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium">Markdown 文件状态与转换</h3>
+                <button @click="refreshFileList" class="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50" :disabled="isLoading">
                      <i class="fas fa-redo mr-1"></i> {{ isLoading ? '刷新中...' : '刷新列表' }}
                  </button>
             </div>

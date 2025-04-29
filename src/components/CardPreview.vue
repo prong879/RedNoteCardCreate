@@ -30,7 +30,7 @@
                     </div>
                     <div class="mt-2 text-center text-sm text-xhs-gray">
                         封面卡片
-                        <button @click="exportSingleCard($refs.coverCard, `${store.currentTopicId}_封面_${getFormattedDate()}`)"
+                        <button @click="exportSingleCard(coverCardContainer, `${store.currentTopicId}_封面_${getFormattedDate()}`)"
                             class="ml-2 text-xs text-xhs-pink border border-xhs-pink bg-pink-100 px-2 py-0.5 rounded hover:bg-pink-200 transition-colors">
                             导出
                         </button>
