@@ -121,6 +121,7 @@ export default {
         const mainTextareaRef = ref(null);
         // 使用文本域自动高度 hook
         const { adjustSingleTextarea, adjustAllTextareas } = useTextareaAutoHeight(cardPreviewRoot);
+        const toast = useToast(); // 在 setup 中获取 toast 实例
         const selectedFormat = ref('jpg');
 
         // 计算属性，依赖 store.selectedTemplate
@@ -217,21 +218,27 @@ export default {
         const exportSingleCard = async (cardElementRefOrActualElement, rawFileName) => {
             const cardElement = cardElementRefOrActualElement?.$el || cardElementRefOrActualElement;
             if (!store.currentTopicId) {
-                useToast().error('无法获取主题ID，无法导出。'); // 直接使用 useToast()
+                toast.error('无法获取主题ID，无法导出。'); 
                 return;
             }
             const finalFileName = rawFileName;
-                const format = selectedFormat.value;
+            const format = selectedFormat.value;
 
-            // 使用 handleAsyncTask 包装异步逻辑
-            await handleAsyncTask(async () => {
+            // 使用 handleAsyncTask 并处理结果
+            const result = await handleAsyncTask(async () => {
                 const actualCardToExport = _getExportableCardElement(cardElement);
-                // _getExportableCardElement 现在会抛出错误，如果找不到元素
                 await exportCardAsImage(actualCardToExport, finalFileName, format);
             }, {
-                successMessage: `成功导出 ${finalFileName}.${format}`,
                 errorMessagePrefix: "导出单张卡片失败"
             });
+
+            // 根据结果显示 toast
+            if (result.success) {
+                toast.success(`成功导出 ${finalFileName}.${format}`);
+            } else if (result.error) {
+                // handleAsyncTask 内部已 console.error
+                toast.error(`导出单张卡片失败: ${result.error.message}`);
+            }
         };
 
         const _getAllExportableElements = () => {
@@ -265,59 +272,78 @@ export default {
 
         const exportAllAsImages = async () => {
             if (!store.currentTopicId) {
-                 useToast().error('无法获取主题ID，无法导出。');
+                 toast.error('无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                 useToast().warning("没有可导出的卡片。");
+                 toast.warning("没有可导出的卡片。");
                 return;
             }
             const format = selectedFormat.value;
             const dateString = getFormattedDate();
+            const loadingMessage = `正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`;
+            const loadingToastId = toast.info(loadingMessage, { timeout: false }); // 手动处理加载提示
 
             // 使用 handleAsyncTask
-            await handleAsyncTask(async () => {
+            const result = await handleAsyncTask(async () => {
                 await exportCardsAsImages(elementsToExport, store.currentTopicId, dateString, format);
             }, {
-                loadingMessage: `正在导出 ${elementsToExport.length} 张图片 (${format.toUpperCase()})...`,
-                successMessage: '所有图片导出完成！',
                 errorMessagePrefix: "批量导出图片失败"
             });
+
+            toast.dismiss(loadingToastId); // 关闭加载提示
+            if (result.success) {
+                toast.success('所有图片导出完成！');
+            } else if (result.error) {
+                toast.error(`批量导出图片失败: ${result.error.message}`);
+            }
         };
 
         const exportAllAsZip = async () => {
              if (!store.currentTopicId) {
-                 useToast().error('无法获取主题ID，无法导出。');
+                 toast.error('无法获取主题ID，无法导出。');
                 return;
             }
             const elementsToExport = _getAllExportableElements();
             if (elementsToExport.length === 0) {
-                 useToast().warning("没有可导出的卡片。");
+                 toast.warning("没有可导出的卡片。");
                 return;
             }
             const format = selectedFormat.value;
             const dateString = getFormattedDate();
-                const zipFileName = `${store.currentTopicId}_${dateString}.zip`;
+            const zipFileName = `${store.currentTopicId}_${dateString}.zip`;
+            const loadingMessage = `正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包...`;
+            const loadingToastId = toast.info(loadingMessage, { timeout: false }); // 手动处理加载提示
 
             // 使用 handleAsyncTask
-            await handleAsyncTask(async () => {
-                await exportCardsAsZip(elementsToExport, store.currentTopicId, dateString, format);
+            const result = await handleAsyncTask(async () => {
+                 await exportCardsAsZip(elementsToExport, store.currentTopicId, dateString, format);
              }, {
-                 loadingMessage: `正在生成 ${elementsToExport.length} 张图片 (${format.toUpperCase()}) 并打包...`,
-                 successMessage: `打包文件 ${zipFileName} 已开始下载！`,
                  errorMessagePrefix: "打包下载失败"
              });
+
+            toast.dismiss(loadingToastId); // 关闭加载提示
+            if (result.success) {
+                 toast.success(`打包文件 ${zipFileName} 已开始下载！`);
+            } else if (result.error) {
+                 toast.error(`打包下载失败: ${result.error.message}`);
+            }
         };
 
         const copyMainText = async () => {
-            // 使用 handleAsyncTask 包装 copyTextToClipboard
-            await handleAsyncTask(async () => {
+            // 使用 handleAsyncTask 并处理结果
+            const result = await handleAsyncTask(async () => {
                 await copyTextToClipboard(store.cardContent?.mainText || '');
             }, {
-                successMessage: '主文案已复制到剪贴板！',
-                errorMessagePrefix: "复制主文案失败" // handleAsyncTask 会自动附加 error.message
+                errorMessagePrefix: "复制主文案失败"
             });
+            
+            if (result.success) {
+                toast.success('主文案已复制到剪贴板！');
+            } else if (result.error) {
+                 toast.error(result.error.message); // 错误消息已包含前缀
+            }
         };
 
         // --- 返回给模板的值 ---
