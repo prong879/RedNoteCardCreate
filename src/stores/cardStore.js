@@ -174,6 +174,47 @@ export const useCardStore = defineStore('card', () => {
         }
     };
 
+    // --- 新增：Action - 转换 Markdown 到 JS 文件 --- 
+    const convertMarkdownToJs = async (topicId, overwrite = false) => {
+        console.log(`[Store] Attempting to convert MD to JS for topic: ${topicId}, Overwrite: ${overwrite}`);
+        try {
+            const response = await fetch('/api/convert-md-to-js', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // 注意：当前 API 可能只接收 topicId，如果需要处理 overwrite，API 端点或请求体可能需要调整
+                body: JSON.stringify({ topicId })
+            });
+
+            const result = await response.json();
+            console.log(`[Store] API response for ${topicId} conversion:`, result);
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || `HTTP error ${response.status}`);
+            }
+
+            // 转换成功!
+            const successMessage = result.message || `成功转换 ${topicId}.md`;
+            console.info(`[Store] Conversion successful: ${successMessage}`);
+
+            // 清理可能过时的 localStorage 内容
+            localStorage.removeItem(`cardgen_topic_content_${topicId}`);
+            console.log(`[Store] Removed localStorage cache for ${topicId}`);
+
+            // 关键：重新获取文件列表以更新 store 状态
+            await fetchFileLists(); // 注意：这里直接调用，因为在同一个 setup 函数作用域内
+
+            return { success: true, message: successMessage };
+
+        } catch (error) {
+            console.error(`[Store] Error converting ${topicId}.md:`, error);
+            // 让调用者（组件）处理 Toast
+            return { success: false, message: error.message || `转换 ${topicId}.md 失败` };
+        }
+        // 注意：这里没有 finally 块来设置 loading 状态，因为转换是单个操作，
+        // 组件本身会管理按钮的 disabled 状态。
+        // 如果需要全局的转换 loading 状态，可以在 store 中添加。
+    };
+
     // --- 新增：Action - 添加一个已检测到的 MD 文件 --- 
     const addDetectedMarkdownFile = (topicId) => {
         if (!detectedMarkdownFiles.value.has(topicId)) {
@@ -687,7 +728,8 @@ export const useCardStore = defineStore('card', () => {
         setFocusedPreview,
         setFocusedEditor,
         resetFocus,
-        returnToTopicSelection
+        returnToTopicSelection,
+        convertMarkdownToJs
     };
 }, {
     // 可以在这里配置持久化等插件选项
