@@ -30,7 +30,7 @@
             <div ref="previewScrollContainer" @scroll="handleScroll" class="flex overflow-x-auto scroll-smooth gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <!-- 封面卡片 -->
                 <div class="card-container flex-shrink-0" ref="coverCardContainer">
-                    <div ref="coverCard">
+                    <div>
                         <component :is="activeTemplateComponent" type="cover"
                             :cardData="store.cardContent.coverCard" 
                             :headerText="store.cardContent.headerText || ''"
@@ -140,7 +140,6 @@ export default {
 
         // Refs for Scroll & Export Composables
         const coverCardContainer = ref(null); 
-        const coverCard = ref(null); // 单独导出按钮可能仍需要？或者让 exporter 处理
         const contentCardRefs = ref([]); 
 
         // --- 使用滚动逻辑 Composable --- 
@@ -237,7 +236,6 @@ export default {
             // Refs
             coverCardContainer,
             contentCardRefs,
-            coverCard, // 模板中单个卡片导出按钮仍在使用
             mainTextareaRef,
             cardPreviewRoot,
             
