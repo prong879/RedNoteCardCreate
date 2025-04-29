@@ -170,41 +170,39 @@ export default {
 
             if (isValidFocusRequest) {
                 console.log('[CardPreview] Valid focus request confirmed. Initiating scroll.');
-                nextTick(() => {
-                    console.log('[CardPreview] Inside nextTick for scroll request.');
-                    let targetElementContainer = null;
-                    const scrollContainer = previewScrollContainer.value;
+                console.log('[CardPreview] Inside post-flush watcher for scroll request.');
+                let targetElementContainer = null;
+                const scrollContainer = previewScrollContainer.value;
 
-                    if (!scrollContainer) {
-                        console.warn('[CardPreview] Scroll container ref not available. Cannot scroll.');
-                        return;
-                    }
+                if (!scrollContainer) {
+                    console.warn('[CardPreview] Scroll container ref not available. Cannot scroll.');
+                    return;
+                }
 
-                    if (newIndex === -1) { // 封面卡片
-                        if (coverCardContainer.value) {
-                            targetElementContainer = coverCardContainer.value;
-                        } else {
-                            console.warn('[CardPreview] Cover card container ref not available.');
-                        }
-                    } else { // 内容卡片 (newIndex >= 0)
-                        if (contentCardRefs.value && contentCardRefs.value[newIndex]) {
-                            targetElementContainer = contentCardRefs.value[newIndex];
-                        } else {
-                            console.warn(`[CardPreview] Content card ref for index ${newIndex} not available.`);
-                        }
-                    }
-
-                    if (targetElementContainer) {
-                        console.log(`[CardPreview] Calling scrollIntoView for target (index ${newIndex}):`, targetElementContainer);
-                        targetElementContainer.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'nearest',
-                            inline: 'center'
-                        });
+                if (newIndex === -1) { // 封面卡片
+                    if (coverCardContainer.value) {
+                        targetElementContainer = coverCardContainer.value;
                     } else {
-                        console.warn(`[CardPreview] Target element ref could not be found for index ${newIndex}. Cannot scroll.`);
+                        console.warn('[CardPreview] Cover card container ref not available.');
                     }
-                });
+                } else { // 内容卡片 (newIndex >= 0)
+                    if (contentCardRefs.value && contentCardRefs.value[newIndex]) {
+                        targetElementContainer = contentCardRefs.value[newIndex];
+                    } else {
+                        console.warn(`[CardPreview] Content card ref for index ${newIndex} not available.`);
+                    }
+                }
+
+                if (targetElementContainer) {
+                    console.log(`[CardPreview] Calling scrollIntoView for target (index ${newIndex}):`, targetElementContainer);
+                    targetElementContainer.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                } else {
+                    console.warn(`[CardPreview] Target element ref could not be found for index ${newIndex}. Cannot scroll.`);
+                }
             } 
             // 如果 newIndex 不是有效请求 (是 null 或其他意外类型)，则忽略
             else {
