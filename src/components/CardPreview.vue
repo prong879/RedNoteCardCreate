@@ -4,23 +4,23 @@
             <h2 class="text-xl font-semibold">卡片预览</h2>
             <div class="flex gap-2 items-center">
                 <!-- 导出进度显示 (从 exporter 获取) -->
-                <div v-if="isExporting" class="text-sm text-gray-600">
+                <div v-if="exporter.isExporting.value" class="text-sm text-gray-600">
                     正在导出 {{ exporter.exportProgress.value.type }}... ({{ exporter.exportProgress.value.current }} / {{ exporter.exportProgress.value.total }})
                     <span class="ml-1 spinner"></span>
                 </div>
                 <div class="flex items-center">
                     <label for="format-select" class="mr-1 text-sm text-gray-600">格式:</label>
-                    <select id="format-select" v-model="selectedFormat" :disabled="isExporting" class="h-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50">
+                    <select id="format-select" v-model="selectedFormat" :disabled="exporter.isExporting.value" class="h-8 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50">
                         <option value="jpg">JPG</option>
                         <option value="png">PNG</option>
                     </select>
                 </div>
                 <!-- 使用 exporter 的方法和状态 -->
-                <button @click="exporter.exportAllAsImages" :disabled="isExporting" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    {{ isExporting && exporter.exportProgress.value.type === 'images' ? '导出中...' : '全部导出' }}
+                <button @click="exporter.exportAllAsImages" :disabled="exporter.isExporting.value" class="px-4 py-1 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ exporter.isExporting.value && exporter.exportProgress.value.type === 'images' ? '导出中...' : '全部导出' }}
                 </button>
-                <button @click="exporter.exportAllAsZip" :disabled="isExporting" class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                    {{ isExporting && exporter.exportProgress.value.type === 'zip' ? '打包中...' : '打包下载' }}
+                <button @click="exporter.exportAllAsZip" :disabled="exporter.isExporting.value" class="px-4 py-1 bg-xhs-pink text-white rounded-lg text-sm hover:bg-opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {{ exporter.isExporting.value && exporter.exportProgress.value.type === 'zip' ? '打包中...' : '打包下载' }}
                 </button>
             </div>
         </div>
@@ -152,8 +152,6 @@ export default {
 
         // --- 使用导出逻辑 Composable --- 
         const exporter = useCardExporter(store, coverCardContainer, contentCardRefs, selectedFormat);
-        // 从 exporter 中解构需要的状态，方便模板使用
-        const { isExporting } = exporter; 
 
         // --- 主文案相关 --- 
         const mainTextModel = computed({
@@ -231,7 +229,6 @@ export default {
             
             // Exporter Composable (暴露整个对象或解构的值)
             exporter, 
-            isExporting, // 直接暴露 isExporting 简化模板
             
             // Methods
             handleTextareaInput,
