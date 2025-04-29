@@ -167,10 +167,93 @@ export const useCardStore = defineStore('card', () => {
 
         } catch (error) {
             console.error("[Store] Error fetching file lists:", error);
-            fileLoadingError.value = error.message;
-            toast.error(`加载文件列表失败: ${error.message}`);
+            fileLoadingError.value = error.message; // 保持更新错误状态
+            // toast.error(\`加载文件列表失败: ${error.message}\`); // <--- 移除 Store 中的 Toast 调用
+            // 可选：重新抛出错误，如果调用者需要 try/catch 处理
+            // throw error;\n        } finally {\n            isLoadingFiles.value = false;\n        }\n    };\n\n    // --- 新增：Action - 转换 Markdown 到 JS 文件 --- \n// ... existing code ...\n
         } finally {
             isLoadingFiles.value = false;
+        }
+    };
+
+    // --- 新增：Action - 转换 Markdown 到 JS 文件 --- 
+    const convertMarkdownToJs = async (topicId, overwrite = false) => {
+        console.log(`[Store] Attempting to convert MD to JS for topic: ${topicId}, Overwrite: ${overwrite}`);
+        try {
+            const response = await fetch('/api/convert-md-to-js', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                // 注意：当前 API 可能只接收 topicId，如果需要处理 overwrite，API 端点或请求体可能需要调整
+                body: JSON.stringify({ topicId })
+            });
+
+            const result = await response.json();
+            console.log(`[Store] API response for ${topicId} conversion:`, result);
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || `HTTP error ${response.status}`);
+            }
+
+            // 转换成功!
+            const successMessage = result.message || `成功转换 ${topicId}.md`;
+            console.info(`[Store] Conversion successful: ${successMessage}`);
+
+            // 清理可能过时的 localStorage 内容
+            localStorage.removeItem(`cardgen_topic_content_${topicId}`);
+            console.log(`[Store] Removed localStorage cache for ${topicId}`);
+
+            // 关键：重新获取文件列表以更新 store 状态
+            await fetchFileLists(); // 注意：这里直接调用，因为在同一个 setup 函数作用域内
+
+            return { success: true, message: successMessage };
+
+        } catch (error) {
+            console.error(`[Store] Error converting ${topicId}.md:`, error);
+            // 让调用者（组件）处理 Toast
+            return { success: false, message: error.message || `转换 ${topicId}.md 失败` };
+        }
+        // 注意：这里没有 finally 块来设置 loading 状态，因为转换是单个操作，
+        // 组件本身会管理按钮的 disabled 状态。
+        // 如果需要全局的转换 loading 状态，可以在 store 中添加。
+    };
+
+    // --- 新增：Action - 保存 Markdown 模板到本地 (开发模式) ---
+    const saveMarkdownTemplate = async ({ filename, content, topicId, overwrite = false }) => {
+        console.log(`[Store] Attempting to save Markdown template: ${filename} for topic: ${topicId}, overwrite: ${overwrite}`);
+        try {
+            const response = await fetch('/api/save-markdown-template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, content, overwrite }), // 添加 overwrite 参数到请求体
+            });
+
+            const result = await response.json();
+            console.log(`[Store] API response for saving ${filename}:`, result);
+
+            if (response.ok && result.success) {
+                // 保存成功!
+                const successMessage = result.message || `模板 ${filename} 已成功保存。`;
+                console.info(`[Store] Markdown template saved successfully: ${filename}`);
+
+                // 关键：重新获取文件列表以更新 store 状态
+                // 可以选择更精细的更新：addDetectedMarkdownFile(topicId)
+                // 但 fetchFileLists 更简单可靠
+                await fetchFileLists();
+
+                return { success: true, message: successMessage };
+            } else if (response.status === 409 && result.code === 'FILE_EXISTS' && !overwrite) {
+                // 文件已存在是特定业务错误，但如果设置了 overwrite=false，才当作错误处理
+                console.warn(`[Store] File already exists: ${filename} (overwrite not allowed)`);
+                return { success: false, message: result.message || `文件 ${filename} 已存在`, code: 'FILE_EXISTS' };
+            } else {
+                // 其他 API 业务错误或非 2xx 状态码
+                throw new Error(result.message || `HTTP error ${response.status}`);
+            }
+
+        } catch (error) {
+            console.error(`[Store] Error saving Markdown template ${filename}:`, error);
+            // 返回通用错误信息给组件处理
+            return { success: false, message: error.message || `保存模板 ${filename} 时出错` };
         }
     };
 
@@ -687,7 +770,9 @@ export const useCardStore = defineStore('card', () => {
         setFocusedPreview,
         setFocusedEditor,
         resetFocus,
-        returnToTopicSelection
+        returnToTopicSelection,
+        convertMarkdownToJs,
+        saveMarkdownTemplate
     };
 }, {
     // 可以在这里配置持久化等插件选项

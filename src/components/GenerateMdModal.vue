@@ -61,15 +61,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useCardStore } from '../stores/cardStore';
 import ConfirmationModal from './ConfirmationModal.vue'; // 引入确认模态框
-
-// --- NEW: Add getOrdinal function (copied from TopicSelector) --- 
-function getOrdinal(n) {
-    if (typeof n !== 'number' || n < 1) return { number: n, suffix: '' };
-    const s = ['th', 'st', 'nd', 'rd'];
-    const v = n % 100;
-    const suffix = s[(v - 20) % 10] || s[v] || s[0];
-    return { number: n, suffix: suffix };
-}
+import { getOrdinal } from '../utils/formatters'; // <--- 新增：导入 getOrdinal 工具函数
 
 const emit = defineEmits(['close', 'generate']);
 const store = useCardStore();
@@ -171,7 +163,8 @@ const handleConfirmGeneration = () => {
     emit('generate', { 
         topicId: topicToConfirm.value.id, 
         title: topicToConfirm.value.title, // Use original title
-        description: topicToConfirm.value.description // Pass description too
+        description: topicToConfirm.value.description, // Pass description too
+        overwrite: true // 添加覆盖参数，表示用户已确认覆盖
     }); 
   }
   showConfirmationModal.value = false;

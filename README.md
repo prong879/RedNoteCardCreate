@@ -7,17 +7,17 @@
 ### 主要功能和使用流程
 
 *   **选题管理与文案制作流程**:
-    *   系统加载 `src/content/topicsMeta.js` 中的选题元信息（标题、简介、卡片张数），在选题界面展示。（选题库
+    *   系统加载 `src/content/topicsMeta.js` 中的选题元信息（标题、简介），并在选题界面展示，同时会尝试读取 JS 内容文件以显示**准确的卡片数量**。（选题库）
     *   MD 模板创建：
         *   提供 Node.js 脚本 (`scripts/create_md_Template.js`) 通过命令行快速创建 Markdown 模板到 `src/markdown/` 目录，自定义标题和文件名。
-        *   前端页面提供 "生成 MD 模板" 按钮，在开发模式下，可根据已有选题，读取其标题和简介，直接创建模板文件到 `src/markdown/` 目录（若文件已存在则报错），生产模式下则下载模板文件。
+        *   前端页面提供 **"生成 MD 模板"** 按钮（位于 Markdown 管理面板），在开发模式下，可根据已有选题，读取其标题和简介，直接创建模板文件到 `src/markdown/` 目录（若文件已存在则**提示确认覆盖**），生产模式下则下载模板文件。
         *   生成的 Markdown 模板中，`headerText` 默认设置为 `@园丁小区詹姆斯`。
     *   前端页面提供生成prompt按钮，可根据选题内容一键生成 Prompt，便于辅助 AI 在已有 md 文件基础上生成详细文案，并以注释形式提供可视化示例资源演示建议。
-    *   （可选）可利用 ManimCE 制作可视化演示素材，写了一个快速导出Manim的gui应用，支持导出为视频/图片，支持调节质量、背景透明与否等。
+    *   (可选) 可利用 ManimCE 制作可视化演示素材，写了一个快速导出Manim的gui应用，支持导出为视频/图片，支持调节质量、背景透明与否等。
     *   JS 文案文件转换
-        *   前端提供 “导入/更新MD” 按钮，可一键将md文案文件转换为js文案文件，并自动更新选题元信息 `topicsMeta.js`。
+        *   前端提供 **"导入/更新 MD"** 按钮（位于 Markdown 管理面板），可一键将检测到的 `.md` 文案文件转换为对应的 JS 文案文件 (`_content.js`)，并**自动更新选题元信息** `topicsMeta.js`（包括卡片数量）。
         *   提供 Node.js 脚本 (`scripts/md_To_JS_Content.js`) 将特定格式的 Markdown 文案文件转换为 JS 数据文件，并自动更新选题元信息 `topicsMeta.js`。
-    *   前端点击 “选择话题” ，会根据实际存在的 JS 文案文件，动态加载 `src/content/topicXX_content.js` 中的详细内容，点击查看即可进入预览和编辑界面。。
+    *   前端点击 "选择话题" ，会根据实际存在的 JS 文案文件，动态加载 `src/content/topicXX_content.js` 中的详细内容，点击查看即可进入预览和编辑界面。
 *   **卡片模板设计及模板选择**:
     *   卡片类型分为封面卡片和内容卡片。
     *   提供多种样式模板，支持不同宽高比，实时预览不同模板效果。
@@ -49,9 +49,9 @@
 ### 技术栈
 
 *   **前端**: Vue.js 3 (组合式 API), Vite
-*   **状态管理**: Pinia
+*   **状态管理**: Pinia (使用 Action 管理部分 Markdown 操作逻辑)
 *   **样式**: Tailwind CSS, PostCSS (autoprefixer)
-*   **Markdown/LaTeX**: markdown-it, KaTeX
+*   **Markdown/LaTeX**: marked, KaTeX
 *   **图片/文件处理**: html2canvas, file-saver, JSZip
 *   **拖拽**: vuedraggable
 *   **数据**: JavaScript 对象/JSON
@@ -89,7 +89,7 @@ npm run build
 
 1.  **创建 Markdown 模板**: 
     *   **方式一 (命令行)**: 打开终端，在项目根目录下运行 `npm run xinwenan -- <你的topicId> '<你的主标题>'` 来创建对应的 `.md` 文件模板到 `src/markdown/` 目录。
-    *   **方式二 (界面按钮, 推荐)**: 点击选题界面的 "生成 MD 模板" 按钮，填写信息。在开发模式下，模板会直接保存到 `src/markdown/` (若文件已存在会报错)；生产模式下会触发下载。
+    *   **方式二 (界面按钮, 推荐)**: 点击选题界面的 **"生成 MD 模板"** 按钮（位于 Markdown 管理面板），填写信息。在开发模式下，模板会直接保存到 `src/markdown/` (若文件已存在会**提示确认覆盖**)；生产模式下会触发下载。
 
 2.  **编辑 Markdown 源文件**: 
     *   打开新创建的 `.md` 文件，在 YAML Front Matter 部分填写或修改 `title` 和 `description`。
@@ -104,11 +104,11 @@ npm run build
     *   (可选) 使用配套的 Manim GUI 应用（如适用）辅助导出，调整参数。
     *   建议将最终素材按规范命名并存放在项目根目录的 `media/` 下（参考 **"媒体资源管理规范"**）。
 5.  **转换 Markdown 并更新元数据**: 
-    *   运行 `npm run zhuanhuan -- <你的topicId>` 或 `npm run zhuanhuan -- all`。
-    *   此脚本会将 `src/markdown/` 下的 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 数据文件，并自动更新 `src/content/topicsMeta.js`。
+    *   **方式一 (界面按钮, 推荐)**: 点击选题界面的 **"导入/更新 MD"** 按钮（位于 Markdown 管理面板），系统会自动检测 `src/markdown/` 下的 `.md` 文件，将其转换为 `src/content/` 目录下的 `_content.js` 数据文件，并**自动更新** `src/content/topicsMeta.js`。
+    *   **方式二 (命令行)**: 运行 `npm run zhuanhuan -- <你的topicId>` 或 `npm run zhuanhuan -- all`。此脚本会将 `src/markdown/` 下的 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 数据文件，并自动更新 `src/content/topicsMeta.js`。
 6.  **启动应用并选择选题**: 
     *   运行 `npm run dev` 启动应用。
-    *   在首页选择你刚刚处理的选题卡片，进入编辑预览界面。
+    *   在首页选择你刚刚处理的选题卡片（应能看到**更新后的卡片数量**），进入编辑预览界面。
 7.  **可视化编辑与微调**: 
     *   在左侧**配置面板**选择或切换卡片样式模板。
     *   对加载进来的内容（页眉/页脚、卡片标题/正文、主文案）进行最后的编辑和调整 (支持 Markdown/LaTeX)。
@@ -129,11 +129,11 @@ npm run build
 
 ## 通过 Markdown 管理内容
 
-为了更方便地创作和管理选题内容，推荐使用 Markdown 配合转换脚本。
+为了更方便地创作和管理选题内容，推荐使用 Markdown 配合转换脚本 **或界面上的 Markdown 管理面板**。
 
 **1. 创建 Markdown 模板**
 
-*   **推荐方式: 界面按钮**: 点击选题界面的 "生成 MD 模板" 按钮，填写信息。开发模式下会尝试直接保存到 `src/markdown/` (若文件已存在则报错)，生产模式下则下载。
+*   **推荐方式: 界面按钮**: 点击选题界面的 **"生成 MD 模板"** 按钮（位于 Markdown 管理面板），填写信息。开发模式下会尝试直接保存到 `src/markdown/` (若文件已存在会**提示确认覆盖**)，生产模式下则下载。
 *   **命令行方式**: `npm run xinwenan -- <topicId> <主标题>`，会将模板创建到 `src/markdown/`。
 
 **2. 编写 Markdown 源文件**
@@ -171,7 +171,8 @@ npm run build
 
 **3. 转换为 JS 数据文件并更新元数据**
 
-使用 `zhuanhuan` 命令将 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 文件，并**自动更新** `src/content/topicsMeta.js`。
+*   **推荐方式: 界面按钮**: 点击选题界面的 **"导入/更新 MD"** 按钮（位于 Markdown 管理面板）。系统将自动处理 `src/markdown/` 目录下的所有 `.md` 文件，生成或更新对应的 `_content.js` 文件，并**自动更新或添加** `topicsMeta.js` 中的条目（包括卡片数量）。
+*   **命令行方式**: 使用 `zhuanhuan` 命令将 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 文件，并**自动更新** `src/content/topicsMeta.js`。
 
 ```bash
 # 转换指定文件
@@ -181,7 +182,7 @@ npm run zhuanhuan -- <topicId>
 # 转换所有 .md 文件
 npm run zhuanhuan -- all
 ```
-*   转换脚本会**覆盖**已存在的同名 `_content.js` 文件，并**更新或添加** `topicsMeta.js` 中对应的条目。
+*   转换脚本和界面按钮都会**覆盖**已存在的同名 `_content.js` 文件，并**更新或添加** `topicsMeta.js` 中对应的条目。
 
 ## 选题内容模板扩展 (直接使用 JS)
 
@@ -301,7 +302,7 @@ npm run zhuanhuan -- all
     *   **标题、副标题与正文渲染 (Markdown/LaTeX 支持)**: 
         *   **封面标题 (`cardData.title`)**, **封面副标题 (`cardData.subtitle`)**, **内容卡片标题 (`cardData.title`)** 和 **内容卡片正文 (`cardData.body`)** 都**必须**支持 Markdown 语法和 LaTeX 公式渲染，并且需要正确处理换行。
         *   实现方式：必须通过 Vue 的**计算属性 (computed property)** 调用 `src/utils/markdownRenderer.js` 中的 `renderMarkdownAndLaTeX` 函数对 `cardData` 中相应的文本进行处理，并将结果绑定到模板中对应元素的 `v-html` 指令上。
-        *   **注意**: 当使用 `v-html` 渲染由 Markdown 生成的 HTML 时，如果 Markdown 源文本仅包含一行文本，`markdown-it` 默认会将其包裹在一个 `<p>` 标签内。这可能会引入不必要的垂直边距。为避免此问题，建议在模板组件的 `<style scoped>` 中添加针对渲染容器的 `:deep(p) { margin: 0; }` 样式规则来重置段落边距。
+        *   **注意**: 当使用 `v-html` 渲染由 Markdown 生成的 HTML 时，如果 Markdown 源文本仅包含一行文本，`marked` (或其配置) 可能会将其包裹在一个 `<p>` 标签内。这可能会引入不必要的垂直边距。为避免此问题，建议在模板组件的 `<style scoped>` 中添加针对渲染容器的 `:deep(p) { margin: 0; }` 样式规则来重置段落边距。
         ```javascript
         // 示例：在 setup 函数中处理 cardData
         import { computed } from 'vue';

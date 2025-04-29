@@ -301,14 +301,17 @@ export default {
             if (!container) return;
             
             const cards = getAllCardElements();
-            // 使用 findCurrentCardIndex 找到的是 store 索引 (null/0/1...)
-            // 需要转换回 getAllCardElements 的数组索引 (0/1/2...)
+            // 使用 findCurrentCardIndex 找到的是 store 索引 (-1 代表封面, 0+ 代表内容)
             const currentStoreIndex = findCurrentCardIndex(); 
+            // 修改：正确将 store 索引转换为 cards 数组索引 (0 代表封面, 1+ 代表内容)
             let currentArrayIndex = -1;
-            if (currentStoreIndex === null) { // 封面
+            if (currentStoreIndex === -1) { // 封面
                 currentArrayIndex = 0;
             } else if (currentStoreIndex !== null && currentStoreIndex >= 0) { // 内容卡片
                 currentArrayIndex = currentStoreIndex + 1;
+            } else if (currentStoreIndex === null) {
+                console.warn('[CardPreview scrollLeft] findCurrentCardIndex returned null, assuming index 0.');
+                currentArrayIndex = 0;
             }
             
             const targetArrayIndex = currentArrayIndex - 1;
@@ -338,12 +341,16 @@ export default {
             if (!container) return;
             
             const cards = getAllCardElements();
-            const currentStoreIndex = findCurrentCardIndex();
+            const currentStoreIndex = findCurrentCardIndex(); // Store 索引 (-1, 0+)
+            // 修改：正确将 store 索引转换为 cards 数组索引 (0, 1+)
             let currentArrayIndex = -1;
-            if (currentStoreIndex === null) {
+            if (currentStoreIndex === -1) { // 封面
                 currentArrayIndex = 0;
-            } else if (currentStoreIndex !== null && currentStoreIndex >= 0) {
+            } else if (currentStoreIndex !== null && currentStoreIndex >= 0) { // 内容卡片
                 currentArrayIndex = currentStoreIndex + 1;
+            } else if (currentStoreIndex === null) {
+                console.warn('[CardPreview scrollRight] findCurrentCardIndex returned null, assuming index 0.');
+                currentArrayIndex = 0;
             }
 
             const targetArrayIndex = currentArrayIndex + 1;
@@ -358,7 +365,7 @@ export default {
                     const targetScrollLeft = targetOffsetLeft + targetWidth / 2 - containerWidth / 2;
                     
                     container.scrollTo({
-                         // 确保不超过最大滚动距离
+                        // 确保不超过最大滚动距离
                         left: Math.min(container.scrollWidth - containerWidth, targetScrollLeft),
                         behavior: 'smooth'
                     });
@@ -369,11 +376,13 @@ export default {
 
         onMounted(() => {
             nextTick(() => {
-                checkScrollButtons();
+                checkScrollButtons(); // First check after DOM exists
                  // 初始调整主文案 textarea 高度
                 if (mainTextareaRef.value) {
                     adjustSingleTextarea(mainTextareaRef.value);
                 }
+                // Add a slightly delayed check for browser layout finalization
+                setTimeout(checkScrollButtons, 100); // e.g., 100ms delay
             });
             window.addEventListener('resize', checkScrollButtons);
         });
