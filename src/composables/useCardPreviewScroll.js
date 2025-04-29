@@ -44,8 +44,8 @@ export function useCardPreviewScroll(store, coverCardContainerRef, contentCardRe
     const checkScrollButtons = () => {
         const el = previewScrollContainer.value;
         if (!el) return;
-        showLeftScroll.value = el.scrollLeft > 1;
-        showRightScroll.value = el.scrollWidth - el.clientWidth - el.scrollLeft > 1;
+        showLeftScroll.value = Math.round(el.scrollLeft) > 0;
+        showRightScroll.value = Math.round(el.scrollWidth - el.clientWidth - el.scrollLeft) > 1;
     };
 
     const throttledCheckScrollButtons = throttle(checkScrollButtons, 150);
@@ -53,30 +53,36 @@ export function useCardPreviewScroll(store, coverCardContainerRef, contentCardRe
     const findCurrentCardIndex = () => {
         const container = previewScrollContainer.value;
         if (!container) return null;
-        const containerCenter = container.scrollLeft + container.clientWidth / 2;
+        const containerWidth = container.clientWidth;
+        const currentScrollLeft = container.scrollLeft;
+
         const cards = getAllCardElements();
-        let minIndex = -2;
+        let closestIndex = -2;
         let minDistance = Infinity;
 
         cards.forEach((card, arrayIndex) => {
             if (!card) return;
-            const cardCenter = card.offsetLeft + card.clientWidth / 2;
-            const distance = Math.abs(cardCenter - containerCenter);
+            const cardStart = card.offsetLeft;
+            const distance = Math.abs(cardStart - currentScrollLeft);
             if (distance < minDistance) {
                 minDistance = distance;
-                minIndex = arrayIndex;
+                closestIndex = arrayIndex;
             }
         });
 
-        if (minIndex === 0) return -1; // 封面
-        if (minIndex > 0) return minIndex - 1; // 内容卡片索引
-        return null; // 未找到
+        console.log(`[useCardPreviewScroll] Found closest card at array index: ${closestIndex} (distance: ${minDistance})`);
+
+        if (closestIndex === 0) return -1;
+        if (closestIndex > 0) return closestIndex - 1;
+        return null;
     };
 
     const onScrollEnd = debounce(() => {
         const currentEditorIndex = findCurrentCardIndex();
         console.log('[useCardPreviewScroll] Scroll ended. Detected editor index:', currentEditorIndex);
-        store.setFocusedEditor(currentEditorIndex);
+        if (currentEditorIndex !== null) {
+            store.setFocusedEditor(currentEditorIndex);
+        }
         if (store.focusedPreviewIndex !== null && store.focusedPreviewIndex === currentEditorIndex) {
             console.log(`[useCardPreviewScroll] Scroll ended at the requested index (${currentEditorIndex}). Resetting focusedPreviewIndex to null.`);
             store.resetFocus();
@@ -84,7 +90,7 @@ export function useCardPreviewScroll(store, coverCardContainerRef, contentCardRe
             console.log(`[useCardPreviewScroll] Scroll ended, but not at the requested index (${store.focusedPreviewIndex}, ended at ${currentEditorIndex}). Resetting focusedPreviewIndex to null.`);
             store.resetFocus();
         }
-    }, 200);
+    }, 250);
 
     const handleScroll = () => {
         throttledCheckScrollButtons();
@@ -94,46 +100,48 @@ export function useCardPreviewScroll(store, coverCardContainerRef, contentCardRe
     const scrollLeft = () => {
         const container = previewScrollContainer.value;
         if (!container) return;
-        const cards = getAllCardElements();
         const currentStoreIndex = findCurrentCardIndex();
         let currentArrayIndex = -1;
         if (currentStoreIndex === -1) { currentArrayIndex = 0; }
         else if (currentStoreIndex !== null && currentStoreIndex >= 0) { currentArrayIndex = currentStoreIndex + 1; }
-        else if (currentStoreIndex === null) { currentArrayIndex = 0; }
-        const targetArrayIndex = currentArrayIndex - 1;
-        if (targetArrayIndex >= 0 && targetArrayIndex < cards.length) {
+        else {
+            currentArrayIndex = 0;
+        }
+
+        const targetArrayIndex = Math.max(0, currentArrayIndex - 1);
+
+        const cards = getAllCardElements();
+        if (targetArrayIndex < cards.length) {
             const targetElement = cards[targetArrayIndex];
             if (targetElement) {
-                const containerWidth = container.clientWidth;
-                const targetOffsetLeft = targetElement.offsetLeft;
-                const targetWidth = targetElement.clientWidth;
-                const targetScrollLeft = targetOffsetLeft + targetWidth / 2 - containerWidth / 2;
-                container.scrollTo({ left: Math.max(0, targetScrollLeft), behavior: 'smooth' });
-                store.resetFocus();
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             }
+        } else if (cards.length > 0) {
+            cards[0].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         }
     };
 
     const scrollRight = () => {
         const container = previewScrollContainer.value;
         if (!container) return;
-        const cards = getAllCardElements();
         const currentStoreIndex = findCurrentCardIndex();
         let currentArrayIndex = -1;
         if (currentStoreIndex === -1) { currentArrayIndex = 0; }
         else if (currentStoreIndex !== null && currentStoreIndex >= 0) { currentArrayIndex = currentStoreIndex + 1; }
-        else if (currentStoreIndex === null) { currentArrayIndex = 0; }
-        const targetArrayIndex = currentArrayIndex + 1;
+        else {
+            currentArrayIndex = -1;
+        }
+
+        const cards = getAllCardElements();
+        const targetArrayIndex = Math.min(cards.length - 1, currentArrayIndex + 1);
+
         if (targetArrayIndex >= 0 && targetArrayIndex < cards.length) {
             const targetElement = cards[targetArrayIndex];
             if (targetElement) {
-                const containerWidth = container.clientWidth;
-                const targetOffsetLeft = targetElement.offsetLeft;
-                const targetWidth = targetElement.clientWidth;
-                const targetScrollLeft = targetOffsetLeft + targetWidth / 2 - containerWidth / 2;
-                container.scrollTo({ left: Math.min(container.scrollWidth - containerWidth, targetScrollLeft), behavior: 'smooth' });
-                store.resetFocus();
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
             }
+        } else if (cards.length > 0) {
+            cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         }
     };
 
@@ -144,12 +152,17 @@ export function useCardPreviewScroll(store, coverCardContainerRef, contentCardRe
             console.log('[useCardPreviewScroll] Valid focus request received. Initiating scroll.');
             let targetElementContainer = null;
             const scrollContainer = previewScrollContainer.value;
-            if (!scrollContainer) { return; }
+            if (!scrollContainer) {
+                console.warn('[useCardPreviewScroll] Scroll container not found.');
+                return;
+            }
 
             if (newIndex === -1) {
                 targetElementContainer = coverCardContainerRef.value;
             } else {
-                targetElementContainer = contentCardRefsArray.value?.[newIndex];
+                if (contentCardRefsArray.value && newIndex < contentCardRefsArray.value.length) {
+                    targetElementContainer = contentCardRefsArray.value[newIndex];
+                }
             }
 
             if (targetElementContainer) {
@@ -170,6 +183,7 @@ export function useCardPreviewScroll(store, coverCardContainerRef, contentCardRe
     // --- Lifecycle Hooks ---
     onMounted(() => {
         nextTick(checkScrollButtons);
+        previewScrollContainer.value?.addEventListener('scroll', handleScroll, { passive: true });
         window.addEventListener('resize', throttledCheckScrollButtons);
     });
 
@@ -178,6 +192,7 @@ export function useCardPreviewScroll(store, coverCardContainerRef, contentCardRe
     });
 
     onUnmounted(() => {
+        previewScrollContainer.value?.removeEventListener('scroll', handleScroll);
         window.removeEventListener('resize', throttledCheckScrollButtons);
     });
 
