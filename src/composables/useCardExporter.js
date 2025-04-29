@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { useToast } from "vue-toastification";
 import { handleAsyncTask } from '../utils/asyncHandler';
-import cardExportUtils from '../utils/cardExport';
+import cardExportUtils, { sanitizeFilename } from '../utils/cardExport';
 
 // 从 cardExportUtils 解构所需的函数
 const {
@@ -16,7 +16,7 @@ const {
 // --- 在 Composable 内部定义辅助函数 ---
 
 /**
- * 获取 YYMMDD 格式的日期字符串 (从 utils 移入)
+ * 获取 YYMMDD 格式的日期字符串
  * @returns {string} YYMMDD 格式的日期
  */
 function getFormattedDate() {
@@ -25,18 +25,6 @@ function getFormattedDate() {
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     return `${year}${month}${day}`;
-}
-
-/**
- * 清理文件名中的非法字符 (假设需要，如果 utils 里有则用导入的，否则需要实现)
- * @param {string} name - 原始文件名
- * @returns {string} 清理后的文件名
- */
-function sanitizeFilename(name) {
-    // console.log("Inside sanitizeFilename, input:", name); // 移除调试日志
-    if (!name) return 'untitled';
-    // 恢复原始实现
-    return name.replace(/[\\/:*?\"<>|.\\n\\r\\t]/g, '_').trim();
 }
 
 /**

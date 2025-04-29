@@ -24,12 +24,16 @@ export function getFormattedDate() {
  * @param {string} name - 原始文件名
  * @returns {string} 清理后的文件名
  */
-function sanitizeFilename(name) {
+export function sanitizeFilename(name) {
     if (!name) return 'untitled';
-    // 替换常见非法字符为空格或下划线，移除首尾空格，防止文件名过长（可选）
-    let sanitized = name.replace(/[\\/:*?"<>|.\n\r\t]/g, '_').trim();
-    // return sanitized.substring(0, 100); // 可选：限制文件名长度
-    return sanitized;
+
+    const illegalCharsString = '\\/:*?\"<>|.\n\r\t'; // String of illegal characters
+    let sanitized = '';
+    for (let i = 0; i < name.length; i++) {
+        // Check if the character is included in the illegal string
+        sanitized += illegalCharsString.includes(name[i]) ? '_' : name[i];
+    }
+    return sanitized.trim(); // Return trimmed result
 }
 
 /**
