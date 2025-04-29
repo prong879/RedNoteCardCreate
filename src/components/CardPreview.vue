@@ -190,18 +190,6 @@ export default {
             });
         });
         
-        // --- 移除的导出相关逻辑 --- 
-        // const isExporting = ref(false); // 移至 useCardExporter
-        // const exportProgress = ref(...); // 移至 useCardExporter
-        // const currentLoadingToastId = ref(null); // 移至 useCardExporter
-        // const { exportCardAsImage, ... } = cardExportUtils; // 不再直接使用
-        // const _getExportableCardElement = (...) => { ... }; // 移至 useCardExporter
-        // const exportSingleCard = async (...) => { ... }; // 移至 useCardExporter
-        // const _getAllExportableElements = () => { ... }; // 移至 useCardExporter
-        // const updateExportProgress = (...) => { ... }; // 移至 useCardExporter
-        // const exportAllAsImages = async () => { ... }; // 移至 useCardExporter
-        // const exportAllAsZip = async () => { ... }; // 移至 useCardExporter
-        
         // --- 复制主文案 (保留在组件内，因为它与导出卡片关系不大) --- 
         const copyMainText = async () => {
             const result = await handleAsyncTask(async () => {
