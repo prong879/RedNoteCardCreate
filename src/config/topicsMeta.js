@@ -22,7 +22,7 @@ export const topicsMeta = [
         cardCount: 6
     },
     {
-        id: 'topic04',
+        id: 'topic04', cardCount: 3,
         title: '为什么金融分析离不开时间序列？',
         description: '核心：强调预测、风险管理等实际应用价值，引发共鸣',
         cardCount: 4

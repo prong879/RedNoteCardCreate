@@ -21,6 +21,3 @@ contentDefaultShowFooter: true
 
 <!-- cardFontSize: 19 -->
 
----
-
-## ddd
