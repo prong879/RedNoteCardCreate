@@ -100,19 +100,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue';
 import { useToast } from "vue-toastification";
 import promptTemplate from '../prompts/knowledge_card_prompt.md?raw';
 import { useCardStore } from '../stores/cardStore';
 // 移除 GenerateMdModal 导入
 // import GenerateMdModal from './GenerateMdModal.vue'; 
-import MarkdownManager from './MarkdownManager.vue';
+// import MarkdownManager from './MarkdownManager.vue'; // 注释掉静态导入
 import { saveAs } from 'file-saver';
 import { getOrdinal } from '../utils/formatters';
 import { generateMarkdownTemplate } from '../utils/templateUtils';
-import ConfirmationModal from './ConfirmationModal.vue'; // 新增导入
-// +++ 新增：导入骨架屏组件 +++
-// import TopicCardSkeleton from './TopicCardSkeleton.vue';
+// import ConfirmationModal from './ConfirmationModal.vue'; // 新增导入 // 注释掉静态导入
+
+// +++ 异步导入组件 +++
+const MarkdownManager = defineAsyncComponent(() => 
+    import('./MarkdownManager.vue')
+);
+const ConfirmationModal = defineAsyncComponent(() =>
+    import('./ConfirmationModal.vue')
+);
 
 const store = useCardStore();
 const emit = defineEmits(['select-topic']);

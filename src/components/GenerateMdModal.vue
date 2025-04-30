@@ -58,10 +58,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { useCardStore } from '../stores/cardStore';
-import ConfirmationModal from './ConfirmationModal.vue'; // 引入确认模态框
+// import ConfirmationModal from './ConfirmationModal.vue'; // 注释掉静态导入
 import { getOrdinal } from '../utils/formatters'; // <--- 新增：导入 getOrdinal 工具函数
+
+// +++ 异步导入组件 +++
+const ConfirmationModal = defineAsyncComponent(() => 
+    import('./ConfirmationModal.vue')
+);
 
 const emit = defineEmits(['close', 'generate']);
 const store = useCardStore();
