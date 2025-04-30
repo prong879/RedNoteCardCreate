@@ -4,59 +4,51 @@
 
 这是一个小红书知识卡片生成工具，旨在通过模板化和可视化编辑，快速根据已有的知识库或联网搜索知识，生成选题库，并将选题内容转化为符合小红书风格的精美图片卡片和配套文案，提高内容创作效率。
 
-### 主要功能和使用流程
+**核心流程已更新**: 现在项目直接使用 `src/markdown/` 目录下的 `.md` 文件作为内容存储和管理的核心，移除了原有的 `.js` 文件转换流程。
 
-*   **选题管理与文案制作流程**:
-    *   系统加载 `src/content/topicsMeta.js` 中的选题元信息（标题、简介），并在选题界面展示，同时会尝试读取 JS 内容文件以显示**准确的卡片数量**。（选题库）
-    *   MD 模板创建：
-        *   提供 Node.js 脚本 (`scripts/create_md_Template.js`) 通过命令行快速创建 Markdown 模板到 `src/markdown/` 目录，自定义标题和文件名。
-        *   前端页面提供 **"生成 MD 模板"** 按钮（位于 Markdown 管理面板），在开发模式下，可根据已有选题，读取其标题和简介，直接创建模板文件到 `src/markdown/` 目录（若文件已存在则**提示确认覆盖**），生产模式下则下载模板文件。
-        *   生成的 Markdown 模板中，`headerText` 默认设置为 `@园丁小区詹姆斯`。
-    *   前端页面提供生成prompt按钮，可根据选题内容一键生成 Prompt，便于辅助 AI 在已有 md 文件基础上生成详细文案，并以注释形式提供可视化示例资源演示建议。
-    *   (可选) 可利用 ManimCE 制作可视化演示素材，写了一个快速导出Manim的gui应用，支持导出为视频/图片，支持调节质量、背景透明与否等。
-    *   JS 文案文件转换
-        *   前端提供 **"导入/更新 MD"** 按钮（位于 Markdown 管理面板），可一键将检测到的 `.md` 文案文件转换为对应的 JS 文案文件 (`_content.js`)，并**自动更新选题元信息** `topicsMeta.js`（包括卡片数量）。
-        *   提供 Node.js 脚本 (`scripts/md_To_JS_Content.js`) 将特定格式的 Markdown 文案文件转换为 JS 数据文件，并自动更新选题元信息 `topicsMeta.js`。
-    *   前端点击 "选择话题" ，会根据实际存在的 JS 文案文件，动态加载 `src/content/topicXX_content.js` 中的详细内容，点击查看即可进入预览和编辑界面。
-*   **卡片模板设计及模板选择**:
-    *   卡片类型分为封面卡片和内容卡片。
-    *   提供多种样式模板，支持不同宽高比，实时预览不同模板效果。
-    *   模板组件动态加载，优化性能。
-*   **可视化编辑卡片、文案**:
+### 主要功能
+
+*   **选题管理与内容编辑**: 
+    *   **选题界面**: 
+        *   系统加载 `src/content/topicsMeta.js` 中的选题元信息（标题、简介），并在选题界面展示。启动时扫描 `src/markdown/` 目录，根据 `.md` 文件构建选题列表，并直接解析 `.md` 文件展示卡片数量。
+        *   提供 "创建 MD" / "覆盖 MD" 按钮，方便地创建新的空白 `.md` 选题文件或覆盖现有文件。
+    *   **内容来源**: 所有卡片内容（包括标题、描述、页眉/页脚、卡片正文、主文案、字体/行高设置）均存储在对应的 `.md` 文件中。
+    *   **编辑方式**: 
+        *   可以直接编辑 `src/markdown/` 下的 `.md` 文件。
+        *   也可以在应用的可视化界面中编辑内容。
+    *   **Prompt 生成**: 提供按钮，可根据当前 `.md` 文件内容生成用于辅助AI 在已有 md 文件基础上生成详细文案，并以注释形式提供可视化示例资源演示建
+    议。
+    *   **(可选)** 可利用 ManimCE 制作可视化演示素材，写了一个快速导出Manim的gui应用，支持导出为视频/图片，支持调节质量、背景透明与否等。。
+*   **卡片模板**: 
+    *   提供多种样式模板，支持不同宽高比，实时预览。
+    *   模板组件动态加载。
+*   **可视化编辑**: 
     *   支持实时编辑页眉/页脚、封面/内容卡片的标题/正文及主文案。
     *   支持 **Markdown** 和 **LaTeX** 数学公式。
     *   内容卡片支持拖拽排序、添加、删除。
     *   可单独控制卡片的页眉/页脚显隐。
+    *   可单独调整每个**内容卡片**的**字体大小**和**行高**。
     *   编辑内容实时反映在预览区。
-    *   编辑区与预览区滚动联动，方便定位。
-    *   (内部使用 Pinia 进行集中式状态管理。**注意**: 内部焦点索引约定：`null` 表示无焦点, `-1` 表示封面卡片, `0+` 表示对应的内容卡片数组索引【这个不要删除】)。
-*   **导出与保存图片、文案数据**: 
-    *   导出单张或所有卡片为 **JPG / PNG 图片** (较高分辨率)。
+    *   编辑区与预览区滚动联动。
+    *   (Pinia 状态管理, 焦点索引约定: `null` 无焦点, `-1` 封面, `0+` 内容卡片索引【这个不要删除】)。
+*   **导出与保存**: 
+    *   导出单张或所有卡片为 **JPG / PNG 图片** (高分辨率, scale:4)。
     *   将所有图片打包为 **ZIP 文件**下载。
     *   一键**复制主文案**。
-    *   **"生成 JS 文件"**: 将当前编辑内容打包为 JS 文件供下载，用户可手动复制并替换本地数据。
-    *   **"保存到本地" (仅开发模式)**: 直接将当前编辑内容更新到 `src/content/topicXX_content.js` 文件 (前提是 Topic ID 格式为 `topicX`)。
+    *   **"保存到本地"**: 直接将当前编辑内容**写回**对应的 `src/markdown/topicXX.md` 文件 (覆盖保存)。
 
-#### 图片导出分辨率与 `scale` 选项
-
-项目中使用了 `html2canvas` 库将卡片元素转换为图片。为了提高导出图片的清晰度（目前默认是scale:4），我们设置了 `scale` 选项（例如 `scale: 4`）。其工作原理如下：
-
-*   **非简单拉伸**: `scale` 选项 **不是**简单地将原始尺寸的卡片渲染结果拉伸放大。
-*   **扩大渲染画布**: 它指示 `html2canvas` 在内部创建一个**尺寸为原始元素 N 倍**的画布（例如，`scale: 4` 会使用原始尺寸 4 倍的画布）。
-*   **高精度渲染**: `html2canvas` 会直接在这个**更大的画布上**以更高的精度重新绘制所有内容。
-*   **结果**: 最终从这个扩大后的画布导出的图片，拥有更高的像素密度，看起来更清晰。
 
 ### 技术栈
 
 *   **前端**: Vue.js 3 (组合式 API), Vite
-*   **状态管理**: Pinia (使用 Action 管理部分 Markdown 操作逻辑)
+*   **状态管理**: Pinia
 *   **样式**: Tailwind CSS, PostCSS (autoprefixer)
 *   **图标**: Font Awesome (@fortawesome/fontawesome-free)
-*   **Markdown/LaTeX**: marked, KaTeX
+*   **Markdown/LaTeX/YAML**: marked, KaTeX, gray-matter
 *   **图片/文件处理**: html2canvas, file-saver, JSZip
 *   **拖拽**: vuedraggable
-*   **数据**: JavaScript 对象/JSON
-*   **辅助脚本/插件**: Node.js, gray-matter, 自定义 Vite 插件 (用于开发模式本地保存)
+*   **数据**: Markdown 文件 (`src/markdown/`), 通过自定义 Vite 插件提供 API
+*   **配置**: `src/config/` (如 `templateMetadata.js`, `cardConstants.js`)
 
 ## 使用方法
 
@@ -88,12 +80,14 @@ npm run build
 
 推荐的工作流程结合了 Markdown 编辑、AI 辅助和可视化编辑：
 
-1.  **创建 Markdown 模板**: 
-    *   **方式一 (命令行)**: 打开终端，在项目根目录下运行 `npm run xinwenan -- <你的topicId> '<你的主标题>'` 来创建对应的 `.md` 文件模板到 `src/markdown/` 目录。
-    *   **方式二 (界面按钮, 推荐)**: 点击选题界面的 **"生成 MD 模板"** 按钮（位于 Markdown 管理面板），填写信息。在开发模式下，模板会直接保存到 `src/markdown/` (若文件已存在会**提示确认覆盖**)；生产模式下会触发下载。
+1.  **创建/选择 Markdown 文件**: 
+    *   **方式一 (界面创建)**: 在选题界面，点击 "创建 MD" 按钮，输入 Topic ID (如 `topic05`) 和标题，系统将在 `src/markdown/` 目录下创建对应的 `topic05.md` 文件模板。
+    *   **方式二 (界面选择)**: 如果已有 `.md` 文件，直接在选题界面选择对应的卡片进入编辑。
+    *   **方式三 (手动创建)**: 手动在 `src/markdown/` 目录下创建 `.md` 文件（参考下方格式规范），然后刷新应用或重启开发服务器即可在选题界面看到。
 
-2.  **编辑 Markdown 源文件**: 
-    *   打开新创建的 `.md` 文件，在 YAML Front Matter 部分填写或修改 `title` 和 `description`。
+2.  **编辑 Markdown 源文件 (可选)**: 
+    *   可以直接使用文本编辑器打开 `.md` 文件进行内容创作。
+    *   在 YAML Front Matter 部分填写或修改 `title` 和 `description` (用于选题界面显示)。
     *   参考 **"通过 Markdown 管理内容"** 部分的格式规范，编写封面卡片、内容卡片以及主文案。
 3.  **AI 辅助生成详细文案**: 
     *   选题页面提供了"生成 Prompt"按钮，一键生成针对该选题的文案撰写 Prompt。
@@ -102,114 +96,67 @@ npm run build
     : ... -->` 注释格式提供可视化素材的建议【这个不要删】。
 4.  **制作可视化素材 (可选)**: 
     *   参考 `.md` 文件中的插图建议，使用 ManimCE (或其他工具) 创建图片或视频素材。
-    *   (可选) 使用配套的 Manim GUI 应用（如适用）辅助导出，调整参数。
-    *   建议将最终素材按规范命名并存放在项目根目录的 `media/` 下（参考 **"媒体资源管理规范"**）。
-5.  **转换 Markdown 并更新元数据**: 
-    *   **方式一 (界面按钮, 推荐)**: 点击选题界面的 **"导入/更新 MD"** 按钮（位于 Markdown 管理面板），系统会自动检测 `src/markdown/` 下的 `.md` 文件，将其转换为 `src/content/` 目录下的 `_content.js` 数据文件，并**自动更新** `src/content/topicsMeta.js`。
-    *   **方式二 (命令行)**: 运行 `npm run zhuanhuan -- <你的topicId>` 或 `npm run zhuanhuan -- all`。此脚本会将 `src/markdown/` 下的 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 数据文件，并自动更新 `src/content/topicsMeta.js`。
-6.  **启动应用并选择选题**: 
-    *   运行 `npm run dev` 启动应用。
-    *   在首页选择你刚刚处理的选题卡片（应能看到**更新后的卡片数量**），进入编辑预览界面。
-7.  **可视化编辑与微调**: 
+    *   (可选) 使用配套的 Manim GUI 应用辅助导出。
+    *   建议将最终素材按规范命名并存放在项目根目录的 `media/` 下。
+5.  **可视化编辑与微调**: 
+    *   运行 `npm run dev` 启动应用（如果尚未运行）。
+    *   在选题界面选择你的主题。
     *   在左侧**配置面板**选择或切换卡片样式模板。
-    *   对加载进来的内容（页眉/页脚、卡片标题/正文、主文案）进行最后的编辑和调整 (支持 Markdown/LaTeX)。
+    *   对加载进来的内容（页眉/页脚、卡片标题/正文、主文案）进行编辑和调整 (内容卡片正文支持 Markdown/LaTeX)。
     *   通过拖拽、添加、删除按钮调整内容卡片顺序或数量。
     *   根据需要单独设置卡片的页眉/页脚显隐。
+    *   **调整字号/行高**: 使用内容卡片下方的 "+/-" 按钮调整该卡片的字体大小和行高。
     *   右侧**预览面板**会实时更新效果。
-8.  **导出与保存**: 
+6.  **保存内容**: 
+    *   在**配置面板**点击 **"保存到本地"** 按钮。这将把当前编辑的所有内容（包括文本、显隐设置、**字号/行高**）写回到对应的 `src/markdown/topicXX.md` 文件中。
+7.  **导出与发布**: 
     *   在**预览面板**点击相应按钮，导出单张图片、所有图片或打包下载 ZIP 文件。
-    *   **(仅开发模式)** 点击 "保存到本地" 可直接更新 `src/content/` 下的 JS 文件 (需 Topic ID 为 `topicX` 格式)。
     *   在**配置面板**点击按钮，复制最终的主文案。
-    *   (可选) 点击**配置面板**的 "生成 JS 文件供下载" 按钮，获取当前编辑状态的 JS 数据，下载后手动替换本地旧版本js数据。
-9.  **发布**: 
     *   使用导出的图片和复制的文案发布笔记。
-
-**(备选流程: 直接编辑 JS)**
-
-如果你不希望使用 Markdown 工作流，也可以跳过步骤 2-5，直接在 `src/content/` 目录下创建和编辑 `topicXX_content.js` 文件，然后从步骤 6 开始。
 
 ## 通过 Markdown 管理内容
 
-为了更方便地创作和管理选题内容，推荐使用 Markdown 配合转换脚本 **或界面上的 Markdown 管理面板**。
+现在项目以 `src/markdown/` 目录下的 `.md` 文件作为核心数据源。
 
-**1. 创建 Markdown 模板**
+**文件格式约定：**
 
-*   **推荐方式: 界面按钮**: 点击选题界面的 **"生成 MD 模板"** 按钮（位于 Markdown 管理面板），填写信息。开发模式下会尝试直接保存到 `src/markdown/` (若文件已存在会**提示确认覆盖**)，生产模式下则下载。
-*   **命令行方式**: `npm run xinwenan -- <topicId> <主标题>`，会将模板创建到 `src/markdown/`。
-
-**2. 编写 Markdown 源文件**
-
-将 Markdown 源文件放置在 `src/markdown/` 目录下，文件名与 `topicId` 对应 (例如 `topic01.md`)。
-
-文件格式约定：
-
-*   **YAML Front Matter**: 文件开头 `---` 包裹的部分。**这是管理选题元数据的核心。**
-    *   `topicId`: (必需) 字符串，唯一 ID。
-    *   `title`: (必需) 字符串，主标题。**`zhuanhuan` 脚本会用此标题更新 `topicsMeta.js`。**
-    *   `description`: (推荐) 字符串，选题的简介描述。**`zhuanhuan` 脚本会用此描述更新 `topicsMeta.js`。**
+*   **YAML Front Matter**: 文件开头 `---` 包裹的部分。用于存储全局元数据。
+    *   `topicId`: (必需) 字符串，唯一 ID，**必须**与文件名（不含扩展名）一致。
+    *   `title`: (必需) 字符串，主标题。用于选题界面显示。
+    *   `description`: (推荐) 字符串，选题的简介描述。用于选题界面显示。
     *   `headerText`, `footerText`: (可选) 字符串，全局页眉/页脚。
     *   `coverShowHeader`, `coverShowFooter`: (可选, 默认 `true`) 布尔值，封面页眉/页脚显隐。
-    *   `contentDefaultShowHeader`, `contentDefaultShowFooter`: (可选, 默认 `true`) 布尔值，内容卡片页眉/页脚默认显隐。
-    *   **重要**: 字符串值**强烈建议使用单引号 (`'`) 包裹**，避免解析错误。
+    *   `contentDefaultShowHeader`, `contentDefaultShowFooter`: (可选, 默认 `true`) 布尔值，内容卡片页眉/页脚**默认**显隐。
+    *   **重要**: 包含特殊字符（如 `:`）或中文的字符串值，**必须使用双引号 (`"`) 包裹**。
         ```yaml
         # 示例:
-        topicId: 'topic01'
-        title: '【小白入门】什么是时间序列数据？'
-        headerText: '@你的用户名'
-        footerText: ''
+        topicId: "topic01"
+        title: "【小白入门】什么是时间序列数据？"
+        description: "解释时间序列的基本概念和常见例子"
+        headerText: "@你的用户名"
+        footerText: ""
+        coverShowHeader: true
+        coverShowFooter: true
+        contentDefaultShowHeader: true
+        contentDefaultShowFooter: true
         ```
 *   **卡片分隔符 (`---`)**: 单独一行，用于分隔封面卡片和内容卡片，以及内容卡片之间。
 *   **封面卡片内容**: Front Matter 后，第一个 `---` 前。
-    *   第一个 `# 标题` (一级) 作为封面标题 (覆盖 Front Matter 的 `title`)。
+    *   第一个 `# 标题` (一级) 作为封面标题 (会覆盖编辑界面中的封面标题输入)。
     *   标题后的内容作为副标题 (支持 Markdown/LaTeX)。
 *   **内容卡片内容**: 每个 `---` 之后。
     *   第一个 `# 任意级别标题` 作为卡片标题。
     *   标题后的内容作为正文 (支持 Markdown/LaTeX)。
-    *   可在正文中使用 `<!-- cardShowHeader: false -->` 或 `<!-- cardShowFooter: true -->` 单独覆盖显隐。
+    *   **卡片元数据 (HTML 注释)**: 可在卡片正文**之后**，下一个 `---` **之前**，添加以下 HTML 注释来单独控制该卡片的属性：
+        *   `<!-- cardShowHeader: false -->` 或 `<!-- cardShowHeader: true -->` (覆盖默认显隐)
+        *   `<!-- cardShowFooter: false -->` 或 `<!-- cardShowFooter: true -->` (覆盖默认显隐)
+        *   `<!-- cardFontSize: 18 -->` (设置字号，如果**不是**默认值 `16`)
+        *   `<!-- cardLineHeight: 1.8 -->` (设置行高，如果**不是**默认值 `1.5`)
+        *   **注意**: 只有当值与默认设置不同时，才需要（或才会被程序写入）这些注释。加载时若无对应注释，则使用默认值。
 *   **主文案 (`mainText`)**: **必须**在所有卡片内容**之后**，以 `## Main Text` 或 `## 主文案` 标题开始，直到文件末尾。**此区域仅支持纯文本、换行、Emoji 和 #话题标签#**。
 
-*请参考 `src/markdown/topic00.md` 查看具体示例。*
+*请参考项目中 `src/markdown/` 下的示例 `.md` 文件。*
 
-**3. 转换为 JS 数据文件并更新元数据**
-
-*   **推荐方式: 界面按钮**: 点击选题界面的 **"导入/更新 MD"** 按钮（位于 Markdown 管理面板）。系统将自动处理 `src/markdown/` 目录下的所有 `.md` 文件，生成或更新对应的 `_content.js` 文件，并**自动更新或添加** `topicsMeta.js` 中的条目（包括卡片数量）。
-*   **命令行方式**: 使用 `zhuanhuan` 命令将 `.md` 文件转换为 `src/content/` 目录下的 `_content.js` 文件，并**自动更新** `src/content/topicsMeta.js`。
-
-```bash
-# 转换指定文件
-npm run zhuanhuan -- <topicId>
-# 示例: npm run zhuanhuan -- topic01
-
-# 转换所有 .md 文件
-npm run zhuanhuan -- all
-```
-*   转换脚本和界面按钮都会**覆盖**已存在的同名 `_content.js` 文件，并**更新或添加** `topicsMeta.js` 中对应的条目。
-
-## 选题内容模板扩展 (直接使用 JS)
-
-如果不使用 Markdown 工作流，可以直接创建和编辑 `src/content/` 下的 JS 文件。
-
-1.  **选题元信息 (`src/content/topicsMeta.js`)**: 定义所有选题的基础信息。
-    ```javascript
-    export const topicsMeta = [
-      { id: 'topic01', title: '...', description: '...' },
-      // ...
-    ];
-    ```
-2.  **选题详细内容 (`src/content/topicXX_content.js`)**: 每个选题对应一个文件。
-    ```javascript
-    export const topicXX_contentData = { // XX 需与 id 匹配
-      headerText: "可选页眉",
-      footerText: "可选页脚",
-      coverCard: { title: '...', subtitle: '...', showHeader: true, showFooter: true },
-      contentCards: [
-        { title: '...', body: '...', showHeader: true, showFooter: true },
-        // ... more cards
-      ],
-      mainText: `小红书主文案...
-#话题#`
-    };
-    ```
 
 ## 项目结构
 
@@ -219,22 +166,19 @@ npm run zhuanhuan -- all
 ├── .vscode/
 ├── docs/                   # 项目文档
 ├── Manim/                  # Manim 可视化应用，包括各个动画脚本、辅助导出的gui应用
-├── media_final/                  # 最终媒体资源 (Manim 输出等, 建议 .gitignore)
+├── media_final/            # 最终媒体资源 (Manim 输出等, 建议 .gitignore)
 ├── node_modules/
 ├── public/                 # Vite 静态资源目录
-├── scripts/                # Node.js 辅助脚本
-│   ├── create_md_Template.js # 创建 Markdown 模板
-│   └── md_To_JS_Content.js   # Markdown 转 JS 内容数据
+├── plugins/                # 自定义 Vite 插件
+│   └── vite-plugin-local-save.js # 提供本地 MD 文件操作 API
 ├── src/
 │   ├── assets/             # Vue 应用静态资源 (CSS, 字体等)
-│   ├── components/         # Vue 组件
-│   ├── composables/        # Vue 组合式函数
-│   ├── config/             # 应用配置 (如模板元数据)
-│   │   └── templateMetadata.js
-│   ├── content/            # 选题内容数据 (JS 格式)
-│   │   ├── topicsMeta.js
-│   │   └── topicXX_content.js
-│   ├── markdown/           # Markdown 源文件 (可选工作流)
+│   ├── components/         # Vue 组件 (UI 界面)
+│   ├── composables/        # Vue 组合式函数 (逻辑复用)
+│   ├── config/             # 应用配置
+│   │   ├── templateMetadata.js # 模板元数据
+│   │   └── cardConstants.js    # 卡片相关常量
+│   ├── markdown/           # Markdown 源文件 (核心内容数据)
 │   │   └── topicXX.md
 │   ├── prompts/            # AI Prompt 模板
 │   ├── stores/             # Pinia 状态管理 Store

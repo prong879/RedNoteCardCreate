@@ -4,6 +4,18 @@ import { useToast } from 'vue-toastification';
 import { topicsMeta } from '../content/topicsMeta'; // 调整路径
 import matter from 'gray-matter'; // 引入 gray-matter
 import { handleAsyncTask } from '../utils/asyncHandler'; // 导入新的处理器
+import {
+    DEFAULT_FONT_SIZE,
+    DEFAULT_LINE_HEIGHT,
+    MIN_FONT_SIZE,
+    MAX_FONT_SIZE,
+    MIN_LINE_HEIGHT,
+    MAX_LINE_HEIGHT,
+    MD_COMMENT_FONT_SIZE_KEY,
+    MD_COMMENT_LINE_HEIGHT_KEY,
+    MD_COMMENT_SHOW_HEADER_KEY,
+    MD_COMMENT_SHOW_FOOTER_KEY
+} from '../config/cardConstants';
 
 // Helper function to parse Markdown content into card structure
 // (This is a simplified parser based on the README description)
@@ -348,8 +360,8 @@ export const useCardStore = defineStore('card', () => {
         body: "",
         showHeader: true,
         showFooter: true,
-        fontSize: 16, // 新增：默认字体大小
-        lineHeight: 1.5 // 新增：默认行高
+        fontSize: DEFAULT_FONT_SIZE, // 使用常量
+        lineHeight: DEFAULT_LINE_HEIGHT // 使用常量
     });
 
     // 在指定索引处添加内容卡片
@@ -563,38 +575,33 @@ export const useCardStore = defineStore('card', () => {
         bodyString += '\n---\n\n';
 
         // Content Cards
-        const DEFAULT_FONT_SIZE = 16;
-        const DEFAULT_LINE_HEIGHT = 1.5;
         content.contentCards?.forEach((card, index) => {
-            let cardMetaString = ''; // 用于收集卡片的元数据注释
+            let cardMetaString = '';
             if (card.title) {
-                bodyString += `## ${card.title}\n`; // 使用二级标题表示内容卡片
+                bodyString += `## ${card.title}\n`;
             }
             if (card.body) {
                 bodyString += `${card.body}\n`;
             }
-            
-            // 添加元数据注释 (仅在非默认值时添加)
+
+            // --- 使用常量 --- 
             if (card.showHeader !== frontMatter.contentDefaultShowHeader) {
-                cardMetaString += `<!-- cardShowHeader: ${card.showHeader} -->\n`;
+                cardMetaString += `<!-- ${MD_COMMENT_SHOW_HEADER_KEY}: ${card.showHeader} -->\n`;
             }
             if (card.showFooter !== frontMatter.contentDefaultShowFooter) {
-                cardMetaString += `<!-- cardShowFooter: ${card.showFooter} -->\n`;
+                cardMetaString += `<!-- ${MD_COMMENT_SHOW_FOOTER_KEY}: ${card.showFooter} -->\n`;
             }
             if (typeof card.fontSize === 'number' && card.fontSize !== DEFAULT_FONT_SIZE) {
-                cardMetaString += `<!-- cardFontSize: ${card.fontSize} -->\n`;
+                cardMetaString += `<!-- ${MD_COMMENT_FONT_SIZE_KEY}: ${card.fontSize} -->\n`;
             }
             if (typeof card.lineHeight === 'number' && card.lineHeight !== DEFAULT_LINE_HEIGHT) {
-                 // 保证行高输出一位小数
-                cardMetaString += `<!-- cardLineHeight: ${card.lineHeight.toFixed(1)} -->\n`;
+                cardMetaString += `<!-- ${MD_COMMENT_LINE_HEIGHT_KEY}: ${card.lineHeight.toFixed(1)} -->\n`;
             }
 
-            // 如果有元数据注释，则在卡片内容后添加一个换行再加注释
             if (cardMetaString) {
                 bodyString += '\n' + cardMetaString;
             }
 
-            // 在最后一张卡片后不加分隔符
             if (index < content.contentCards.length - 1) {
                 bodyString += '\n---\n\n';
             }
@@ -691,10 +698,6 @@ export const useCardStore = defineStore('card', () => {
 
     // +++ 新增：调整内容卡片字体大小 Action +++
     const adjustCardFontSize = (index, delta) => {
-        const MIN_FONT_SIZE = 10;
-        const MAX_FONT_SIZE = 30;
-        const DEFAULT_FONT_SIZE = 16;
-
         if (!cardContent.value || !cardContent.value.contentCards) {
             console.error(`[Store Action - adjustCardFontSize] Cannot adjust font size: cardContent or contentCards is invalid.`);
             toast.error('无法调整字号：内容未加载或结构错误。');
@@ -708,18 +711,14 @@ export const useCardStore = defineStore('card', () => {
 
         try {
             const card = cardContent.value.contentCards[index];
-            // 处理可能不存在 fontSize 的情况 (例如旧数据或意外情况)
             const currentSize = typeof card.fontSize === 'number' ? card.fontSize : DEFAULT_FONT_SIZE;
             let newSize = currentSize + delta;
-
-            // 限制字号范围
             newSize = Math.max(MIN_FONT_SIZE, Math.min(newSize, MAX_FONT_SIZE));
 
             if (newSize !== currentSize) {
                 card.fontSize = newSize;
                 console.log(`[Store Action - adjustCardFontSize] Font size for card ${index} updated to ${newSize}px.`);
             } else {
-                // 如果字号未改变 (已达边界)，可以给个提示
                 if (delta > 0) {
                     toast.info(`字号已达到最大值 (${MAX_FONT_SIZE}px)`);
                 } else if (delta < 0) {
@@ -734,10 +733,6 @@ export const useCardStore = defineStore('card', () => {
 
     // +++ 新增：调整内容卡片行高 Action +++
     const adjustCardLineHeight = (index, delta) => {
-        const MIN_LINE_HEIGHT = 1.0;
-        const MAX_LINE_HEIGHT = 2.5;
-        const DEFAULT_LINE_HEIGHT = 1.5;
-
         if (!cardContent.value || !cardContent.value.contentCards) {
             console.error(`[Store Action - adjustCardLineHeight] Cannot adjust line height: cardContent or contentCards is invalid.`);
             toast.error('无法调整行高：内容未加载或结构错误。');
@@ -751,19 +746,14 @@ export const useCardStore = defineStore('card', () => {
 
         try {
             const card = cardContent.value.contentCards[index];
-            // 处理可能不存在 lineHeight 的情况
             const currentHeight = typeof card.lineHeight === 'number' ? card.lineHeight : DEFAULT_LINE_HEIGHT;
-            // 使用 toFixed(1) 处理 JS 浮点数精度问题，并转回数字
             let newHeight = parseFloat((currentHeight + delta).toFixed(1));
-
-            // 限制行高范围
             newHeight = Math.max(MIN_LINE_HEIGHT, Math.min(newHeight, MAX_LINE_HEIGHT));
 
             if (newHeight !== currentHeight) {
                 card.lineHeight = newHeight;
                 console.log(`[Store Action - adjustCardLineHeight] Line height for card ${index} updated to ${newHeight}.`);
             } else {
-                // 如果行高未改变 (已达边界)，可以给个提示
                 if (delta > 0) {
                     toast.info(`行高已达到最大值 (${MAX_LINE_HEIGHT.toFixed(1)})`);
                 } else if (delta < 0) {

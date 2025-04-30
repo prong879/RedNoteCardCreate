@@ -3,6 +3,23 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 // 引入 gray-matter
 import matter from 'gray-matter';
+// +++ 导入常量 +++
+// 注意：Node.js 插件环境需要处理 ES Module 导入
+// 假设 cardConstants.js 是 ES Module，可以使用动态 import()
+let cardConstants = {};
+import('../src/config/cardConstants.js').then(constants => {
+    cardConstants = constants;
+    console.log('[LocalSavePlugin] Loaded card constants.');
+}).catch(err => {
+    console.error('[LocalSavePlugin] Failed to load card constants:', err);
+    // 可以设置默认值或抛出错误
+    cardConstants = {
+        MD_COMMENT_FONT_SIZE_KEY: 'cardFontSize',
+        MD_COMMENT_LINE_HEIGHT_KEY: 'cardLineHeight',
+        MD_COMMENT_SHOW_HEADER_KEY: 'cardShowHeader',
+        MD_COMMENT_SHOW_FOOTER_KEY: 'cardShowFooter'
+    };
+});
 
 // 获取当前文件的目录和项目根目录
 const __filename = fileURLToPath(import.meta.url);
@@ -49,10 +66,14 @@ function parseMdBodyToCards(mdBodyContent, frontMatter) {
         } else {
             bodyContent = part;
         }
-        const showHeaderMatch = bodyContent.match(/<!--\s*cardShowHeader:\s*(true|false)\s*-->/);
-        const showFooterMatch = bodyContent.match(/<!--\s*cardShowFooter:\s*(true|false)\s*-->/);
-        const fontSizeMatch = bodyContent.match(/<!--\s*cardFontSize:\s*(\d+)\s*-->/);
-        const lineHeightMatch = bodyContent.match(/<!--\s*cardLineHeight:\s*(\d+(\.\d+)?)\s*-->/);
+        // --- 使用常量构建正则表达式 --- 
+        const createCommentRegex = (key) =>
+            new RegExp(`<!--\\s*${key}:\\s*(.*?)\\s*-->`);
+
+        const showHeaderMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_SHOW_HEADER_KEY));
+        const showFooterMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_SHOW_FOOTER_KEY));
+        const fontSizeMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_FONT_SIZE_KEY));
+        const lineHeightMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_LINE_HEIGHT_KEY));
 
         let showHeader = frontMatter.contentDefaultShowHeader !== undefined ? frontMatter.contentDefaultShowHeader : true;
         let showFooter = frontMatter.contentDefaultShowFooter !== undefined ? frontMatter.contentDefaultShowFooter : true;
@@ -64,7 +85,15 @@ function parseMdBodyToCards(mdBodyContent, frontMatter) {
         if (fontSizeMatch) fontSize = parseInt(fontSizeMatch[1], 10);
         if (lineHeightMatch) lineHeight = parseFloat(lineHeightMatch[1]);
 
-        bodyContent = bodyContent.replace(/<!--\s*(cardShowHeader|cardShowFooter|cardFontSize|cardLineHeight):\s*.*?\s*-->/gs, '').trim();
+        // --- 使用常量构建更精确的替换正则表达式 --- 
+        const keys = [
+            cardConstants.MD_COMMENT_SHOW_HEADER_KEY,
+            cardConstants.MD_COMMENT_SHOW_FOOTER_KEY,
+            cardConstants.MD_COMMENT_FONT_SIZE_KEY,
+            cardConstants.MD_COMMENT_LINE_HEIGHT_KEY
+        ].join('|');
+        const removeRegex = new RegExp(`<!--\\s*(${keys}):\\s*.*?\\s*-->\\r?\n?`, 'gs');
+        bodyContent = bodyContent.replace(removeRegex, '').trim();
 
         if (index === 0) {
             parsedCards.coverCard.title = title || frontMatter.title || ''; // Use heading, fallback to FM title
@@ -78,10 +107,10 @@ function parseMdBodyToCards(mdBodyContent, frontMatter) {
                 showHeader,
                 showFooter
             };
-            if (fontSize !== null) {
+            if (fontSize !== null && !isNaN(fontSize)) { // 增加 NaN 检查
                 cardData.fontSize = fontSize;
             }
-            if (lineHeight !== null) {
+            if (lineHeight !== null && !isNaN(lineHeight)) { // 增加 NaN 检查
                 cardData.lineHeight = lineHeight;
             }
             parsedCards.contentCards.push(cardData);
