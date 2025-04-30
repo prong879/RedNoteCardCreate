@@ -1,17 +1,7 @@
 import { ref } from 'vue';
 import { useToast } from "vue-toastification";
 import { handleAsyncTask } from '../utils/asyncHandler';
-import cardExportUtils, { sanitizeFilename } from '../utils/cardExport';
-
-// 从 cardExportUtils 解构所需的函数
-const {
-    exportCardAsImage,
-    exportCardsAsImages,
-    exportCardsAsZip,
-    // getFormattedDate // 已移除
-    // 假设还需要 sanitizeFilename (如果 utils 里有的话，否则需要复制过来或内部实现)
-    // sanitizeFilename 
-} = cardExportUtils;
+import { sanitizeFilename } from '../utils/cardExport';
 
 // --- 在 Composable 内部定义辅助函数 ---
 
@@ -116,6 +106,17 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
             return;
         }
 
+        // +++ 动态导入 +++
+        let cardExportUtils;
+        try {
+            cardExportUtils = (await import('../utils/cardExport')).default;
+        } catch (err) {
+            console.error("加载导出模块失败:", err);
+            toast.error("加载导出功能失败，请稍后再试。");
+            return; // 无法继续
+        }
+        // +++ 结束动态导入 +++
+
         const cardElement = cardElementRefOrActualElement?.$el || cardElementRefOrActualElement;
         if (!store.currentTopicId) {
             toast.error('无法获取主题ID，无法导出。');
@@ -139,7 +140,7 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
             return;
         }
         const rawFileName = `${baseName}_${dateString}`;
-        console.log('Raw filename created:', rawFileName); // 添加调试日志
+        // console.log('Raw filename created:', rawFileName); // 添加调试日志 // 移除调试日志
         // --- 文件名生成结束 ---
 
         isExporting.value = true;
@@ -152,7 +153,8 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
         const result = await handleAsyncTask(async () => {
             const actualCardToExport = _getExportableCardElement(cardElement);
             // 直接传递 rawFileName, 让 exportCardAsImage 内部处理 sanitize
-            await exportCardAsImage(actualCardToExport, rawFileName, format);
+            // +++ 使用动态导入的模块 +++
+            await cardExportUtils.exportCardAsImage(actualCardToExport, rawFileName, format);
             _updateExportProgress(1, 1, 'single');
         }, {
             errorMessagePrefix: "导出单张卡片失败"
@@ -179,6 +181,18 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
             toast.error(isExporting.value ? '已有导出任务进行中。' : '无法获取主题ID，无法导出。');
             return;
         }
+
+        // +++ 动态导入 +++
+        let cardExportUtils;
+        try {
+            cardExportUtils = (await import('../utils/cardExport')).default;
+        } catch (err) {
+            console.error("加载导出模块失败:", err);
+            toast.error("加载导出功能失败，请稍后再试。");
+            return; // 无法继续
+        }
+        // +++ 结束动态导入 +++
+
         const elementsToExport = _getAllExportableElements();
         if (elementsToExport.length === 0) {
             toast.warning("没有可导出的卡片。");
@@ -198,7 +212,8 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
         };
 
         const result = await handleAsyncTask(async () => {
-            await exportCardsAsImages(
+            // +++ 使用动态导入的模块 +++
+            await cardExportUtils.exportCardsAsImages(
                 elementsToExport,
                 store.currentTopicId,
                 dateString,
@@ -230,6 +245,18 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
             toast.error(isExporting.value ? '已有导出任务进行中。' : '无法获取主题ID，无法导出。');
             return;
         }
+
+        // +++ 动态导入 +++
+        let cardExportUtils;
+        try {
+            cardExportUtils = (await import('../utils/cardExport')).default;
+        } catch (err) {
+            console.error("加载导出模块失败:", err);
+            toast.error("加载导出功能失败，请稍后再试。");
+            return; // 无法继续
+        }
+        // +++ 结束动态导入 +++
+
         const elementsToExport = _getAllExportableElements();
         if (elementsToExport.length === 0) {
             toast.warning("没有可导出的卡片。");
@@ -250,7 +277,8 @@ export function useCardExporter(store, coverCardContainerRef, contentCardRefsArr
         };
 
         const result = await handleAsyncTask(async () => {
-            await exportCardsAsZip(
+            // +++ 使用动态导入的模块 +++
+            await cardExportUtils.exportCardsAsZip(
                 elementsToExport,
                 store.currentTopicId,
                 dateString,
