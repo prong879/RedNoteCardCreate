@@ -1,5 +1,5 @@
 ---
-topicId: topic03
+topicId: "topic03"
 title: "时间序列 VS 截面数据 VS 面板数据：三者的区别？"
 description: "核心：用形象比喻和例子区分三种常见数据类型"
 headerText: "@园丁小区詹姆斯"
@@ -9,7 +9,7 @@ coverShowFooter: true
 contentDefaultShowHeader: true
 contentDefaultShowFooter: true
 ---
-# 🤯数据类型大揭秘！
+# 🤯数据类型大揭秘！！！
 时间序列/截面数据/面板数据，你分清了吗？
 
 1分钟搞懂金融/经济分析中的常见数据！📈🧑‍🤝‍🧑🏢
