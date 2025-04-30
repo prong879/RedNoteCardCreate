@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useToast } from 'vue-toastification';
-import { topicsMeta } from '../content/topicsMeta'; // 调整路径
+import { topicsMeta } from '../config/topicsMeta.js';
 import matter from 'gray-matter'; // 引入 gray-matter
 import { handleAsyncTask } from '../utils/asyncHandler'; // 导入新的处理器
 import {
@@ -498,11 +498,53 @@ export const useCardStore = defineStore('card', () => {
         }
     };
 
-    // 更新主题描述 (这个不保存到 localStorage，保持原样)
-    const updateTopicDescription = (newDescription) => {
+    // 更新主题描述
+    const updateTopicDescription = async (newDescription) => {
+        const topicId = currentTopicId.value;
+        if (!topicId) {
+            console.error('[Store Action - updateTopicDescription] No current topic ID.');
+            toast.error('无法更新简介：未选中任何主题。');
+            return;
+        }
         if (cardContent.value) {
+            // 1. 更新当前编辑状态
             cardContent.value.topicDescription = newDescription;
-            console.log('[Store] Topic description updated');
+            console.log('[Store] Topic description in cardContent updated');
+
+            // 2. 更新内存中的 topics 列表 (用于 TopicSelector)
+            const index = topics.value.findIndex(t => t.id === topicId);
+            if (index !== -1 && topics.value[index].description !== newDescription) {
+                topics.value[index].description = newDescription;
+                console.log(`[Store] Topic description in memory array updated for ${topicId}`);
+            } else if (index === -1) {
+                console.warn(`[Store Action - updateTopicDescription] Topic ${topicId} not found in memory array.`);
+            }
+
+            // 3. 调用 API 持久化到 topicsMeta.js
+            console.log(`[Store] Calling API to update topicsMeta.js for ${topicId}`);
+            const result = await handleAsyncTask(async () => {
+                const response = await fetch('/api/update-topic-meta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topicId, description: newDescription }),
+                });
+                const apiResult = await response.json();
+                if (!response.ok || !apiResult.success) {
+                    throw new Error(apiResult.message || '服务器未能成功更新 topicsMeta.js 文件。');
+                }
+                return apiResult;
+            }, {
+                errorMessagePrefix: `更新选题列表简介失败`
+            });
+
+            // 4. 显示结果
+            if (result.success) {
+                toast.success(result.data?.message || '选题简介已在后台更新。');
+            } else {
+                // 错误已被 handleAsyncTask 处理并 toast
+                // 可以选择性地回滚内存中的 topics.value[index].description 更改，但这可能导致 UI 不一致
+                console.error(`[Store] Failed to persist description update for ${topicId} to topicsMeta.js.`);
+            }
         }
     };
 

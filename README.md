@@ -10,9 +10,12 @@
 
 *   **选题管理与内容编辑**: 
     *   **选题界面**: 
-        *   系统加载 `src/content/topicsMeta.js` 中的选题元信息（标题、简介），并在选题界面展示。启动时扫描 `src/markdown/` 目录，根据 `.md` 文件构建选题列表，并直接解析 `.md` 文件展示卡片数量。
+        *   加载 `src/config/topicsMeta.js` 中的选题元信息（ID, 标题, 简介）来构建基础选题列表。
+        *   启动时或按需调用后端 API (`/api/list-content-files`)，扫描 `src/markdown/` 目录，实时获取每个 `.md` 文件的卡片数量和存在状态，并更新到列表中。
         *   提供 "创建 MD" / "覆盖 MD" 按钮，方便地创建新的空白 `.md` 选题文件或覆盖现有文件。
-    *   **内容来源**: 所有卡片内容（包括标题、描述、页眉/页脚、卡片正文、主文案、字体/行高设置）均存储在对应的 `.md` 文件中。
+    *   **内容来源**: 
+        *   选题列表显示时，标题和描述来自 `topicsMeta.js`。
+        *   当选择一个主题加载后，所有编辑和预览的内容（包括标题、描述、页眉/页脚、卡片正文、主文案、样式设置等）均来自对应的 `.md` 文件。
     *   **编辑方式**: 
         *   可以直接编辑 `src/markdown/` 下的 `.md` 文件。
         *   也可以在应用的可视化界面中编辑内容。
@@ -48,7 +51,10 @@
 *   **图片/文件处理**: html2canvas, file-saver, JSZip
 *   **拖拽**: vuedraggable
 *   **数据**: Markdown 文件 (`src/markdown/`), 通过自定义 Vite 插件提供 API
-*   **配置**: `src/config/` (如 `templateMetadata.js`, `cardConstants.js`)
+*   **配置**: 
+    *   `src/config/topicsMeta.js`: 存储选题列表的基础元数据 (ID, title, description)。
+    *   `src/config/templateMetadata.js`: 存储卡片模板的元数据 (name, aspectRatio)。
+    *   `src/config/cardConstants.js`: 存储卡片样式默认值、范围、Markdown 注释键等常量。
 
 ## 使用方法
 
@@ -87,7 +93,8 @@ npm run build
 
 2.  **编辑 Markdown 源文件 (可选)**: 
     *   可以直接使用文本编辑器打开 `.md` 文件进行内容创作。
-    *   在 YAML Front Matter 部分填写或修改 `title` 和 `description` (用于选题界面显示)。
+    *   在 YAML Front Matter 部分填写或修改 `title` 和 `description`。
+    *   **注意**: 如果修改了 `.md` 文件中的 `title` 或 `description`，建议手动同步更新 `src/config/topicsMeta.js` 中对应的条目，以保持选题列表显示的一致性。
     *   参考 **"通过 Markdown 管理内容"** 部分的格式规范，编写封面卡片、内容卡片以及主文案。
 3.  **AI 辅助生成详细文案**: 
     *   选题页面提供了"生成 Prompt"按钮，一键生成针对该选题的文案撰写 Prompt。
@@ -165,24 +172,25 @@ npm run build
 ├── .git/
 ├── .vscode/
 ├── docs/                   # 项目文档
-├── Manim/                  # Manim 可视化应用，包括各个动画脚本、辅助导出的gui应用
-├── media_final/            # 最终媒体资源 (Manim 输出等, 建议 .gitignore)
+├── Manim/                  # Manim 可视化应用
+├── media/                  # 最终媒体资源 (建议 .gitignore 或 Git LFS)
 ├── node_modules/
 ├── public/                 # Vite 静态资源目录
 ├── plugins/                # 自定义 Vite 插件
 │   └── vite-plugin-local-save.js # 提供本地 MD 文件操作 API
 ├── src/
-│   ├── assets/             # Vue 应用静态资源 (CSS, 字体等)
-│   ├── components/         # Vue 组件 (UI 界面)
-│   ├── composables/        # Vue 组合式函数 (逻辑复用)
+│   ├── assets/             # Vue 应用静态资源
+│   ├── components/         # Vue 组件
+│   ├── composables/        # Vue 组合式函数
 │   ├── config/             # 应用配置
+│   │   ├── topicsMeta.js       # 选题列表元数据
 │   │   ├── templateMetadata.js # 模板元数据
 │   │   └── cardConstants.js    # 卡片相关常量
-│   ├── markdown/           # Markdown 源文件 (核心内容数据)
+│   ├── markdown/           # Markdown 源文件 (核心内容)
 │   │   └── topicXX.md
 │   ├── prompts/            # AI Prompt 模板
 │   ├── stores/             # Pinia 状态管理 Store
-│   ├── templates/          # 卡片样式模板组件 (*.vue)
+│   ├── templates/          # 卡片样式模板组件
 │   ├── utils/              # 通用工具函数
 │   ├── App.vue             # 根组件
 │   └── main.js             # 应用入口
@@ -372,84 +380,4 @@ npm run build
         *   `[content_description]`: 使用小写英文或拼音加下划线描述内容。
         *   `[optional_remarks]`: 可选的备注信息。
         *   `<extension>`: 文件扩展名 (如 `.png`, `.mp4`)。
-    *   例如，将 Manim 生成的 `media/images/topic01_timeseries_examples/TimeSeriesExamples8x9.png` 重命名为 `media/topic01_components_overview.png` （或者按需移动到 `media/` 根目录或保留在子目录中，只要确保最终引用路径正确即可）。
-
-3.  **尺寸比例**: 
-    *   制作插图时，考虑到小红书展示效果及页眉页脚的存在，优先推荐使用 **8:9 (宽比高)** 的宽高比进行 Manim 场景配置。
-
-4.  **版本控制**: 
-    *   项目根目录下的 `media/` 目录通常包含大量二进制文件，会显著增加 Git 仓库体积。**强烈建议**将 `media/` 目录添加到 `.gitignore` 文件中，不纳入版本控制，或考虑使用 Git LFS (Large File Storage) 进行管理。
-
-## Manim 中文支持配置 (Manim Community Edition)
-
-如果计划使用 Manim 社区版 (ManimCE) 生成包含中文的可视化素材（如通过 `knowledge_card_prompt.md` 中生成的 Prompt 指令），需要确保 ManimCE 环境已正确配置中文支持。以下配置和代码示例适用于存放在 `Manim/` 目录下的 Python 脚本 (`.py` 文件)。
-
-1.  **安装与环境**:
-    *   确保已安装完整的 TeX 发行版 (如 TeX Live 或 MiKTeX)，且包含 `xelatex` 编译器。
-    *   确保操作系统已安装所需的中文字体 (如 "微软雅黑 Microsoft YaHei", "思源黑体 Source Han Sans CN", "等线 DengXian" 等)，并且 LaTeX 能够找到它们。
-
-2.  **ManimCE 脚本配置 (在 `Manim/*.py` 文件中)**:
-    *   **对于 `Text` 对象 (纯文本)**: 在 Python 脚本开头设置全局字体：
-        ```python
-        from manim import *
-        config.font = "Microsoft YaHei" # 替换为你选择的已安装中文字体
-        ```
-    *   **对于 `Tex` / `MathTex` 对象 (LaTeX 渲染)**: (关键) 需要修改 TeX 模板以使用 `xelatex` 并加载中文字体。推荐配置如下：
-        ```python
-        from manim import *
-        import os # 用于处理换行符
-
-        # 创建自定义 TeX 模板
-        my_template = TexTemplate(
-            tex_compiler="xelatex",       # 使用 xelatex
-            output_format=".xdv",         # xelatex 对应的输出格式
-        )
-
-        # 在 LaTeX 导言区添加中文支持 (确保字体已安装)
-        my_template.add_to_preamble(
-            r"\usepackage{ctex}" + os.linesep +         # 加载 ctex 宏包
-            r"\setCJKmainfont{Microsoft YaHei}" + os.linesep # 设置 CJK 主字体
-            # 可选: \setCJKsansfont{思源黑体 CN} 等
-        )
-
-        # 应用配置好的模板到全局
-        config.tex_template = my_template
-
-        # --- 之后 Tex 和 MathTex 对象即可正确渲染中文 ---
-        # 示例:
-        # class MyScene(Scene):
-        #     def construct(self):
-        #         chinese_tex = Tex("你好，世界！ $E=mc^2$")
-        #         self.play(Write(chinese_tex))
-        ```
-
-**总结**: 确保 LaTeX 环境和字体就绪，并在 `Manim/` 目录下的 Python 脚本中，根据需要配置 ManimCE 的 `config.font` (针对 `Text`) 和 `config.tex_template` (针对 `Tex`/`MathTex`)。
-
-## 版本控制建议 (Git Workflow)
-
-为了保持项目开发的清晰和稳定，推荐采用以下基于特性分支的 Git 工作流：
-
-1.  **`main` 分支**:
-    *   **角色**: 始终代表最新、最稳定、可随时运行的版本。
-    *   **操作**:
-        *   **禁止**直接在此分支提交未完成或未测试的代码。
-        *   只合并 (merge) 已经开发完成并通过测试的特性分支 (`feature/*`) 或修复分支 (`fix/*`)。
-
-2.  **特性分支 (`feature/*`, `fix/*`, `refactor/*` 等)**:
-    *   **角色**: 所有新功能开发、Bug 修复、代码重构都在各自的特性分支上进行。
-    *   **命名**: 使用清晰的名称，如 `feature/add-template5`, `fix/preview-scaling`, `refactor/card-component`。
-    *   **流程**:
-        1.  **创建**: 从最新的 `main` 分支创建新分支 (`git checkout main && git pull && git checkout -b feature/xxx`)。
-        2.  **开发**: 在特性分支上进行编码，进行小步、频繁的提交 (`git commit -m "feat: 添加..."`)，推荐使用 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/v1.0.0/) 规范编写提交信息。
-        3.  **合并**: 功能完成后，切换回 `main` 分支，确保其为最新，然后合并特性分支 (`git checkout main && git pull && git merge --no-ff feature/xxx`)。`--no-ff` 可以保留分支的合并历史。
-        4.  **推送**: 将本地的 `main` 和特性分支推送到远程仓库 (`git push origin main`, `git push origin feature/xxx`)。
-        5.  **清理**: 合并后可删除不再需要的本地和远程特性分支 (`git branch -d feature/xxx`, `git push origin --delete feature/xxx`)。
-
-**优点**:
-
-*   **隔离性**: 功能开发互不影响。
-*   **稳定性**: `main` 分支始终可用。
-*   **可追溯**: 清晰的开发和合并历史。
-*   **简单高效**: 适合单人或小团队项目。
-
-**远程仓库**: 强烈建议使用 GitHub/GitLab/Gitee 等平台托管远程仓库，并定期推送代码作为备份。
+    *   例如，将 Manim 生成的 `media/images/topic01_timeseries_examples/TimeSeriesExamples8x9.png`

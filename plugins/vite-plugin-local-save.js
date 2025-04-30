@@ -120,6 +120,49 @@ function parseMdBodyToCards(mdBodyContent, frontMatter) {
     return parsedCards;
 }
 
+// +++ 新增：帮助函数，用于安全地读取和更新 topicsMeta.js +++
+async function updateTopicsMetaFile(topicId, newDescription) {
+    const metaFilePath = path.resolve(projectRoot, 'src', 'config', 'topicsMeta.js');
+    try {
+        const content = await fs.readFile(metaFilePath, 'utf-8');
+
+        // 使用正则表达式查找并替换描述 (简单但可能有风险)
+        // 匹配: { id: 'topicId', title: "...", description: "..." }
+        // 注意：需要处理引号 (' 或 ") 和可能的逗号
+        const entryRegex = new RegExp(`({(?:\\s*\\r?\\n*)*id:\\s*(['"\`])${topicId}\\2,(?:(?:\\s*\\r?\\n*)[^}])*)description:\\s*(['"\`])(.*?)\\3`, 's');
+
+        let updated = false;
+        const newContent = content.replace(entryRegex, (match, preDesc, quoteId, quoteDesc, oldDesc) => {
+            // preDesc 包含 id, title 等直到 description 之前的部分
+            // quoteDesc 是 description 值的引号类型
+            // oldDesc 是旧的 description 值
+
+            // JSON.stringify 会添加双引号并转义
+            const escapedNewDesc = JSON.stringify(newDescription).slice(1, -1); // 移除外层引号
+            updated = true;
+            console.log(`[LocalSavePlugin] Updating description for ${topicId} from "${oldDesc}" to "${escapedNewDesc}"`);
+            return `${preDesc}description: ${quoteDesc}${escapedNewDesc}${quoteDesc}`;
+        });
+
+        if (!updated) {
+            console.warn(`[LocalSavePlugin] Could not find entry for topicId '${topicId}' in ${metaFilePath} to update description.`);
+            return { success: false, message: `未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目。` };
+        }
+
+        // 写回文件
+        await fs.writeFile(metaFilePath, newContent, 'utf-8');
+        console.log(`[LocalSavePlugin] Successfully updated description for ${topicId} in ${metaFilePath}`);
+        return { success: true, message: '选题简介已更新。' };
+
+    } catch (error) {
+        console.error(`[LocalSavePlugin] Error updating ${metaFilePath}:`, error);
+        if (error.code === 'ENOENT') {
+            return { success: false, message: `配置文件 ${metaFilePath} 未找到。` };
+        }
+        return { success: false, message: `更新选题简介时发生错误: ${error.message}` };
+    }
+}
+
 /**
  * Vite 插件，用于在开发模式下处理来自前端的本地文件保存请求。
  */
@@ -408,6 +451,44 @@ export default function localSavePlugin() {
                 });
             });
             console.log('[LocalSavePlugin] API endpoint /api/save-md-content configured.');
+
+            // +++ 新增：中间件 6: 更新 topicsMeta.js 中的简介 +++
+            server.middlewares.use('/api/update-topic-meta', async (req, res, next) => {
+                if (req.method !== 'POST') {
+                    return next();
+                }
+                console.log('[LocalSavePlugin] /api/update-topic-meta requested');
+
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', async () => {
+                    try {
+                        const { topicId, description } = JSON.parse(body);
+                        if (!topicId || typeof description !== 'string') {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: false, message: '请求参数无效，需要 topicId 和 description。' }));
+                            return;
+                        }
+
+                        const result = await updateTopicsMetaFile(topicId, description);
+
+                        if (result.success) {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify(result));
+                        } else {
+                            // 根据错误类型返回不同的状态码可能更好，这里简化处理
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify(result));
+                        }
+
+                    } catch (error) {
+                        console.error('[LocalSavePlugin] /api/update-topic-meta Error:', error);
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: false, message: '处理更新选题简介请求时发生服务器内部错误。', error: error.message }));
+                    }
+                });
+            });
+            console.log('[LocalSavePlugin] API endpoint /api/update-topic-meta configured.');
         }
     };
 } 
