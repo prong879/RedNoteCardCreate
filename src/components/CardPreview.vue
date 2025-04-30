@@ -61,7 +61,9 @@
                              :headerText="store.cardContent.headerText || ''"
                              :footerText="store.cardContent.footerText || ''"
                              :isHeaderVisible="card.showHeader !== false"
-                             :isFooterVisible="card.showFooter !== false"/>
+                             :isFooterVisible="card.showFooter !== false"
+                             :style="{ fontSize: (card.fontSize ?? DEFAULT_FONT_SIZE) + 'px', lineHeight: card.lineHeight ?? DEFAULT_LINE_HEIGHT }"
+                        />
                     </div>
                     <div class="mt-2 text-center text-sm text-xhs-gray">
                         内容卡片 {{ index + 1 }}
@@ -129,6 +131,8 @@ import { useCardPreviewScroll } from '../composables/useCardPreviewScroll';
 import { handleAsyncTask } from '../utils/asyncHandler'; 
 // 导入新的导出 Composable
 import { useCardExporter } from '../composables/useCardExporter';
+// +++ 导入常量 +++
+import { DEFAULT_FONT_SIZE, DEFAULT_LINE_HEIGHT } from '../config/cardConstants';
 
 export default {
     name: 'CardPreview',
@@ -240,6 +244,9 @@ export default {
             // Methods
             handleTextareaInput,
             copyMainText,
+            // +++ 暴露常量给模板 +++
+            DEFAULT_FONT_SIZE,
+            DEFAULT_LINE_HEIGHT,
         };
     },
 }

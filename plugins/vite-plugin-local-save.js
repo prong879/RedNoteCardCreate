@@ -3,6 +3,23 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 // 引入 gray-matter
 import matter from 'gray-matter';
+// +++ 导入常量 +++
+// 注意：Node.js 插件环境需要处理 ES Module 导入
+// 假设 cardConstants.js 是 ES Module，可以使用动态 import()
+let cardConstants = {};
+import('../src/config/cardConstants.js').then(constants => {
+    cardConstants = constants;
+    console.log('[LocalSavePlugin] Loaded card constants.');
+}).catch(err => {
+    console.error('[LocalSavePlugin] Failed to load card constants:', err);
+    // 可以设置默认值或抛出错误
+    cardConstants = {
+        MD_COMMENT_FONT_SIZE_KEY: 'cardFontSize',
+        MD_COMMENT_LINE_HEIGHT_KEY: 'cardLineHeight',
+        MD_COMMENT_SHOW_HEADER_KEY: 'cardShowHeader',
+        MD_COMMENT_SHOW_FOOTER_KEY: 'cardShowFooter'
+    };
+});
 
 // 获取当前文件的目录和项目根目录
 const __filename = fileURLToPath(import.meta.url);
@@ -49,26 +66,101 @@ function parseMdBodyToCards(mdBodyContent, frontMatter) {
         } else {
             bodyContent = part;
         }
-        const showHeaderMatch = bodyContent.match(/<!--\s*cardShowHeader:\s*(true|false)\s*-->/);
-        const showFooterMatch = bodyContent.match(/<!--\s*cardShowFooter:\s*(true|false)\s*-->/);
+        // --- 使用常量构建正则表达式 --- 
+        const createCommentRegex = (key) =>
+            new RegExp(`<!--\\s*${key}:\\s*(.*?)\\s*-->`);
+
+        const showHeaderMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_SHOW_HEADER_KEY));
+        const showFooterMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_SHOW_FOOTER_KEY));
+        const fontSizeMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_FONT_SIZE_KEY));
+        const lineHeightMatch = bodyContent.match(createCommentRegex(cardConstants.MD_COMMENT_LINE_HEIGHT_KEY));
+
         let showHeader = frontMatter.contentDefaultShowHeader !== undefined ? frontMatter.contentDefaultShowHeader : true;
         let showFooter = frontMatter.contentDefaultShowFooter !== undefined ? frontMatter.contentDefaultShowFooter : true;
+        let fontSize = null;
+        let lineHeight = null;
+
         if (showHeaderMatch) showHeader = showHeaderMatch[1] === 'true';
         if (showFooterMatch) showFooter = showFooterMatch[1] === 'true';
-        bodyContent = bodyContent.replace(/<!--.*?-->/gs, '').trim();
+        if (fontSizeMatch) fontSize = parseInt(fontSizeMatch[1], 10);
+        if (lineHeightMatch) lineHeight = parseFloat(lineHeightMatch[1]);
+
+        // --- 使用常量构建更精确的替换正则表达式 --- 
+        const keys = [
+            cardConstants.MD_COMMENT_SHOW_HEADER_KEY,
+            cardConstants.MD_COMMENT_SHOW_FOOTER_KEY,
+            cardConstants.MD_COMMENT_FONT_SIZE_KEY,
+            cardConstants.MD_COMMENT_LINE_HEIGHT_KEY
+        ].join('|');
+        const removeRegex = new RegExp(`<!--\\s*(${keys}):\\s*.*?\\s*-->\\r?\n?`, 'gs');
+        bodyContent = bodyContent.replace(removeRegex, '').trim();
 
         if (index === 0) {
             parsedCards.coverCard.title = title || frontMatter.title || ''; // Use heading, fallback to FM title
             parsedCards.coverCard.subtitle = bodyContent;
-            // Update cover visibility based on comments if present
             if (showHeaderMatch) parsedCards.coverCard.showHeader = showHeader;
             if (showFooterMatch) parsedCards.coverCard.showFooter = showFooter;
         } else {
-            parsedCards.contentCards.push({ title, body: bodyContent, showHeader, showFooter });
+            const cardData = {
+                title,
+                body: bodyContent,
+                showHeader,
+                showFooter
+            };
+            if (fontSize !== null && !isNaN(fontSize)) { // 增加 NaN 检查
+                cardData.fontSize = fontSize;
+            }
+            if (lineHeight !== null && !isNaN(lineHeight)) { // 增加 NaN 检查
+                cardData.lineHeight = lineHeight;
+            }
+            parsedCards.contentCards.push(cardData);
         }
     });
 
     return parsedCards;
+}
+
+// +++ 新增：帮助函数，用于安全地读取和更新 topicsMeta.js +++
+async function updateTopicsMetaFile(topicId, newDescription) {
+    const metaFilePath = path.resolve(projectRoot, 'src', 'config', 'topicsMeta.js');
+    try {
+        const content = await fs.readFile(metaFilePath, 'utf-8');
+
+        // 使用正则表达式查找并替换描述 (简单但可能有风险)
+        // 匹配: { id: 'topicId', title: "...", description: "..." }
+        // 注意：需要处理引号 (' 或 ") 和可能的逗号
+        const entryRegex = new RegExp(`({(?:\\s*\\r?\\n*)*id:\\s*(['"\`])${topicId}\\2,(?:(?:\\s*\\r?\\n*)[^}])*)description:\\s*(['"\`])(.*?)\\3`, 's');
+
+        let updated = false;
+        const newContent = content.replace(entryRegex, (match, preDesc, quoteId, quoteDesc, oldDesc) => {
+            // preDesc 包含 id, title 等直到 description 之前的部分
+            // quoteDesc 是 description 值的引号类型
+            // oldDesc 是旧的 description 值
+
+            // JSON.stringify 会添加双引号并转义
+            const escapedNewDesc = JSON.stringify(newDescription).slice(1, -1); // 移除外层引号
+            updated = true;
+            console.log(`[LocalSavePlugin] Updating description for ${topicId} from "${oldDesc}" to "${escapedNewDesc}"`);
+            return `${preDesc}description: ${quoteDesc}${escapedNewDesc}${quoteDesc}`;
+        });
+
+        if (!updated) {
+            console.warn(`[LocalSavePlugin] Could not find entry for topicId '${topicId}' in ${metaFilePath} to update description.`);
+            return { success: false, message: `未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目。` };
+        }
+
+        // 写回文件
+        await fs.writeFile(metaFilePath, newContent, 'utf-8');
+        console.log(`[LocalSavePlugin] Successfully updated description for ${topicId} in ${metaFilePath}`);
+        return { success: true, message: '选题简介已更新。' };
+
+    } catch (error) {
+        console.error(`[LocalSavePlugin] Error updating ${metaFilePath}:`, error);
+        if (error.code === 'ENOENT') {
+            return { success: false, message: `配置文件 ${metaFilePath} 未找到。` };
+        }
+        return { success: false, message: `更新选题简介时发生错误: ${error.message}` };
+    }
 }
 
 /**
@@ -359,6 +451,44 @@ export default function localSavePlugin() {
                 });
             });
             console.log('[LocalSavePlugin] API endpoint /api/save-md-content configured.');
+
+            // +++ 新增：中间件 6: 更新 topicsMeta.js 中的简介 +++
+            server.middlewares.use('/api/update-topic-meta', async (req, res, next) => {
+                if (req.method !== 'POST') {
+                    return next();
+                }
+                console.log('[LocalSavePlugin] /api/update-topic-meta requested');
+
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', async () => {
+                    try {
+                        const { topicId, description } = JSON.parse(body);
+                        if (!topicId || typeof description !== 'string') {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: false, message: '请求参数无效，需要 topicId 和 description。' }));
+                            return;
+                        }
+
+                        const result = await updateTopicsMetaFile(topicId, description);
+
+                        if (result.success) {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify(result));
+                        } else {
+                            // 根据错误类型返回不同的状态码可能更好，这里简化处理
+                            res.writeHead(500, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify(result));
+                        }
+
+                    } catch (error) {
+                        console.error('[LocalSavePlugin] /api/update-topic-meta Error:', error);
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: false, message: '处理更新选题简介请求时发生服务器内部错误。', error: error.message }));
+                    }
+                });
+            });
+            console.log('[LocalSavePlugin] API endpoint /api/update-topic-meta configured.');
         }
     };
 } 

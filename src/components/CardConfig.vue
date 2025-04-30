@@ -21,7 +21,7 @@
         </div>
 
         <!-- 卡片编辑滚动区 -->
-        <div ref="editorScrollContainer" class="overflow-y-auto px-3 mx-6 h-96 custom-scrollbar bg-gray-50 border rounded-lg mb-6">
+        <div ref="editorScrollContainer" class="overflow-y-auto px-3 mx-6 h-[500px] custom-scrollbar bg-gray-50 border rounded-lg mb-6">
             <!-- 加载状态 -->
             <div v-if="store.isLoadingContent" class="flex justify-center items-center h-full">
                  <div class="text-gray-500">
@@ -99,6 +99,15 @@
                                 <!-- 卡片标题和内容编辑 -->
                                 <textarea v-model="card.title" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg mb-2 dynamic-textarea hide-scrollbar" placeholder="卡片标题" rows="1"></textarea>
                                 <textarea v-model="card.body" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg" placeholder="卡片内容 (支持 Markdown 格式)" rows="6"></textarea>
+                                <!-- 新增：字号和行高调整控件 -->
+                                <div class="flex items-center justify-end gap-x-2 gap-y-1 flex-wrap mt-1">
+                                    <span class="text-xs text-gray-500 mr-1">字号: {{ card.fontSize ?? DEFAULT_FONT_SIZE }}px</span>
+                                    <button @click="store.adjustCardFontSize(index, -1)" class="px-2 py-0.5 border rounded text-xs bg-gray-100 hover:bg-gray-200" title="减小字号">-</button>
+                                    <button @click="store.adjustCardFontSize(index, 1)" class="px-2 py-0.5 border rounded text-xs bg-gray-100 hover:bg-gray-200" title="增大字号">+</button>
+                                    <span class="text-xs text-gray-500 ml-2 mr-1">行距: {{ (card.lineHeight ?? DEFAULT_LINE_HEIGHT).toFixed(1) }}</span>
+                                    <button @click="store.adjustCardLineHeight(index, -0.1)" class="px-2 py-0.5 border rounded text-xs bg-gray-100 hover:bg-gray-200" title="减小行距">-</button>
+                                    <button @click="store.adjustCardLineHeight(index, 0.1)" class="px-2 py-0.5 border rounded text-xs bg-gray-100 hover:bg-gray-200" title="增大行距">+</button>
+                                </div>
                             </div>
                             <!-- 插入点按钮 (悬停时可见) -->
                             <div class="insert-point h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 ease-in-out my-2">
@@ -180,6 +189,8 @@ import { useCardStore } from '../stores/cardStore';
 import { useTextareaAutoHeight } from '../composables/useTextareaAutoHeight';
 import { useTemplatePreviewScaling } from '../composables/useTemplatePreviewScaling';
 import { useToast } from 'vue-toastification';
+// +++ 导入常量 +++
+import { DEFAULT_FONT_SIZE, DEFAULT_LINE_HEIGHT } from '../config/cardConstants';
 
 export default {
     name: 'CardConfig',
@@ -405,6 +416,9 @@ export default {
             // showCreateTopicModal,
             // openCreateTopicModal,
             // closeCreateTopicModal
+            // 暴露常量给模板
+            DEFAULT_FONT_SIZE,
+            DEFAULT_LINE_HEIGHT,
         };
     },
 }

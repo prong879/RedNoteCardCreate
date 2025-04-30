@@ -1,9 +1,21 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useToast } from 'vue-toastification';
-import { topicsMeta } from '../content/topicsMeta'; // 调整路径
+import { topicsMeta } from '../config/topicsMeta.js';
 import matter from 'gray-matter'; // 引入 gray-matter
 import { handleAsyncTask } from '../utils/asyncHandler'; // 导入新的处理器
+import {
+    DEFAULT_FONT_SIZE,
+    DEFAULT_LINE_HEIGHT,
+    MIN_FONT_SIZE,
+    MAX_FONT_SIZE,
+    MIN_LINE_HEIGHT,
+    MAX_LINE_HEIGHT,
+    MD_COMMENT_FONT_SIZE_KEY,
+    MD_COMMENT_LINE_HEIGHT_KEY,
+    MD_COMMENT_SHOW_HEADER_KEY,
+    MD_COMMENT_SHOW_FOOTER_KEY
+} from '../config/cardConstants';
 
 // Helper function to parse Markdown content into card structure
 // (This is a simplified parser based on the README description)
@@ -123,8 +135,20 @@ export const useCardStore = defineStore('card', () => {
     });
 
     // --- Actions ---
-    // 使用函数定义 action
     const toast = useToast(); // 获取 toast 实例
+
+    // +++ 新增：同步 Action 错误处理辅助函数 +++
+    const handleSyncAction = (actionFn, options = {}) => {
+        const { errorMessagePrefix = '操作失败' } = options;
+        try {
+            actionFn(); // 执行同步操作
+            return true; // 表示成功
+        } catch (error) {
+            console.error(`[Store Sync Action Error] ${errorMessagePrefix}:`, error);
+            toast.error(`${errorMessagePrefix}: ${error.message || '未知错误'}`);
+            return false; // 表示失败
+        }
+    };
 
     // --- 修改：Action - 获取文件列表 --- 
     const fetchFileLists = async () => {
@@ -347,29 +371,31 @@ export const useCardStore = defineStore('card', () => {
         title: "",
         body: "",
         showHeader: true,
-        showFooter: true
+        showFooter: true,
+        fontSize: DEFAULT_FONT_SIZE, // 使用常量
+        lineHeight: DEFAULT_LINE_HEIGHT // 使用常量
     });
 
     // 在指定索引处添加内容卡片
     const addContentCard = (index) => {
+        // 前置检查
         if (!cardContent.value || !cardContent.value.contentCards) {
             console.error('[Store Action - addContentCard] Cannot add card: cardContent or contentCards is invalid.');
             toast.error('无法添加卡片：内容未加载或结构错误。');
             return;
         }
-        try {
+        // 使用辅助函数处理
+        handleSyncAction(() => {
             const newCard = createEmptyCard();
             const safeIndex = Math.max(0, Math.min(index, cardContent.value.contentCards.length));
             cardContent.value.contentCards.splice(safeIndex, 0, newCard);
             console.log(`[Store Action - addContentCard] State updated successfully.`);
-        } catch (error) {
-            console.error(`[Store Action - addContentCard] Error updating state:`, error);
-            toast.error(`添加卡片时出错: ${error.message}`);
-        }
+        }, { errorMessagePrefix: '添加卡片时出错' });
     };
 
     // 移除指定索引的内容卡片
     const removeContentCard = (index) => {
+        // 前置检查
         if (!cardContent.value || !cardContent.value.contentCards) {
             console.error('[Store Action - removeContentCard] Cannot remove card: cardContent or contentCards is invalid.');
             toast.error('无法移除卡片：内容未加载或结构错误。');
@@ -379,26 +405,26 @@ export const useCardStore = defineStore('card', () => {
             toast.warning('至少需要保留一张内容卡片。');
             return;
         }
-        try {
+        // 使用辅助函数处理
+        handleSyncAction(() => {
             if (index < 0 || index >= cardContent.value.contentCards.length) {
                 throw new Error(`无效的索引 ${index}。`);
             }
             cardContent.value.contentCards.splice(index, 1);
             console.log(`[Store Action - removeContentCard] State updated successfully.`);
-        } catch (error) {
-            console.error(`[Store Action - removeContentCard] Error updating state:`, error);
-            toast.error(`移除卡片时出错: ${error.message}`);
-        }
+        }, { errorMessagePrefix: '移除卡片时出错' });
     };
 
     // 切换卡片（封面或内容）的可见性字段 (showHeader/showFooter)
     const toggleCardVisibility = ({ cardType, field, index = null }) => {
+        // 前置检查
         if (!cardContent.value) {
             console.error(`[Store Action - toggleCardVisibility] Cannot toggle: cardContent is not loaded.`);
             toast.error('无法切换可见性：内容未加载。');
             return;
         }
-        try {
+        // 使用辅助函数处理
+        handleSyncAction(() => {
             let target;
             if (cardType === 'coverCard' && cardContent.value.coverCard) {
                 target = cardContent.value.coverCard;
@@ -414,38 +440,36 @@ export const useCardStore = defineStore('card', () => {
             } else {
                 throw new Error(`无效的字段或目标类型 { field: ${field} }`);
             }
-        } catch (error) {
-            console.error(`[Store Action - toggleCardVisibility] Error updating state:`, error);
-            toast.error(`切换可见性时出错: ${error.message}`);
-        }
+        }, { errorMessagePrefix: '切换可见性时出错' });
     };
 
     // --- Other Actions --- 
 
     // 更新卡片部分内容 (例如 Header/Footer 文本)
     const updateCardContent = (newContent) => {
+        // 前置检查
         if (!cardContent.value) {
             console.error(`[Store Action - updateCardContent] Cannot update: cardContent is not loaded.`);
             toast.error('无法更新内容：内容未加载。');
             return;
         }
-        try {
+        // 使用辅助函数处理
+        handleSyncAction(() => {
             cardContent.value = { ...cardContent.value, ...newContent };
             console.log(`[Store Action - updateCardContent] State updated successfully.`);
-        } catch (error) {
-            console.error(`[Store Action - updateCardContent] Error updating state:`, error);
-            toast.error(`更新卡片内容时出错: ${error.message}`);
-        }
+        }, { errorMessagePrefix: '更新卡片内容时出错' });
     };
 
     // 更新卡片文本内容 (封面标题/副标题, 内容卡片标题/正文)
     const updateCardText = ({ index, field, value }) => {
+        // 前置检查
         if (!cardContent.value) {
             console.error(`[Store Action - updateCardText] Cannot update text: cardContent is not loaded.`);
             toast.error('无法更新文本：内容未加载。');
             return;
         }
-        try {
+        // 使用辅助函数处理
+        handleSyncAction(() => {
             if (index === -1 && cardContent.value.coverCard) { // 封面
                 if (field === 'title' || field === 'subtitle') {
                     cardContent.value.coverCard[field] = value;
@@ -462,50 +486,87 @@ export const useCardStore = defineStore('card', () => {
                 throw new Error(`无效的卡片索引 ${index}。`);
             }
             console.log(`[Store Action - updateCardText] State updated successfully (Card ${index}, Field ${field})`);
-        } catch (error) {
-            console.error(`[Store Action - updateCardText] Error updating state:`, error);
-            toast.error(`更新卡片文本时出错: ${error.message}`);
-        }
+        }, { errorMessagePrefix: '更新卡片文本时出错' });
     };
 
     // 更新主文案
     const updateMainText = (newText) => {
+        // 前置检查
         if (!cardContent.value) {
             console.error(`[Store Action - updateMainText] Cannot update main text: cardContent is not loaded.`);
             toast.error('无法更新主文案：内容未加载。');
             return;
         }
-        try {
+        // 使用辅助函数处理
+        handleSyncAction(() => {
             cardContent.value.mainText = newText;
             console.log(`[Store Action - updateMainText] State updated successfully.`);
-        } catch (error) {
-            console.error(`[Store Action - updateMainText] Error updating state:`, error);
-            toast.error(`更新主文案时出错: ${error.message}`);
-        }
+        }, { errorMessagePrefix: '更新主文案时出错' });
     };
 
-    // 更新主题描述 (这个不保存到 localStorage，保持原样)
-    const updateTopicDescription = (newDescription) => {
+    // 更新主题描述
+    const updateTopicDescription = async (newDescription) => {
+        const topicId = currentTopicId.value;
+        if (!topicId) {
+            console.error('[Store Action - updateTopicDescription] No current topic ID.');
+            toast.error('无法更新简介：未选中任何主题。');
+            return;
+        }
         if (cardContent.value) {
+            // 1. 更新当前编辑状态
             cardContent.value.topicDescription = newDescription;
-            console.log('[Store] Topic description updated');
+            console.log('[Store] Topic description in cardContent updated');
+
+            // 2. 更新内存中的 topics 列表 (用于 TopicSelector)
+            const index = topics.value.findIndex(t => t.id === topicId);
+            if (index !== -1 && topics.value[index].description !== newDescription) {
+                topics.value[index].description = newDescription;
+                console.log(`[Store] Topic description in memory array updated for ${topicId}`);
+            } else if (index === -1) {
+                console.warn(`[Store Action - updateTopicDescription] Topic ${topicId} not found in memory array.`);
+            }
+
+            // 3. 调用 API 持久化到 topicsMeta.js
+            console.log(`[Store] Calling API to update topicsMeta.js for ${topicId}`);
+            const result = await handleAsyncTask(async () => {
+                const response = await fetch('/api/update-topic-meta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topicId, description: newDescription }),
+                });
+                const apiResult = await response.json();
+                if (!response.ok || !apiResult.success) {
+                    throw new Error(apiResult.message || '服务器未能成功更新 topicsMeta.js 文件。');
+                }
+                return apiResult;
+            }, {
+                errorMessagePrefix: `更新选题列表简介失败`
+            });
+
+            // 4. 显示结果
+            if (result.success) {
+                toast.success(result.data?.message || '选题简介已在后台更新。');
+            } else {
+                // 错误已被 handleAsyncTask 处理并 toast
+                // 可以选择性地回滚内存中的 topics.value[index].description 更改，但这可能导致 UI 不一致
+                console.error(`[Store] Failed to persist description update for ${topicId} to topicsMeta.js.`);
+            }
         }
     };
 
     // 拖拽内容卡片排序
     const updateContentCardsOrder = (newOrder) => {
+        // 前置检查
         if (!cardContent.value || !cardContent.value.contentCards) {
             console.error(`[Store Action - updateContentCardsOrder] Cannot reorder: cardContent or contentCards is invalid.`);
             toast.error('无法排序卡片：内容未加载或结构错误。');
             return;
         }
-        try {
+        // 使用辅助函数处理
+        handleSyncAction(() => {
             cardContent.value.contentCards = newOrder;
             console.log(`[Store Action - updateContentCardsOrder] State updated successfully.`);
-        } catch (error) {
-            console.error(`[Store Action - updateContentCardsOrder] Error updating state:`, error);
-            toast.error(`更新卡片顺序时出错: ${error.message}`);
-        }
+        }, { errorMessagePrefix: '更新卡片顺序时出错' });
     };
 
     // --- 新增：构建 Markdown 字符串的辅助函数 +++
@@ -562,20 +623,32 @@ export const useCardStore = defineStore('card', () => {
 
         // Content Cards
         content.contentCards?.forEach((card, index) => {
+            let cardMetaString = '';
             if (card.title) {
-                bodyString += `## ${card.title}\n`; // 使用二级标题表示内容卡片
+                bodyString += `## ${card.title}\n`;
             }
             if (card.body) {
                 bodyString += `${card.body}\n`;
             }
-            // 可选：添加 content card 的显隐注释
+
+            // --- 使用常量 --- 
             if (card.showHeader !== frontMatter.contentDefaultShowHeader) {
-                bodyString += `<!-- cardShowHeader: ${card.showHeader} -->\n`;
+                cardMetaString += `<!-- ${MD_COMMENT_SHOW_HEADER_KEY}: ${card.showHeader} -->\n`;
             }
             if (card.showFooter !== frontMatter.contentDefaultShowFooter) {
-                bodyString += `<!-- cardShowFooter: ${card.showFooter} -->\n`;
+                cardMetaString += `<!-- ${MD_COMMENT_SHOW_FOOTER_KEY}: ${card.showFooter} -->\n`;
             }
-            // 在最后一张卡片后不加分隔符
+            if (typeof card.fontSize === 'number' && card.fontSize !== DEFAULT_FONT_SIZE) {
+                cardMetaString += `<!-- ${MD_COMMENT_FONT_SIZE_KEY}: ${card.fontSize} -->\n`;
+            }
+            if (typeof card.lineHeight === 'number' && card.lineHeight !== DEFAULT_LINE_HEIGHT) {
+                cardMetaString += `<!-- ${MD_COMMENT_LINE_HEIGHT_KEY}: ${card.lineHeight.toFixed(1)} -->\n`;
+            }
+
+            if (cardMetaString) {
+                bodyString += '\n' + cardMetaString;
+            }
+
             if (index < content.contentCards.length - 1) {
                 bodyString += '\n---\n\n';
             }
@@ -670,6 +743,70 @@ export const useCardStore = defineStore('card', () => {
         console.log('[Store] Returned to topic selection');
     };
 
+    // +++ 新增：调整内容卡片字体大小 Action +++
+    const adjustCardFontSize = (index, delta) => {
+        // 前置检查
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.error(`[Store Action - adjustCardFontSize] Cannot adjust font size: cardContent or contentCards is invalid.`);
+            toast.error('无法调整字号：内容未加载或结构错误。');
+            return;
+        }
+        if (index < 0 || index >= cardContent.value.contentCards.length) {
+            console.error(`[Store Action - adjustCardFontSize] Invalid index: ${index}`);
+            toast.error(`无法调整字号：无效的卡片索引 ${index}。`);
+            return;
+        }
+
+        // 使用辅助函数处理
+        handleSyncAction(() => {
+            const card = cardContent.value.contentCards[index];
+            const currentSize = typeof card.fontSize === 'number' ? card.fontSize : DEFAULT_FONT_SIZE;
+            let newSize = currentSize + delta;
+            newSize = Math.max(MIN_FONT_SIZE, Math.min(newSize, MAX_FONT_SIZE));
+
+            if (newSize !== currentSize) {
+                card.fontSize = newSize;
+                console.log(`[Store Action - adjustCardFontSize] Font size for card ${index} updated to ${newSize}px.`);
+            } else {
+                // 边界情况的 info 提示可以在这里处理，或者移到调用处，这里简化处理，只处理错误
+                if (delta > 0) toast.info(`字号已达到最大值 (${MAX_FONT_SIZE}px)`);
+                else if (delta < 0) toast.info(`字号已达到最小值 (${MIN_FONT_SIZE}px)`);
+            }
+        }, { errorMessagePrefix: `调整卡片 ${index} 字号时出错` });
+    };
+
+    // +++ 新增：调整内容卡片行高 Action +++
+    const adjustCardLineHeight = (index, delta) => {
+        // 前置检查
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.error(`[Store Action - adjustCardLineHeight] Cannot adjust line height: cardContent or contentCards is invalid.`);
+            toast.error('无法调整行高：内容未加载或结构错误。');
+            return;
+        }
+        if (index < 0 || index >= cardContent.value.contentCards.length) {
+            console.error(`[Store Action - adjustCardLineHeight] Invalid index: ${index}`);
+            toast.error(`无法调整行高：无效的卡片索引 ${index}。`);
+            return;
+        }
+
+        // 使用辅助函数处理
+        handleSyncAction(() => {
+            const card = cardContent.value.contentCards[index];
+            const currentHeight = typeof card.lineHeight === 'number' ? card.lineHeight : DEFAULT_LINE_HEIGHT;
+            let newHeight = parseFloat((currentHeight + delta).toFixed(1));
+            newHeight = Math.max(MIN_LINE_HEIGHT, Math.min(newHeight, MAX_LINE_HEIGHT));
+
+            if (newHeight !== currentHeight) {
+                card.lineHeight = newHeight;
+                console.log(`[Store Action - adjustCardLineHeight] Line height for card ${index} updated to ${newHeight}.`);
+            } else {
+                // 边界情况的 info 提示
+                if (delta > 0) toast.info(`行高已达到最大值 (${MAX_LINE_HEIGHT.toFixed(1)})`);
+                else if (delta < 0) toast.info(`行高已达到最小值 (${MIN_LINE_HEIGHT.toFixed(1)})`);
+            }
+        }, { errorMessagePrefix: `调整卡片 ${index} 行高时出错` });
+    };
+
     // --- 暴露 state, getters, actions ---
     return {
         // State
@@ -711,7 +848,9 @@ export const useCardStore = defineStore('card', () => {
         setFocusedEditor,
         resetFocus,
         returnToTopicSelection,
-        saveMarkdownTemplate
+        saveMarkdownTemplate,
+        adjustCardFontSize,
+        adjustCardLineHeight
     };
 }, {
     // 可以在这里配置持久化等插件选项
