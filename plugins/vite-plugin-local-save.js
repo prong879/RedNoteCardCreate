@@ -514,6 +514,97 @@ export default function localSavePlugin() {
         }
     }
 
+    // +++ 新增：处理 /api/batch-sync-topic-counts (POST) +++
+    async function handleBatchSyncTopicCounts(req, res) {
+        console.log('[LocalSavePlugin] Handling /api/batch-sync-topic-counts');
+        try {
+            const topicsToSync = await parseBody(req);
+
+            // 验证输入是否为数组且非空
+            if (!Array.isArray(topicsToSync) || topicsToSync.length === 0) {
+                console.warn('[LocalSavePlugin] /api/batch-sync-topic-counts: Invalid input - expected non-empty array.');
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ success: false, message: '请求体必须是一个包含待同步主题信息的非空数组。' }));
+            }
+
+            // 验证数组中每个元素的结构和类型
+            for (const item of topicsToSync) {
+                if (!item || typeof item.topicId !== 'string' || typeof item.actualCount !== 'number' || !Number.isInteger(item.actualCount) || item.actualCount < 0) {
+                    console.warn('[LocalSavePlugin] /api/batch-sync-topic-counts: Invalid item structure in array.', item);
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    return res.end(JSON.stringify({ success: false, message: '数组中的每个元素必须包含有效的 topicId (string) 和 actualCount (non-negative integer)。' }));
+                }
+            }
+
+            const metaFilePath = path.resolve(projectRoot, 'src', 'config', 'topicsMeta.js');
+            let content = await fs.readFile(metaFilePath, 'utf-8');
+            content = content.replace(/^\uFEFF/, ''); // 移除 BOM
+
+            let allUpdatesAttempted = true;
+            let successfulUpdates = 0;
+            let failedUpdates = [];
+
+            // 对文件内容应用所有更新
+            for (const { topicId, actualCount } of topicsToSync) {
+                const entryRegex = new RegExp(`({(?:\\s*\\r?\n*)[^}]*?id:\\s*['"\`]${topicId}['"\`][^}]*?)(?:(,\\s*\\r?\n*cardCount:\\s*)(\\d+))?([^}]*})`, 's');
+                let entryUpdated = false;
+                content = content.replace(entryRegex, (match, preCardCountPart, commaAndKey, oldCount, postCardCountPart) => {
+                    entryUpdated = true;
+                    if (commaAndKey) {
+                        // 存在旧值，替换
+                        if (parseInt(oldCount, 10) !== actualCount) {
+                            console.log(`[LocalSavePlugin] BatchSync: Updating ${topicId} count from ${oldCount} to ${actualCount}.`);
+                            return `${preCardCountPart}${commaAndKey}${actualCount}${postCardCountPart}`;
+                        } else {
+                            // 值相同，无需修改
+                            console.log(`[LocalSavePlugin] BatchSync: Count for ${topicId} is already ${actualCount}. Skipping.`);
+                            return match; // 返回原匹配
+                        }
+                    } else {
+                        // 不存在旧值，添加
+                        console.log(`[LocalSavePlugin] BatchSync: Adding count ${actualCount} for ${topicId}.`);
+                        const trimmedPre = preCardCountPart.trimRight();
+                        const needsComma = trimmedPre.endsWith(',') ? '' : ',';
+                        return `${preCardCountPart}${needsComma} cardCount: ${actualCount}${postCardCountPart}`;
+                    }
+                });
+
+                if (entryUpdated) {
+                    successfulUpdates++;
+                } else {
+                    console.warn(`[LocalSavePlugin] BatchSync: Could not find entry for topicId '${topicId}' to update.`);
+                    allUpdatesAttempted = false;
+                    failedUpdates.push(topicId);
+                }
+            }
+
+            // 一次性写回文件
+            await fs.writeFile(metaFilePath, content, 'utf-8');
+            console.log(`[LocalSavePlugin] BatchSync: Wrote updates to ${metaFilePath}. Success: ${successfulUpdates}, Failed to find: ${failedUpdates.length}`);
+
+            // 根据结果返回响应
+            if (allUpdatesAttempted) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, message: `成功批量同步 ${successfulUpdates} 个主题的卡片计数。` }));
+            } else {
+                // 部分成功或全部失败（因为找不到条目）
+                res.writeHead(207, { 'Content-Type': 'application/json' }); // 207 Multi-Status
+                res.end(JSON.stringify({
+                    success: false,
+                    message: `批量同步完成，但未能找到 ${failedUpdates.length} 个主题的条目进行更新: ${failedUpdates.join(', ')}`,
+                    successfulUpdates,
+                    failedToFind: failedUpdates
+                }));
+            }
+
+        } catch (error) {
+            console.error('[LocalSavePlugin] /api/batch-sync-topic-counts Error:', error);
+            const userMsg = error.message === 'JSON parsing failed' ? '请求体 JSON 解析失败。' : '处理批量同步卡片计数请求时发生服务器内部错误。';
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, message: userMsg }));
+        }
+    }
+
     // --- 插件返回的对象 ---
     return {
         name: 'local-save-handler',
@@ -557,6 +648,13 @@ export default function localSavePlugin() {
                 else { next(); }
             });
             console.log('[LocalSavePlugin] API endpoint /api/sync-topic-count configured.');
+
+            // +++ 新增批量同步端点注册 +++
+            server.middlewares.use('/api/batch-sync-topic-counts', (req, res, next) => {
+                if (req.method === 'POST') { handleBatchSyncTopicCounts(req, res); }
+                else { next(); }
+            });
+            console.log('[LocalSavePlugin] API endpoint /api/batch-sync-topic-counts configured.');
 
             console.log('[LocalSavePlugin] All API endpoints configured.');
         } // configureServer 结束
