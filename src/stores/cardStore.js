@@ -103,8 +103,7 @@ export const useCardStore = defineStore('card', () => {
 
     // --- 新增：用于存储检测到的文件列表状态 --- 
     const detectedMarkdownFiles = ref(new Set()); // Set<string> topicId
-    const detectedContentJsModules = ref({}); // { [filePath: string]: Function } 存储动态导入函数
-    const detectedJsFilesInfo = ref({}); // { [topicId: string]: { cardCount: number } }
+    const topicCardCounts = ref({}); // { [topicId: string]: number }
     const isLoadingFiles = ref(false); // 新增：文件列表加载状态
     const fileLoadingError = ref(null); // 新增：文件列表加载错误信息
 
@@ -154,18 +153,21 @@ export const useCardStore = defineStore('card', () => {
         if (result.success && result.data) {
             // 更新状态
             detectedMarkdownFiles.value = new Set(result.data.mdFiles || []);
-            const jsInfoMap = {};
-            if (Array.isArray(result.data.jsFileDetails)) {
-                result.data.jsFileDetails.forEach(detail => {
-                    if (detail.topicId && typeof detail.cardCount === 'number') {
-                        jsInfoMap[detail.topicId] = { cardCount: detail.cardCount };
+
+            // --- 恢复：处理卡片数量信息 --- 
+            const countsMap = {};
+            // --- 修改：从 mdFileDetails 获取卡片数量 ---
+            if (Array.isArray(result.data.mdFileDetails)) {
+                result.data.mdFileDetails.forEach(detail => {
+                    if (detail.topicId && typeof detail.cardCount === 'number' && detail.cardCount >= 0) { // 确保 cardCount 有效
+                        countsMap[detail.topicId] = detail.cardCount;
                     }
                 });
             }
-            detectedJsFilesInfo.value = jsInfoMap;
-            const modules = import.meta.glob('../content/*_content.js');
-            detectedContentJsModules.value = modules;
-            // 可以在这里添加成功日志
+            topicCardCounts.value = countsMap;
+            console.log('[Store] Updated topicCardCounts:', topicCardCounts.value);
+            // --- 结束恢复 ---
+
         } else if (!result.success) {
             // 更新错误状态
             fileLoadingError.value = result.error?.message || '未知错误';
@@ -175,49 +177,7 @@ export const useCardStore = defineStore('card', () => {
         // 不再需要在 Store 中抛出错误，调用者如果需要可以检查 isLoadingFiles 和 fileLoadingError
     };
 
-    // --- 新增：Action - 转换 Markdown 到 JS 文件 --- 
-    const convertMarkdownToJs = async (topicId, overwrite = false) => {
-        console.log(`[Store] Attempting to convert MD to JS for topic: ${topicId}, Overwrite: ${overwrite}`);
-
-        // 使用 handleAsyncTask
-        const result = await handleAsyncTask(async () => {
-            const response = await fetch('/api/convert-md-to-js', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topicId })
-            });
-            const apiResult = await response.json();
-            if (!response.ok || !apiResult.success) {
-                throw new Error(apiResult.message || `HTTP error ${response.status}`);
-            }
-            return apiResult; // 返回 API 的成功结果
-        }, {
-            errorMessagePrefix: `转换 ${topicId}.md 失败`
-        });
-
-        if (result.success && result.data) {
-            const successMessage = result.data.message || `成功转换 ${topicId}.md`;
-            console.info(`[Store] Conversion successful: ${successMessage}`);
-            localStorage.removeItem(`cardgen_topic_content_${topicId}`);
-            await fetchFileLists(); // 重新获取列表
-
-            // --- 新增：强制重新加载当前主题内容 ---
-            // 检查是否需要重新加载（例如，如果用户在转换期间切换了主题）
-            if (currentTopicId.value === topicId) {
-                console.log(`[Store] Reloading content for current topic ${topicId} after conversion.`);
-                await loadTopic(topicId, true); // 使用 forceRefresh=true 强制从模块加载
-            }
-            // --- 结束新增 ---
-
-            // 直接返回成功结果给调用者
-            return { success: true, message: successMessage };
-        } else {
-            // handleAsyncTask 已记录错误，直接返回失败结果
-            return { success: false, message: result.error?.message || `转换 ${topicId}.md 失败` };
-        }
-    };
-
-    // --- 新增：Action - 保存 Markdown 模板到本地 (开发模式) ---
+    // --- 修改：Action - 保存 Markdown 模板到本地 (保持，但可能需要后续调整) ---
     const saveMarkdownTemplate = async ({ filename, content, topicId, overwrite = false }) => {
         console.log(`[Store] Attempting to save Markdown template: ${filename} for topic: ${topicId}, overwrite: ${overwrite}`);
 
@@ -281,9 +241,12 @@ export const useCardStore = defineStore('card', () => {
         }
     };
 
-    // 新增：从 Markdown 导入/更新选题
+    // --- 修改：Action - 导入/更新选题 (如果还使用的话，需要调整逻辑) ---
     const importTopicFromMarkdown = (file) => {
+        // ！！！此函数逻辑与直接加载 MD 的新流程冲突，需要重构或移除 ！！！
+        // 暂时保留，但标记为需要处理
         return new Promise(async (resolve, reject) => {
+            console.warn('[Store Deprecated Action] importTopicFromMarkdown is likely deprecated in direct-md-loading mode.');
             if (!file || !file.name.endsWith('.md')) {
                 return reject(new Error('无效的文件类型，需要 .md 文件。'));
             }
@@ -347,82 +310,66 @@ export const useCardStore = defineStore('card', () => {
         });
     };
 
-    // 加载主题内容
-    // 修改：添加 optional forceRefresh 参数
+    // --- 修改：loadTopic Action --- 
     const loadTopic = async (topicId, forceRefresh = false) => {
-        console.log(`[Store] Attempting to load topic: ${topicId}${forceRefresh ? ' (force refresh)' : ''}`);
+        console.log(`[Store] Loading topic via API: ${topicId}${forceRefresh ? ' (force refresh)' : ''}`);
         currentTopicId.value = topicId;
+        currentTopicTitle.value = topics.value.find(t => t.id === topicId)?.title || `未命名 (${topicId})`;
 
-        // 更新标题和获取描述 (从 getter 获取)
-        currentTopicTitle.value = currentTopic.value?.title || `未命名主题 (${topicId})`;
-        const description = currentTopicDescription.value;
-
-        // --- 修改：如果强制刷新，设置加载状态 ---
-        if (forceRefresh) {
-            console.log(`[Store] Force refresh requested for ${topicId}, setting loading state.`);
-            isLoadingContent.value = true;
-            // --- 移除之前的清空和延迟逻辑 ---
-            // cardContent.value = {}; 
-            // await new Promise(resolve => setTimeout(resolve, 0)); 
-        }
-        // --- 结束修改 --
+        // --- 使用加载状态 --- 
+        isLoadingContent.value = true;
+        let loadedSuccessfully = false;
 
         try {
-            // --- 修改：使用 store 中的 detectedContentJsModules --- 
-            const modules = detectedContentJsModules.value;
-            const path = `../content/${topicId}_content.js`;
+            // --- 调用新的 API 端点 --- 
+            const apiUrl = `/api/get-md-content?topicId=${encodeURIComponent(topicId)}`;
+            const response = await fetch(apiUrl);
 
-            if (modules[path]) {
-                const contentModule = await modules[path]();
-                const exportName = `${topicId}_contentData`;
-
-                if (contentModule && contentModule[exportName]) {
-                    const originalContent = contentModule[exportName];
-
-                    // 检查 localStorage 是否有"更新"的数据 (仅当 forceRefresh 为 false 时)
-                    let contentToLoad = originalContent;
-                    const savedContentJson = localStorage.getItem(`cardgen_topic_content_${topicId}`);
-                    // --- 修改：只有非强制刷新时才检查 localStorage ---
-                    if (savedContentJson && !forceRefresh) {
-                        try {
-                            const parsedSavedContent = JSON.parse(savedContentJson);
-                            contentToLoad = parsedSavedContent;
-                            console.log(`[Store] Found potentially newer content in localStorage for ${topicId}. Using it.`);
-                        } catch (e) {
-                            console.warn(`[Store] Error parsing localStorage for ${topicId}, using file content.`, e);
-                            localStorage.removeItem(`cardgen_topic_content_${topicId}`);
-                        }
-                    }
-
-                    cardContent.value = {
-                        ...contentToLoad,
-                        topicDescription: description
-                    };
-                    console.log(`[Store] Successfully loaded content for ${topicId}`);
-
-                    // --- 修改：只有从文件加载（非强制刷新且无有效localStorage）时才更新 localStorage ---
-                    if (contentToLoad === originalContent && !forceRefresh) {
-                        localStorage.setItem(`cardgen_topic_content_${topicId}`, JSON.stringify(originalContent));
-                    }
+            if (!response.ok) {
+                let errorMsg = `HTTP error ${response.status}`;
+                if (response.status === 404) {
+                    errorMsg = `选题 ${topicId} 的 Markdown 文件未找到。`;
                 } else {
-                    console.warn(`[Store] Data export not found in ${topicId}_content.js, loading placeholder.`);
-                    loadPlaceholderContent(topicId, description);
+                    try { const errData = await response.json(); errorMsg = errData.message || errorMsg; } catch { }
                 }
+                throw new Error(errorMsg);
+            }
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // --- 直接使用 API 返回的数据更新 cardContent --- 
+                cardContent.value = result.data;
+                console.log(`[Store] Successfully loaded and parsed content for ${topicId} from API.`);
+                loadedSuccessfully = true;
+
+                // --- 清除旧的 localStorage (如果存在) ---
+                // 虽然新逻辑不依赖它，但以防万一清除旧数据
+                localStorage.removeItem(`cardgen_topic_content_${topicId}`);
+
+                // --- 更新 topics 列表中的 description (如果 API 返回的比 meta 新) ---
+                const currentMetaIndex = topics.value.findIndex(t => t.id === topicId);
+                if (currentMetaIndex !== -1 && result.data.topicDescription && topics.value[currentMetaIndex].description !== result.data.topicDescription) {
+                    topics.value[currentMetaIndex].description = result.data.topicDescription;
+                    console.log(`[Store] Updated topic description for ${topicId} from loaded MD content.`);
+                }
+
             } else {
-                console.warn(`[Store] JS module not found in detected list for ${topicId}, loading placeholder.`);
-                loadPlaceholderContent(topicId, description);
+                throw new Error(result.message || '从 API 获取内容失败');
             }
+
         } catch (error) {
-            console.error(`[Store] Error loading topic ${topicId}:`, error);
-            loadPlaceholderContent(topicId, description); // 加载失败时也显示占位符
+            console.error(`[Store] Error loading topic ${topicId} via API:`, error);
+            toast.error(`加载 ${topicId} 内容失败: ${error.message || '未知错误'}`);
+            // 加载失败，显示占位符
+            loadPlaceholderContent(topicId, topics.value.find(t => t.id === topicId)?.description || '加载错误');
         } finally {
-            // --- 新增：确保加载结束后重置加载状态 ---
-            if (isLoadingContent.value) {
-                isLoadingContent.value = false;
-                console.log(`[Store] Reset loading state for ${topicId}.`);
-            }
+            // --- 重置加载状态 --- 
+            isLoadingContent.value = false;
+            console.log(`[Store] Finished loading attempt for ${topicId}. Success: ${loadedSuccessfully}`);
         }
-        showTopicSelector.value = false; // 加载后隐藏选择器
+
+        showTopicSelector.value = false;
     };
 
     // 加载占位内容
@@ -605,86 +552,134 @@ export const useCardStore = defineStore('card', () => {
         }, 'updateContentCardsOrder');
     };
 
-    // 生成并下载 JS 内容文件
-    const generateContentJsFile = () => {
-        if (!currentTopicId.value) {
-            toast.error("请先选择一个选题！");
-            return;
+    // --- 新增：构建 Markdown 字符串的辅助函数 +++
+    /**
+     * 根据当前的 cardContent 状态构建完整的 Markdown 文件字符串。
+     * @returns {string | null} 构建好的 Markdown 字符串，如果状态无效则返回 null。
+     */
+    const buildMarkdownString = () => {
+        if (!currentTopicId.value || !cardContent.value || !cardContent.value.coverCard) {
+            console.error('[Store Build MD] Cannot build Markdown: Invalid state.');
+            return null;
         }
         const topicId = currentTopicId.value;
-        // 从 localStorage 获取最新内容，或使用当前 store 中的内容
-        let contentToSave = { ...cardContent.value };
-        const savedJson = localStorage.getItem(`cardgen_topic_content_${topicId}`);
-        if (savedJson) {
-            try {
-                contentToSave = JSON.parse(savedJson);
-            } catch (e) {
-                console.error("Error parsing localStorage before generating JS file:", e);
-                toast.warning("从本地存储加载最新内容失败，将使用当前编辑状态生成文件。");
-                // 移除 topicDescription
-                delete contentToSave.topicDescription;
+        const content = cardContent.value;
+        const meta = topics.value.find(t => t.id === topicId);
+
+        // --- 构建 YAML Front Matter ---
+        const frontMatter = {
+            topicId: topicId,
+            title: meta?.title || content.coverCard.title || 'Untitled', // 优先使用元数据中的标题
+            description: content.topicDescription || meta?.description || '', // 优先使用编辑区更新的描述
+            headerText: content.headerText || '',
+            footerText: content.footerText || '',
+            coverShowHeader: content.coverCard.showHeader !== undefined ? content.coverCard.showHeader : true,
+            coverShowFooter: content.coverCard.showFooter !== undefined ? content.coverCard.showFooter : true,
+            // 注意：目前没有地方编辑 contentDefaultShowHeader/Footer，如果需要，要添加相应UI和状态
+            contentDefaultShowHeader: true, // 暂时写死
+            contentDefaultShowFooter: true  // 暂时写死
+        };
+        // 过滤掉值为空字符串的字段，保持 front matter 简洁
+        const fmEntries = Object.entries(frontMatter).filter(([_, v]) => v !== '');
+        let fmString = '---\n';
+        fmEntries.forEach(([key, value]) => {
+            // 对字符串值加引号，特别是包含特殊字符或换行符时
+            const formattedValue = typeof value === 'string' && (value.includes(':') || value.includes('\n'))
+                ? JSON.stringify(value)
+                : value;
+            fmString += `${key}: ${formattedValue}\n`;
+        });
+        fmString += '---\n';
+
+        // --- 构建 Markdown Body ---
+        let bodyString = '\n'; // Front Matter 后空一行
+
+        // Cover Card
+        if (content.coverCard.title) {
+            bodyString += `# ${content.coverCard.title}\n`;
+        }
+        if (content.coverCard.subtitle) {
+            bodyString += `${content.coverCard.subtitle}\n`;
+        }
+        // 可选：如果需要精确还原，可以在这里添加 coverShowHeader/Footer 的注释
+        // if (content.coverCard.showHeader !== frontMatter.coverShowHeader) { ... }
+        bodyString += '\n---\n\n';
+
+        // Content Cards
+        content.contentCards?.forEach((card, index) => {
+            if (card.title) {
+                bodyString += `## ${card.title}\n`; // 使用二级标题表示内容卡片
             }
-        } else {
-            // 移除 topicDescription
-            delete contentToSave.topicDescription;
+            if (card.body) {
+                bodyString += `${card.body}\n`;
+            }
+            // 可选：添加 content card 的显隐注释
+            if (card.showHeader !== frontMatter.contentDefaultShowHeader) {
+                bodyString += `<!-- cardShowHeader: ${card.showHeader} -->\n`;
+            }
+            if (card.showFooter !== frontMatter.contentDefaultShowFooter) {
+                bodyString += `<!-- cardShowFooter: ${card.showFooter} -->\n`;
+            }
+            // 在最后一张卡片后不加分隔符
+            if (index < content.contentCards.length - 1) {
+                bodyString += '\n---\n\n';
+            }
+        });
+
+        // Main Text
+        if (content.mainText) {
+            // 确保 Main Text 前有分隔符（如果前面有内容卡片）
+            if (content.contentCards && content.contentCards.length > 0) {
+                bodyString += '\n---\n\n';
+            } else {
+                bodyString += '\n'; // 如果没有内容卡片，也确保和封面卡有分隔
+            }
+            bodyString += `## Main Text\n${content.mainText}\n`; // 使用 ## Main Text 标题
         }
 
-        const filename = `${topicId}_content.js`;
-
-        const fileContent = `// src/content/${filename}\n// Generated at: ${new Date().toISOString()}\n\nexport const ${topicId}_contentData = ${JSON.stringify(contentToSave, null, 2)};\n`;
-
-        const blob = new Blob([fileContent], { type: 'text/javascript;charset=utf-8;' });
-        // 使用 file-saver 来保存
-        saveAs(blob, filename);
-
-        toast.success(`已生成 ${filename} 文件供下载。请手动将其移动到项目的 'src/content/' 目录下替换旧文件。`, {
-            timeout: 8000
-        });
+        return fmString + bodyString.trim(); // 返回完整内容，移除末尾多余空白
     };
 
-    // 保存内容到本地 (调用后端 API - 当前未实现，仅保存到 localStorage)
+    // --- 修改：保存内容到本地 MD 文件 --- 
     const saveContentLocally = async () => {
-        if (!currentTopicId.value) {
-            // 直接返回错误信息给调用者（组件）处理 toast
+        console.log('[Store Action] Attempting to save content to local MD file...');
+        const topicId = currentTopicId.value;
+        if (!topicId) {
             return { success: false, message: "错误：无法获取当前主题 ID" };
         }
-        if (!cardContent.value || Object.keys(cardContent.value).length === 0) {
-            return { success: false, message: "错误：没有内容可以保存" };
+
+        // 1. 构建 Markdown 字符串
+        const markdownContent = buildMarkdownString();
+        if (markdownContent === null) {
+            return { success: false, message: "错误：无法构建 Markdown 内容，状态无效。" };
         }
 
-        const topicId = currentTopicId.value;
-        const filename = `${topicId}_content.js`;
-        const contentToSave = { ...cardContent.value };
-        delete contentToSave.topicDescription;
-        const fileContentString = `// src/content/${filename}\n// Updated at: ${new Date().toISOString()}\n\nexport const ${topicId}_contentData = ${JSON.stringify(contentToSave, null, 2)};\n`;
-
-        // 使用 handleAsyncTask
+        // 2. 调用 API 保存
         const result = await handleAsyncTask(async () => {
-            const response = await fetch('/api/save-local-content', {
+            const response = await fetch('/api/save-md-content', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: filename, content: fileContentString }),
+                body: JSON.stringify({ topicId: topicId, content: markdownContent }),
             });
             const apiResult = await response.json();
             if (!response.ok || !apiResult.success) {
-                // 特殊处理文件名格式错误
-                if (apiResult.message && apiResult.message.includes('无效的文件名或类型')) {
-                    throw new Error(`主题 ID (当前为 \"${currentTopicId.value}\") 必须以 \"topic\" 开头`);
-                }
-                throw new Error(apiResult.message || '服务器未返回明确错误信息。');
+                throw new Error(apiResult.message || '服务器未能成功保存文件。');
             }
             return apiResult; // 返回成功结果
         }, {
-            errorMessagePrefix: "保存到本地文件失败"
+            errorMessagePrefix: `保存 ${topicId}.md 失败`
         });
 
         if (result.success && result.data) {
-            console.log(`[Store] Successfully saved content locally for ${topicId} via API.`);
-            return { success: true, message: `主题 "${currentTopicTitle.value}" 的内容已成功更新到本地文件 ${filename}！` };
+            console.log(`[Store] Successfully saved content to ${topicId}.md via API.`);
+            // 保存成功后，可以考虑是否需要强制刷新前端状态
+            // 当前我们是从 API 加载，如果 MD 文件被修改，下次加载就是新的
+            // 但如果希望保存后 *立即* 看到精确的（比如格式化后的）结果，可以触发刷新
+            // await loadTopic(topicId, true); // 可选：保存后强制刷新
+            return { success: true, message: result.data.message || `主题 "${currentTopicTitle.value}" 的内容已成功保存到本地 ${topicId}.md！` };
         } else {
             // 错误已被 handleAsyncTask 记录
-            // 将具体的错误消息传递回去
-            return { success: false, message: result.error?.message || "保存到本地文件失败" };
+            return { success: false, message: result.error?.message || `保存 ${topicId}.md 失败` };
         }
     };
 
@@ -732,8 +727,7 @@ export const useCardStore = defineStore('card', () => {
         focusedEditorIndex,
         topics,
         detectedMarkdownFiles,
-        detectedContentJsModules,
-        detectedJsFilesInfo,
+        topicCardCounts,
         isLoadingFiles,
         fileLoadingError,
         isLoadingContent,
@@ -758,14 +752,12 @@ export const useCardStore = defineStore('card', () => {
         updateMainText,
         updateTopicDescription,
         updateContentCardsOrder,
-        generateContentJsFile,
         saveContentLocally,
         setSelectedTemplate,
         setFocusedPreview,
         setFocusedEditor,
         resetFocus,
         returnToTopicSelection,
-        convertMarkdownToJs,
         saveMarkdownTemplate
     };
 }, {

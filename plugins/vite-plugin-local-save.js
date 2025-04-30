@@ -76,6 +76,68 @@ function extractCardCount(jsContent, topicId) {
     }
 }
 
+// +++ 新增：解析 Markdown 内容的辅助函数 +++
+/**
+ * Parses the body content of a Markdown file into structured card data.
+ * @param {string} mdBodyContent - The Markdown content string (without front matter).
+ * @param {object} frontMatter - The parsed front matter data.
+ * @returns {object} - An object containing coverCard, contentCards, and mainText.
+ */
+function parseMdBodyToCards(mdBodyContent, frontMatter) {
+    const parts = mdBodyContent.trim().split(/\r?\n---\r?\n/);
+    const parsedCards = {
+        coverCard: {
+            title: '',
+            subtitle: '',
+            showHeader: frontMatter.coverShowHeader !== undefined ? frontMatter.coverShowHeader : true,
+            showFooter: frontMatter.coverShowFooter !== undefined ? frontMatter.coverShowFooter : true
+        },
+        contentCards: [],
+        mainText: ''
+    };
+    let mainTextReached = false;
+
+    parts.forEach((part, index) => {
+        part = part.trim();
+        if (!part) return;
+        if (part.startsWith('## Main Text') || part.startsWith('## 主文案')) {
+            mainTextReached = true;
+            parsedCards.mainText = part.substring(part.indexOf('\n') + 1).trim();
+            return;
+        }
+        if (mainTextReached) return;
+
+        const titleMatch = part.match(/^#+\s+(.*)/);
+        let title = '';
+        let bodyContent = '';
+        if (titleMatch) {
+            title = titleMatch[1].trim();
+            bodyContent = part.substring(titleMatch[0].length).trim();
+        } else {
+            bodyContent = part;
+        }
+        const showHeaderMatch = bodyContent.match(/<!--\s*cardShowHeader:\s*(true|false)\s*-->/);
+        const showFooterMatch = bodyContent.match(/<!--\s*cardShowFooter:\s*(true|false)\s*-->/);
+        let showHeader = frontMatter.contentDefaultShowHeader !== undefined ? frontMatter.contentDefaultShowHeader : true;
+        let showFooter = frontMatter.contentDefaultShowFooter !== undefined ? frontMatter.contentDefaultShowFooter : true;
+        if (showHeaderMatch) showHeader = showHeaderMatch[1] === 'true';
+        if (showFooterMatch) showFooter = showFooterMatch[1] === 'true';
+        bodyContent = bodyContent.replace(/<!--.*?-->/gs, '').trim();
+
+        if (index === 0) {
+            parsedCards.coverCard.title = title || frontMatter.title || ''; // Use heading, fallback to FM title
+            parsedCards.coverCard.subtitle = bodyContent;
+            // Update cover visibility based on comments if present
+            if (showHeaderMatch) parsedCards.coverCard.showHeader = showHeader;
+            if (showFooterMatch) parsedCards.coverCard.showFooter = showFooter;
+        } else {
+            parsedCards.contentCards.push({ title, body: bodyContent, showHeader, showFooter });
+        }
+    });
+
+    return parsedCards;
+}
+
 /**
  * Vite 插件，用于在开发模式下处理来自前端的本地文件保存请求。
  */
@@ -229,23 +291,24 @@ export default function localSavePlugin() {
             });
             console.log('[LocalSavePlugin] API endpoint /api/save-markdown-template configured.');
 
-            // --- 修改中间件 3: 列出 Markdown 和 JS 文件 (使用 Acorn 计算卡片数量) ---
+            // --- 中间件 3: 列出 Markdown 文件并直接计算卡片数量 ---
             server.middlewares.use('/api/list-content-files', async (req, res, next) => {
                 if (req.method !== 'GET') {
                     return next();
                 }
-                console.log('[LocalSavePlugin] /api/list-content-files requested');
+                console.log('[LocalSavePlugin] /api/list-content-files requested (calculating from MD)');
                 try {
                     const markdownDir = path.resolve(projectRoot, 'src', 'markdown');
-                    const contentDir = path.resolve(projectRoot, 'src', 'content');
+                    // const contentDir = path.resolve(projectRoot, 'src', 'content'); // 不再需要 content 目录
 
                     // 1. List Markdown files and extract topic IDs
                     let mdFiles = [];
+                    let allMdFileNames = [];
                     try {
-                        const allMdFileNames = await fs.readdir(markdownDir);
+                        allMdFileNames = await fs.readdir(markdownDir);
                         mdFiles = allMdFileNames
-                            .filter(f => f.endsWith('.md'))
-                            .map(f => f.replace('.md', '')); // Return only topic IDs
+                            .filter(f => f.endsWith('.md') && !f.startsWith('_')) // 过滤出 .md 文件，忽略可能存在的模板或特殊文件
+                            .map(f => f.replace('.md', ''));
                     } catch (err) {
                         if (err.code === 'ENOENT') {
                             console.warn('[LocalSavePlugin] Markdown directory not found, returning empty list.');
@@ -255,39 +318,34 @@ export default function localSavePlugin() {
                     }
                     console.log(`[LocalSavePlugin] Found MD files (topic IDs): ${mdFiles.join(', ')}`);
 
-                    // 2. List JS files and get details (topicId, cardCount)
-                    let jsFileDetails = [];
-                    try {
-                        const allJsFileNames = await fs.readdir(contentDir);
-                        const jsContentFileNames = allJsFileNames.filter(f => f.endsWith('_content.js'));
+                    // 2. 计算每个 Markdown 文件的卡片数量
+                    let mdFileDetails = [];
+                    const validMdFileNames = allMdFileNames.filter(f => f.endsWith('.md') && !f.startsWith('_'));
 
-                        for (const jsFilename of jsContentFileNames) {
-                            const topicId = jsFilename.replace('_content.js', ''); // <--- 获取 topicId
-                            const jsFilePath = path.join(contentDir, jsFilename);
-                            try {
-                                console.log(`[LocalSavePlugin] Processing JS file: ${jsFilename}`);
-                                const jsContent = await fs.readFile(jsFilePath, 'utf-8');
-                                // --- 修改：调用新的 extractCardCount 并传入 topicId ---
-                                const cardCount = extractCardCount(jsContent, topicId);
-                                console.log(`[LocalSavePlugin] Calculated cardCount for ${topicId}: ${cardCount}`);
-                                jsFileDetails.push({ topicId, cardCount });
-                            } catch (fileReadError) {
-                                console.error(`[LocalSavePlugin] Error reading JS file ${jsFilename}:`, fileReadError);
-                                // jsFileDetails.push({ topicId, cardCount: -1 }); // Indicate error
-                            }
-                        }
-                    } catch (err) {
-                        if (err.code === 'ENOENT') {
-                            console.warn('[LocalSavePlugin] Content directory not found, returning empty list.');
-                        } else {
-                            throw err;
+                    for (const mdFilename of validMdFileNames) {
+                        const topicId = mdFilename.replace('.md', '');
+                        const mdFilePath = path.join(markdownDir, mdFilename);
+                        try {
+                            console.log(`[LocalSavePlugin] Processing MD file for count: ${mdFilename}`);
+                            const mdContent = await fs.readFile(mdFilePath, 'utf-8');
+                            const { data: frontMatter, content: mdBodyContent } = matter(mdContent);
+                            // 使用辅助函数解析卡片结构
+                            const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);
+                            // 计算卡片数量 (封面 + 内容卡)
+                            const cardCount = 1 + (parsedBody.contentCards?.length || 0);
+                            console.log(`[LocalSavePlugin] Calculated cardCount for ${topicId} from MD: ${cardCount}`);
+                            mdFileDetails.push({ topicId, cardCount });
+                        } catch (fileReadOrParseError) {
+                            console.error(`[LocalSavePlugin] Error reading or parsing MD file ${mdFilename}:`, fileReadOrParseError);
+                            // 可以选择是否在出错时添加一个标记，或者直接跳过
+                            // mdFileDetails.push({ topicId, cardCount: -1 }); // 例如标记为 -1 表示错误
                         }
                     }
-                    console.log(`[LocalSavePlugin] Found JS file details:`, jsFileDetails);
+                    console.log(`[LocalSavePlugin] Calculated MD file details:`, mdFileDetails);
 
-                    // 3. Send the combined response
+                    // 3. Send the combined response (修改字段名)
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: true, mdFiles, jsFileDetails }));
+                    res.end(JSON.stringify({ success: true, mdFiles, mdFileDetails })); // 使用 mdFileDetails
 
                 } catch (error) {
                     console.error('[LocalSavePlugin] List Files: Error processing request:', error);
@@ -295,7 +353,143 @@ export default function localSavePlugin() {
                     res.end(JSON.stringify({ success: false, message: '列出文件时发生服务器内部错误。', error: error.message }));
                 }
             });
-            console.log('[LocalSavePlugin] API endpoint /api/list-content-files configured (with card counts).');
+            console.log('[LocalSavePlugin] API endpoint /api/list-content-files configured (calculating from MD).');
+
+            // --- 新增中间件 5: 获取并解析单个 Markdown 内容 --- 
+            server.middlewares.use('/api/get-md-content', async (req, res, next) => {
+                if (req.method !== 'GET') {
+                    return next();
+                }
+                const url = new URL(req.url, `http://${req.headers.host}`);
+                const topicId = url.searchParams.get('topicId');
+                console.log(`[LocalSavePlugin] /api/get-md-content requested for topicId: ${topicId}`);
+
+                if (!topicId) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: 'Missing topicId query parameter.' }));
+                    return;
+                }
+
+                try {
+                    const mdFilePath = path.resolve(projectRoot, 'src', 'markdown', `${topicId}.md`);
+
+                    // 1. 读取 Markdown 文件
+                    let mdContent;
+                    try {
+                        mdContent = await fs.readFile(mdFilePath, 'utf-8');
+                    } catch (readError) {
+                        if (readError.code === 'ENOENT') {
+                            res.writeHead(404, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: false, message: `Markdown 文件 ${topicId}.md 未找到。` }));
+                            return;
+                        } else {
+                            throw new Error(`读取 Markdown 文件失败: ${readError.message}`);
+                        }
+                    }
+
+                    // 2. 解析 Front Matter 和内容
+                    const { data: frontMatter, content: mdBodyContent } = matter(mdContent);
+
+                    // 3. 使用辅助函数解析卡片结构
+                    const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);
+
+                    // 4. 组合最终的 JSON 数据
+                    const responseData = {
+                        headerText: frontMatter.headerText || '',
+                        footerText: frontMatter.footerText || '',
+                        coverCard: parsedBody.coverCard,
+                        contentCards: parsedBody.contentCards,
+                        mainText: parsedBody.mainText,
+                        // 添加从 Front Matter 读取的 description
+                        topicDescription: frontMatter.description || ''
+                    };
+
+                    // --- 可选：更新 topicsMeta.js --- 
+                    // 可以在这里添加与 `/api/convert-md-to-js` 中类似的更新 `topicsMeta.js` 的逻辑
+                    // 如果需要的话，确保 `readTopicsMeta` 和 `writeTopicsMeta` 可用
+                    // 注意：如果每次获取内容都更新元数据，可能效率不高
+                    // 更好的方式可能是：
+                    // 1. 在 `/api/list-content-files` 中统一更新元数据。
+                    // 2. 或者前端在必要时（如保存.md后）调用一个专门的API来更新元数据。
+                    // --- 结束 可选 --- 
+
+                    // 5. 返回成功响应
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, data: responseData }));
+
+                } catch (error) {
+                    console.error(`[LocalSavePlugin] Get MD Content [${topicId}]: Error processing request:`, error);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: `获取 Markdown 内容时出错: ${error.message}` }));
+                }
+            });
+            console.log('[LocalSavePlugin] API endpoint /api/get-md-content configured.');
+
+            // --- 新增中间件 6: 保存 Markdown 内容到文件 ---
+            server.middlewares.use('/api/save-md-content', async (req, res, next) => {
+                if (req.method !== 'POST') {
+                    return next();
+                }
+
+                let body = '';
+                req.on('data', chunk => { body += chunk.toString(); });
+                req.on('end', async () => {
+                    let requestedTopicId = 'unknown';
+                    try {
+                        const { topicId, content } = JSON.parse(body);
+                        requestedTopicId = topicId;
+
+                        // --- 安全性检查 ---
+                        if (!topicId || typeof topicId !== 'string') {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: false, message: '无效或缺失的 topicId。' }));
+                            return;
+                        }
+                        if (content === undefined || content === null || typeof content !== 'string') {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: false, message: '无效或缺失的文件内容。' }));
+                            return;
+                        }
+
+                        const filename = `${topicId}.md`; // 构建文件名
+                        const targetDir = path.resolve(projectRoot, 'src', 'markdown');
+                        const targetPath = path.join(targetDir, path.basename(filename)); // 使用 basename 防御路径遍历
+
+                        // 再次验证路径是否仍在预期目录内
+                        if (!targetPath.startsWith(targetDir)) {
+                            res.writeHead(400, { 'Content-Type': 'application/json' });
+                            res.end(JSON.stringify({ success: false, message: '无效的文件路径，禁止访问项目外或非 src/markdown 目录。' }));
+                            return;
+                        }
+                        // --- 安全性检查结束 ---
+
+                        // 确保目标目录存在 (虽然通常已存在)
+                        await fs.mkdir(targetDir, { recursive: true });
+
+                        // 写入/覆盖 Markdown 文件
+                        await fs.writeFile(targetPath, content, 'utf-8');
+                        console.log(`[LocalSavePlugin] Successfully wrote content to ${targetPath}`);
+
+                        // --- 可选：通知 Vite .md 文件已更改？---
+                        // server.watcher.emit('change', targetPath); 
+                        // 注意：如果前端直接通过 API 重新加载，可能不需要 HMR 通知
+                        // 如果其他地方（如 MarkdownManager）依赖文件系统变化，则可能需要
+                        // 暂时不加
+
+                        // 返回成功响应
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, message: `内容已成功保存到 ${filename}。` }));
+
+                    } catch (error) {
+                        console.error(`[LocalSavePlugin] Save MD Content [${requestedTopicId}]: Error processing request:`, error);
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        // 避免在错误消息中暴露完整路径或其他敏感信息
+                        const userFriendlyMessage = error instanceof SyntaxError ? '请求体 JSON 解析失败。' : '保存 Markdown 内容时发生服务器内部错误。';
+                        res.end(JSON.stringify({ success: false, message: userFriendlyMessage }));
+                    }
+                });
+            });
+            console.log('[LocalSavePlugin] API endpoint /api/save-md-content configured.');
 
             // --- 新增中间件 4: 处理 Markdown 到 JS 的转换 ---
             server.middlewares.use('/api/convert-md-to-js', async (req, res, next) => {

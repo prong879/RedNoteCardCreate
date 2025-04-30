@@ -111,30 +111,24 @@ const isDevMode = import.meta.env.DEV;
 
 const topics = computed(() => store.topics);
 
-// --- 新增：将 savedTopicInfo 改为 computed 属性 --- 
+// --- 修改：savedTopicInfo 直接从 store.topicCardCounts 获取 --- 
 const savedTopicInfo = computed(() => {
     const infoMap = {};
-    // console.log('[TopicSelector] Computing savedTopicInfo based on store:', store.topics, store.detectedJsFilesInfo); // 调试日志
+    const counts = store.topicCardCounts || {}; // 从 store 获取卡片数量映射
     
-    // 确保 store.detectedJsFilesInfo 是一个对象
-    const jsInfo = typeof store.detectedJsFilesInfo === 'object' && store.detectedJsFilesInfo !== null 
-                   ? store.detectedJsFilesInfo 
-                   : {};
-                   
     topics.value.forEach(topic => {
-        const topicJsInfo = jsInfo[topic.id];
-        if (topicJsInfo) {
-            // JS 文件信息存在于 Store 中
+        const count = counts[topic.id];
+        if (typeof count === 'number' && count >= 0) {
+            // 卡片数量信息存在于 Store 中
             infoMap[topic.id] = {
-                exists: true,
-                cardCount: topicJsInfo.cardCount || 0 // 从 store 获取卡片数量，如果 API 没提供则为 0
+                exists: true, // 假设如果 count 存在，则文件存在
+                cardCount: count 
             };
         } else {
-            // JS 文件信息不存在
+            // 卡片数量信息不存在
             infoMap[topic.id] = { exists: false, cardCount: 0 };
         }
     });
-    // console.log('[TopicSelector] Computed savedTopicInfo:', infoMap);
     return infoMap;
 });
 
