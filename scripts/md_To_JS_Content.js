@@ -94,42 +94,44 @@ function convertFile(inputFilePath) {
         // 提取主文案
         let markdownContentForCards = originalMarkdownContent.trim();
         let mainText = '';
-        const mainTextMarkerEn = '\n## Main Text\n';
-        const mainTextMarkerZh = '\n## 主文案\n';
-        let mainTextStartIndex = markdownContentForCards.indexOf(mainTextMarkerEn);
-        let markerLength = 0;
-        if (mainTextStartIndex !== -1) {
-            markerLength = mainTextMarkerEn.length;
-        } else {
-            mainTextStartIndex = markdownContentForCards.indexOf(mainTextMarkerZh);
-            if (mainTextStartIndex !== -1) {
-                markerLength = mainTextMarkerZh.length;
-            }
-        }
-        if (mainTextStartIndex !== -1) {
-            mainText = markdownContentForCards.substring(mainTextStartIndex + markerLength).trim();
-            markdownContentForCards = markdownContentForCards.substring(0, mainTextStartIndex).trim();
-            console.log(`    - 主文案: 找到(长度: ${mainText.length})`);
-        } else {
-            console.log(`    - 主文案: 未找到`);
+        // 使用正则表达式兼容 \r?\n
+        const mainTextMarkerEnRegex = /\r?\n## Main Text\r?\n/;
+        const mainTextMarkerZhRegex = /\r?\n## 主文案\r?\n/;
+        let mainTextSplitResult = markdownContentForCards.split(mainTextMarkerEnRegex);
+        if (mainTextSplitResult.length < 2) {
+            mainTextSplitResult = markdownContentForCards.split(mainTextMarkerZhRegex);
         }
 
-        // 处理卡片内容
-        const cardContents = markdownContentForCards.split(/(?:\r?\n\s*){1,}---\s*(?:\r?\n\s*)*/);
-        console.log(`  - 内容分割: 找到 ${cardContents.length} 个部分(含封面)`);
+        if (mainTextSplitResult.length >= 2) {
+            markdownContentForCards = mainTextSplitResult[0].trim(); // 主文案之前的内容
+            mainText = mainTextSplitResult.slice(1).join('').trim(); // 主文案之后的所有内容
+            console.log(`    - 主文案 (Main Text) 提取成功。`);
+        } else {
+            console.log(`    - 未找到 主文案 (Main Text) 标记。`);
+        }
 
-        // 健全性检查
-        if (cardContents.length === 0 || (cardContents.length === 1 && !cardContents[0].trim() && !mainText)) {
+        // 分割卡片
+        // 修改分割逻辑以兼容 \r?\n
+        const cardParts = markdownContentForCards.split(/\r?\n---\r?\n/);
+        if (cardParts.length > 1) {
+            console.log(`    - 成功将内容分割为 ${cardParts.length} 个卡片部分。`);
+        } else {
             console.error(`    ❌ 错误：文件内容似乎为空或格式不正确。`);
             return false;
         }
-        if (cardContents.length === 1 && !cardContents[0].trim() && mainText) {
+
+        // 健全性检查
+        if (cardParts.length === 0 || (cardParts.length === 1 && !cardParts[0].trim() && !mainText)) {
+            console.error(`    ❌ 错误：文件内容似乎为空或格式不正确。`);
+            return false;
+        }
+        if (cardParts.length === 1 && !cardParts[0].trim() && mainText) {
             console.warn(`    ⚠️ 警告：未找到有效的封面或内容卡片部分，只有主文案。`);
-            cardContents.unshift(''); // 插入空封面以便处理
+            cardParts.unshift(''); // 插入空封面以便处理
         }
 
         // 处理封面卡片
-        const coverContentRaw = (cardContents[0] || '').trim();
+        const coverContentRaw = (cardParts[0] || '').trim();
         let coverTitleForCard = titleFromMd; // 封面卡片标题直接用 Front Matter 的
         let coverSubtitle = '';
         const coverLines = coverContentRaw.split(/\r?\n/);
@@ -158,8 +160,8 @@ function convertFile(inputFilePath) {
         const contentCards = [];
         const showHeaderRegex = /<!--\s*cardShowHeader\s*:\s*(true|false)\s*-->/i;
         const showFooterRegex = /<!--\s*cardShowFooter\s*:\s*(true|false)\s*-->/i;
-        for (let i = 1; i < cardContents.length; i++) {
-            const cardContentRaw = cardContents[i].trim();
+        for (let i = 1; i < cardParts.length; i++) {
+            const cardContentRaw = cardParts[i].trim();
             if (!cardContentRaw) continue;
             let cardTitle = '';
             let cardBody = cardContentRaw; // 默认全部是 body

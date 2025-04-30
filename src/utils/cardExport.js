@@ -50,7 +50,7 @@ export const exportCardAsImage = async (cardElement, rawFileName, format = 'jpg'
 
     try {
         const options = {
-            scale: 2, // 降低默认 scale 以提高性能，原为 4
+            scale: 4, // 降低默认 scale 以提高性能，原为 4
             useCORS: true,
             backgroundColor: null,
             logging: false,
@@ -178,7 +178,7 @@ export const exportCardsAsZip = async (
     const zip = new JSZip();
     const totalCount = elementsToExport.length;
     const options = {
-        scale: 2, // 与 exportCardAsImage 保持一致
+        scale: 4, // 与 exportCardAsImage 保持一致
         useCORS: true,
         backgroundColor: null,
         logging: false,

@@ -8,7 +8,7 @@ import { handleAsyncTask } from '../utils/asyncHandler'; // 导入新的处理�
 // Helper function to parse Markdown content into card structure
 // (This is a simplified parser based on the README description)
 function parseMarkdownContent(content) {
-    const parts = content.split(/\n---\n/);
+    const parts = content.split(/\r?\n---\r?\n/);
     const result = {
         coverCard: { title: '', subtitle: '', showHeader: true, showFooter: true },
         contentCards: [],

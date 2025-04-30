@@ -336,7 +336,7 @@ export default function localSavePlugin() {
                         }
 
                         // --- 提取卡片内容 (简化版) ---
-                        const parts = mdBodyContent.trim().split(/\n---\n/);
+                        const parts = mdBodyContent.trim().split(/\r?\n---\r?\n/);
                         const parsedCards = {
                             coverCard: { title: '', subtitle: '', showHeader: frontMatter.coverShowHeader !== undefined ? frontMatter.coverShowHeader : true, showFooter: frontMatter.coverShowFooter !== undefined ? frontMatter.coverShowFooter : true },
                             contentCards: [],
