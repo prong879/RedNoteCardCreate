@@ -17,79 +17,6 @@ import {
     MD_COMMENT_SHOW_FOOTER_KEY
 } from '../config/cardConstants';
 
-// Helper function to parse Markdown content into card structure
-// (This is a simplified parser based on the README description)
-function parseMarkdownContent(content) {
-    const parts = content.split(/\r?\n---\r?\n/);
-    const result = {
-        coverCard: { title: '', subtitle: '', showHeader: true, showFooter: true },
-        contentCards: [],
-        mainText: ''
-    };
-
-    let mainTextSectionReached = false;
-
-    parts.forEach((part, index) => {
-        part = part.trim();
-        if (!part) return;
-
-        // Check for Main Text section
-        if (part.startsWith('## 主文案') || part.startsWith('## Main Text')) {
-            mainTextSectionReached = true;
-            result.mainText = part.substring(part.indexOf('\n') + 1).trim();
-            return; // Stop processing parts after main text
-        }
-
-        // Skip processing if main text was already found in a previous part
-        if (mainTextSectionReached) return;
-
-        // --- Card parsing ---
-        let title = '';
-        let body = '';
-        let showHeader = null; // Use null to indicate not explicitly set
-        let showFooter = null; // Use null to indicate not explicitly set
-
-        // Extract title (first heading)
-        const titleMatch = part.match(/^#+\s+(.*)/);
-        if (titleMatch) {
-            title = titleMatch[1].trim();
-            body = part.substring(titleMatch[0].length).trim();
-        } else {
-            // If no heading, treat the whole part as body (or subtitle for cover)
-            body = part;
-        }
-
-        // Extract card-specific visibility comments
-        const headerCommentMatch = body.match(/<!--\s*cardShowHeader:\s*(true|false)\s*-->/);
-        if (headerCommentMatch) {
-            showHeader = headerCommentMatch[1] === 'true';
-            body = body.replace(headerCommentMatch[0], '').trim(); // Remove comment from body
-        }
-        const footerCommentMatch = body.match(/<!--\s*cardShowFooter:\s*(true|false)\s*-->/);
-        if (footerCommentMatch) {
-            showFooter = footerCommentMatch[1] === 'true';
-            body = body.replace(footerCommentMatch[0], '').trim(); // Remove comment from body
-        }
-
-        if (index === 0) { // First part is cover card
-            result.coverCard.title = title; // Cover title comes from first # heading
-            result.coverCard.subtitle = body; // Rest is subtitle
-            // Cover visibility is handled by frontMatter, but we record parsed values if present
-            if (showHeader !== null) result.coverCard.showHeader = showHeader;
-            if (showFooter !== null) result.coverCard.showFooter = showFooter;
-        } else { // Subsequent parts are content cards
-            result.contentCards.push({
-                title: title,
-                body: body,
-                showHeader: showHeader, // Keep null if not set, will use default later
-                showFooter: showFooter  // Keep null if not set, will use default later
-            });
-        }
-    });
-
-    return result;
-}
-
 // 获取 JS 内容模块信息 (在 store 定义外部执行，确保只执行一次)
 // const contentJsModules = import.meta.glob('../content/*_content.js'); // 不再在这里直接获取
 // console.log('[Store Init] Found content JS modules:', Object.keys(contentJsModules));
@@ -153,113 +80,114 @@ export const useCardStore = defineStore('card', () => {
 
     // --- Modify fetchFileLists Action --- 
     const fetchFileLists = async () => {
-        // --- Remove isLoadingFiles check and setting ---
-        // if (isLoadingFiles.value) return;
-        // isLoadingFiles.value = true;
-        fileLoadingError.value = null;
         console.log('[Store] Fetching file lists and checking counts...');
+        fileLoadingError.value = null;
 
-        // 使用 handleAsyncTask 包装 fetch 调用
+        // 使用 handleAsyncTask 包装 API 调用
         const result = await handleAsyncTask(async () => {
-            const response = await fetch('/api/list-content-files');
+            const response = await fetch('/api/list-content-files'); // 假设 API 端点不变
             if (!response.ok) {
-                let errorMsg = `HTTP error! status: ${response.status}`;
-                try { const errorResult = await response.json(); errorMsg = errorResult.message || errorMsg; } catch { }
+                let errorMsg = `HTTP error ${response.status}`;
+                try {
+                    const errData = await response.json();
+                    errorMsg = errData.message || errorMsg;
+                } catch { /* Ignore if response body is not JSON */ }
                 throw new Error(errorMsg);
             }
-            const data = await response.json();
-            if (!data.success) {
-                throw new Error(data.message || 'Failed to list files (server error)');
-            }
-            return data; // 返回成功获取的数据
+            return await response.json();
         }, {
-            errorMessagePrefix: "加载文件列表失败"
+            errorMessagePrefix: '加载文件列表失败'
         });
+
+        let countsToSync = []; // +++ 初始化用于批量同步的数组 +++
 
         if (result.success && result.data) {
             const { mdFiles, mdFileDetails } = result.data;
             detectedMarkdownFiles.value = new Set(mdFiles || []);
 
-            // Create maps for efficient lookup
             const topicsMetaMap = new Map(initialTopicsMeta.map(t => [t.id, t.cardCount]));
             const actualCountsMap = new Map((mdFileDetails || []).map(d => [d.topicId, d.cardCount]));
 
             console.log('[Store] Cached Counts (from topicsMeta.js):', topicsMetaMap);
             console.log('[Store] Actual Counts (from API):', actualCountsMap);
 
-            // --- Synchronize counts --- 
+            // --- 同步计数 --- 
             for (const topic of topics.value) {
                 const topicId = topic.id;
-                const cachedCount = topicsMetaMap.get(topicId); // Count from the initial file
-                const actualCount = actualCountsMap.get(topicId); // Count from API calculation
-
-                // Check if .md file actually exists for this topic
+                const cachedCount = topicsMetaMap.get(topicId);
+                const actualCount = actualCountsMap.get(topicId);
                 const fileExists = detectedMarkdownFiles.value.has(topicId);
 
                 if (fileExists && actualCount !== undefined) {
-                    // File exists and backend provided a count
                     if (cachedCount === undefined || cachedCount !== actualCount) {
-                        console.warn(`[Store] Count mismatch for ${topicId}: Cached=${cachedCount}, Actual=${actualCount}. Syncing...`);
-                        // Update state immediately
+                        console.warn(`[Store] Count mismatch for ${topicId}: Cached=${cachedCount}, Actual=${actualCount}. Queuing for sync.`);
+                        // 立即更新状态以反映 UI
                         topic.cardCount = actualCount;
+                        // +++ 将需要同步的数据添加到数组 +++
+                        countsToSync.push({ topicId: topicId, actualCount: actualCount });
 
-                        // Call API to update topicsMeta.js (fire and forget, errors handled by API/helper)
-                        fetch('/api/sync-topic-count', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ topicId: topicId, actualCount: actualCount })
-                        }).then(async response => {
-                            if (!response.ok) {
-                                const errorData = await response.json().catch(() => ({}));
-                                console.error(`[Store] Failed to sync count for ${topicId} via API: ${errorData.message || response.statusText}`);
-                                toast.error(`自动同步 ${topicId} 卡片数量失败: ${errorData.message || '服务器错误'}`);
-                            } else {
-                                console.log(`[Store] Successfully synced count for ${topicId} via API.`);
-                            }
-                        }).catch(error => {
-                            console.error(`[Store] Network error syncing count for ${topicId}:`, error);
-                            toast.error(`自动同步 ${topicId} 卡片数量时发生网络错误。`);
-                        });
+                        // --- 移除单个 fetch 调用 ---
+                        /*
+                        fetch('/api/sync-topic-count', { ... })
+                        .then(...) 
+                        .catch(...);
+                        */
                     } else {
-                        // Counts match, ensure state reflects the correct count if it was missing initially
                         if (topic.cardCount === undefined || topic.cardCount === null) {
-                            topic.cardCount = actualCount; // Update state if it was missing
+                            topic.cardCount = actualCount;
                         }
-                        // console.log(`[Store] Count for ${topicId} is up-to-date (${actualCount}).`);
                     }
                 } else if (!fileExists && (topic.cardCount !== undefined && topic.cardCount !== 0)) {
-                    // Topic exists in state/meta, but .md file is gone. Reset count in state.
-                    console.warn(`[Store] File ${topicId}.md not found, but exists in meta. Resetting count in state to 0.`);
+                    console.warn(`[Store] File ${topicId}.md not found, but exists in meta. Resetting count in state to 0 and queuing sync.`);
                     topic.cardCount = 0;
-                    // Optionally, trigger API to sync count to 0 in topicsMeta.js as well
-                    fetch('/api/sync-topic-count', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ topicId: topicId, actualCount: 0 })
-                    }).catch(error => console.error(`[Store] Network error resetting count for missing file ${topicId}:`, error));
+                    // +++ 文件不存在时，也加入批量同步（同步为 0） +++
+                    countsToSync.push({ topicId: topicId, actualCount: 0 });
+                    // --- 移除单个 fetch 调用 ---
+                    /*
+                    fetch('/api/sync-topic-count', { ... }).catch(...);
+                    */
                 } else if (!fileExists) {
-                    // File doesn't exist, ensure count is 0 or undefined
                     if (topic.cardCount !== 0) topic.cardCount = 0;
                 }
             }
-
-            // Optional: Add topics found in mdFiles but not in topics.value state (less likely)
+            // ... (可选的添加缺失 topic 逻辑保持不变) ...
             for (const existingFileId of detectedMarkdownFiles.value) {
                 if (!topics.value.some(t => t.id === existingFileId)) {
                     console.warn(`[Store] Markdown file ${existingFileId}.md exists but is not listed in topicsMeta.js. Consider adding it.`);
-                    // Could potentially add a placeholder topic to the state here
-                    // topics.value.push({ id: existingFileId, title: `未知选题 (${existingFileId})`, description: '', cardCount: actualCountsMap.get(existingFileId) ?? 0 });
                 }
             }
 
         } else if (!result.success) {
-            // 更新错误状态
             fileLoadingError.value = result.error?.message || '未知错误';
-            toast.error(`加载文件列表失败: ${fileLoadingError.value}`); // Show toast on error
+            toast.error(`加载文件列表失败: ${fileLoadingError.value}`);
         }
 
-        // --- Remove isLoadingFiles setting ---
-        // isLoadingFiles.value = false;
+        // +++ 在循环外执行批量同步 API 调用 +++
+        if (countsToSync.length > 0) {
+            console.log(`[Store] Sending batch sync request for ${countsToSync.length} topics.`);
+            fetch('/api/batch-sync-topic-counts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(countsToSync)
+            }).then(async response => {
+                const responseData = await response.json().catch(() => ({})); // 尝试解析 JSON
+                if (!response.ok) {
+                    console.error(`[Store] Failed to batch sync counts via API: ${responseData.message || response.statusText}`);
+                    toast.error(`批量同步卡片数量失败: ${responseData.message || '服务器错误'}`);
+                } else {
+                    console.log(`[Store] Successfully batch synced counts via API. Message: ${responseData.message || 'OK'}`);
+                    // 可选：如果后端返回了部分失败信息 (如 207)，可以在这里处理或提示
+                    if (response.status === 207 && responseData.failedToFind && responseData.failedToFind.length > 0) {
+                        toast.warn(`批量同步部分完成：未能找到 ${responseData.failedToFind.length} 个主题进行更新。详情请查看控制台。`);
+                        console.warn('[Store] Batch sync partially failed. Could not find entries for:', responseData.failedToFind);
+                    }
+                }
+            }).catch(error => {
+                console.error(`[Store] Network error during batch sync counts:`, error);
+                toast.error('批量同步卡片数量时发生网络错误。');
+            });
+        }
+
         console.log('[Store] File list fetch and count sync complete.');
     };
 
