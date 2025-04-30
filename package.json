@@ -5,9 +5,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "serve": "vite preview",
-        "xinwenan": "node scripts/create_md_Template.js",
-        "zhuanhuan": "node scripts/md_To_JS_Content.js"
+        "serve": "vite preview"
     },
     "dependencies": {
         "@fortawesome/fontawesome-free": "^6.7.2",
@@ -23,8 +21,6 @@
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^4.2.3",
-        "acorn": "^8.14.1",
-        "acorn-walk": "^8.3.4",
         "autoprefixer": "^10.4.14",
         "buffer": "^6.0.3",
         "gray-matter": "^4.0.3",
