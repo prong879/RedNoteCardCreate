@@ -108,6 +108,9 @@ export const useCardStore = defineStore('card', () => {
     const isLoadingFiles = ref(false); // 新增：文件列表加载状态
     const fileLoadingError = ref(null); // 新增：文件列表加载错误信息
 
+    // +++ 新增：用于指示卡片内容是否正在加载 +++
+    const isLoadingContent = ref(false);
+
     // --- Getters ---
     // 使用 computed() 定义 getter
     const currentTopic = computed(() => {
@@ -354,14 +357,15 @@ export const useCardStore = defineStore('card', () => {
         currentTopicTitle.value = currentTopic.value?.title || `未命名主题 (${topicId})`;
         const description = currentTopicDescription.value;
 
-        // --- 新增：如果强制刷新，先清空内容，强制 Vue 检测到变化 ---
+        // --- 修改：如果强制刷新，设置加载状态 ---
         if (forceRefresh) {
-            console.log(`[Store] Force refresh requested for ${topicId}, clearing current content first.`);
-            cardContent.value = {}; // 或者 cardContent.value = null;
-            // 添加一个微小的延迟，确保 DOM 更新
-            await new Promise(resolve => setTimeout(resolve, 0));
+            console.log(`[Store] Force refresh requested for ${topicId}, setting loading state.`);
+            isLoadingContent.value = true;
+            // --- 移除之前的清空和延迟逻辑 ---
+            // cardContent.value = {}; 
+            // await new Promise(resolve => setTimeout(resolve, 0)); 
         }
-        // --- 结束新增 ---
+        // --- 结束修改 --
 
         try {
             // --- 修改：使用 store 中的 detectedContentJsModules --- 
@@ -378,29 +382,26 @@ export const useCardStore = defineStore('card', () => {
                     // 检查 localStorage 是否有"更新"的数据 (仅当 forceRefresh 为 false 时)
                     let contentToLoad = originalContent;
                     const savedContentJson = localStorage.getItem(`cardgen_topic_content_${topicId}`);
+                    // --- 修改：只有非强制刷新时才检查 localStorage ---
                     if (savedContentJson && !forceRefresh) {
                         try {
                             const parsedSavedContent = JSON.parse(savedContentJson);
-                            // 可选：添加逻辑判断 localStorage 数据是否比文件新？
-                            // 暂时简单地优先使用 localStorage (如果存在且未强制刷新)
-                            // 如果希望总是文件优先，则移除下面这行和判断
                             contentToLoad = parsedSavedContent;
                             console.log(`[Store] Found potentially newer content in localStorage for ${topicId}. Using it.`);
                         } catch (e) {
                             console.warn(`[Store] Error parsing localStorage for ${topicId}, using file content.`, e);
-                            // 清除无效的 localStorage
                             localStorage.removeItem(`cardgen_topic_content_${topicId}`);
                         }
                     }
 
                     cardContent.value = {
-                        ...contentToLoad, // 使用 contentToLoad
-                        topicDescription: description // 添加描述字段
+                        ...contentToLoad,
+                        topicDescription: description
                     };
                     console.log(`[Store] Successfully loaded content for ${topicId}`);
 
-                    // 如果是从文件加载的，更新 localStorage
-                    if (contentToLoad === originalContent) {
+                    // --- 修改：只有从文件加载（非强制刷新且无有效localStorage）时才更新 localStorage ---
+                    if (contentToLoad === originalContent && !forceRefresh) {
                         localStorage.setItem(`cardgen_topic_content_${topicId}`, JSON.stringify(originalContent));
                     }
                 } else {
@@ -413,8 +414,13 @@ export const useCardStore = defineStore('card', () => {
             }
         } catch (error) {
             console.error(`[Store] Error loading topic ${topicId}:`, error);
-            // toast.error(`加载主题内容失败: ${error.message}`); // 不在 store 中调用 toast
             loadPlaceholderContent(topicId, description); // 加载失败时也显示占位符
+        } finally {
+            // --- 新增：确保加载结束后重置加载状态 ---
+            if (isLoadingContent.value) {
+                isLoadingContent.value = false;
+                console.log(`[Store] Reset loading state for ${topicId}.`);
+            }
         }
         showTopicSelector.value = false; // 加载后隐藏选择器
     };
@@ -443,9 +449,12 @@ export const useCardStore = defineStore('card', () => {
             ],
             mainText: placeholderText
         };
-        // 清除可能存在的旧 localStorage 数据
         localStorage.removeItem(`cardgen_topic_content_${topicId}`);
         console.log('[Store] Loaded placeholder content for', topicId);
+        // --- 新增：加载占位符时也要重置加载状态 ---
+        if (isLoadingContent.value) {
+            isLoadingContent.value = false;
+        }
     };
 
     // --- Card Manipulation Actions ---
@@ -727,6 +736,7 @@ export const useCardStore = defineStore('card', () => {
         detectedJsFilesInfo,
         isLoadingFiles,
         fileLoadingError,
+        isLoadingContent,
 
         // Getters
         currentTopic,

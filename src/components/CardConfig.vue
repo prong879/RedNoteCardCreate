@@ -22,8 +22,14 @@
 
         <!-- 卡片编辑滚动区 -->
         <div ref="editorScrollContainer" class="overflow-y-auto px-3 mx-6 h-96 custom-scrollbar bg-gray-50 border rounded-lg mb-6">
-            <!-- 增加内边距 pt-3 是因为滚动容器加了 px-3 -->
-            <div v-if="store.cardContent && store.cardContent.coverCard" class="pt-3">
+            <!-- 加载状态 -->
+            <div v-if="store.isLoadingContent" class="flex justify-center items-center h-full">
+                 <div class="text-gray-500">
+                     <span class="spinner mr-2"></span>正在加载最新内容...
+                 </div>
+            </div>
+            <!-- 实际内容 -->
+            <div v-else-if="store.cardContent && store.cardContent.coverCard" class="pt-3">
                 <!-- 封面卡片配置 -->
                 <div ref="coverCardConfigSection" class="p-3 mb-4 border bg-white rounded-lg space-y-2 shadow-xl">
                     <!-- 封面卡片顶部操作栏 -->
@@ -129,24 +135,29 @@
 
         <!-- 底部固定区域: 全局设置和操作按钮 -->
         <div class="flex-grow overflow-y-auto px-6 pt-4 pb-6 border-t custom-scrollbar">
-             <!-- 新增：选题描述显示区 -->
-             <div v-if="store.cardContent" class="mb-6">
-                  <h3 class="text-lg font-medium mb-2">话题简介（用于选题界面展示）</h3>
-                  <textarea 
-                    :value="store.cardContent.topicDescription" 
-                    @input="handleDescriptionInput"
-                    class="w-full p-3 border bg-white rounded-lg text-sm text-gray-700 dynamic-textarea hide-scrollbar" 
-                    placeholder="输入话题简介..."
-                    rows="3"
-                  ></textarea>
-             </div>
-             <!-- 全局页眉/页脚配置 -->
-             <div v-if="store.cardContent" class="mb-6">
-                  <h3 class="text-lg font-medium mb-2">全局页眉/页脚</h3>
-                  <div class="p-3 border rounded-lg space-y-2">
-                      <textarea v-model="store.cardContent.headerText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页眉 (所有卡片生效)" rows="1"></textarea>
-                      <textarea v-model="store.cardContent.footerText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页脚 (所有卡片生效)" rows="1"></textarea>
-                  </div>
+             <!-- 加载状态 -->
+             <div v-if="store.isLoadingContent" class="text-center text-gray-400 text-sm">全局设置加载中...</div>
+             <!-- 实际内容 -->
+             <div v-else>
+                 <!-- 新增：选题描述显示区 -->
+                 <div v-if="store.cardContent" class="mb-6">
+                      <h3 class="text-lg font-medium mb-2">话题简介（用于选题界面展示）</h3>
+                      <textarea 
+                        :value="store.cardContent.topicDescription" 
+                        @input="handleDescriptionInput"
+                        class="w-full p-3 border bg-white rounded-lg text-sm text-gray-700 dynamic-textarea hide-scrollbar" 
+                        placeholder="输入话题简介..."
+                        rows="3"
+                      ></textarea>
+                 </div>
+                 <!-- 全局页眉/页脚配置 -->
+                 <div v-if="store.cardContent" class="mb-6">
+                      <h3 class="text-lg font-medium mb-2">全局页眉/页脚</h3>
+                      <div class="p-3 border rounded-lg space-y-2">
+                          <textarea v-model="store.cardContent.headerText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页眉 (所有卡片生效)" rows="1"></textarea>
+                          <textarea v-model="store.cardContent.footerText" @input="handleTextareaInput" class="w-full px-3 py-2 border rounded-lg dynamic-textarea hide-scrollbar text-sm" placeholder="输入全局页脚 (所有卡片生效)" rows="1"></textarea>
+                      </div>
+                 </div>
              </div>
             <!-- 操作按钮 - Download button removed -->
              <div class="pt-4 border-t border-gray-200 flex gap-4">

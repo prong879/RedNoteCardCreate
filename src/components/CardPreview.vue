@@ -26,7 +26,12 @@
         </div>
 
         <!-- 添加相对定位的容器 -->
-        <div v-if="store.cardContent && store.cardContent.coverCard" class="relative preview-container-wrapper">
+        <div v-if="store.isLoadingContent" class="flex justify-center items-center h-96 bg-gray-50 border border-gray-200 rounded-lg">
+            <div class="text-gray-500">
+                 <span class="spinner mr-2"></span>正在加载最新内容...
+            </div>
+        </div>
+        <div v-else-if="store.cardContent && store.cardContent.coverCard" class="relative preview-container-wrapper">
             <div ref="previewScrollContainer" @scroll="handleScroll" class="flex overflow-x-auto scroll-smooth gap-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <!-- 封面卡片 -->
                 <div class="card-container flex-shrink-0" ref="coverCardContainer">
@@ -84,7 +89,11 @@
             请先选择一个主题或等待内容加载...
         </div>
 
-        <div v-if="store.cardContent" class="mt-6">
+        <!-- 主文案编辑区 -->
+        <div v-if="store.isLoadingContent" class="mt-6">
+             <div class="text-center text-gray-400 text-sm">主文案加载中...</div>
+        </div>
+        <div v-else-if="store.cardContent" class="mt-6">
             <h3 class="text-lg font-medium mb-2">主文案编辑</h3>
             <textarea 
                 ref="mainTextareaRef" 
