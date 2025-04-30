@@ -6,13 +6,15 @@
             
             <!-- 修改：移除生成 MD 模板按钮，保留其他 -->
             <div class="flex items-center space-x-2">
-                <!-- 新增: 检查/转换按钮 (仅开发) - 这个按钮的功能在新流程下也需要重新审视或移除 -->
+                <!-- 移除: 检查 MD 文件状态按钮 -->
+                <!-- 
                 <button
                     v-if="isDevMode"
                     @click="showMarkdownManagerDialog = true" 
                     class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-1 px-3 rounded text-sm">
                     <i class="fas fa-sync-alt mr-1"></i> 检查 MD 文件状态
                 </button>
+                 -->
                 <label for="prompt-toggle" class="ml-4 mr-2 text-sm font-medium text-gray-700">显示 "生成Prompt":</label>
                 <button
                     id="prompt-toggle"
@@ -31,12 +33,14 @@
         <!-- 移除 GenerateMdModal -->
         <!-- <GenerateMdModal ... /> -->
 
-        <!-- 渲染 MarkdownManager 组件 (保留，但其内部逻辑可能需要更新) -->
+        <!-- 移除 MarkdownManager 组件 -->
+        <!-- 
         <MarkdownManager
             v-if="isDevMode"
             :is-visible="showMarkdownManagerDialog"
             @close="showMarkdownManagerDialog = false"
         />
+         -->
 
         <!-- +++ 修改：将实际列表包裹在 v-else-if 中 +++ -->
         <div v-if="topics.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -100,7 +104,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue';
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue';
 import { useToast } from "vue-toastification";
 import promptTemplate from '../prompts/knowledge_card_prompt.md?raw';
 import { useCardStore } from '../stores/cardStore';
@@ -113,9 +117,10 @@ import { generateMarkdownTemplate } from '../utils/templateUtils';
 // import ConfirmationModal from './ConfirmationModal.vue'; // 新增导入 // 注释掉静态导入
 
 // +++ 异步导入组件 +++
-const MarkdownManager = defineAsyncComponent(() => 
-    import('./MarkdownManager.vue')
-);
+// 移除 MarkdownManager 的异步导入
+// const MarkdownManager = defineAsyncComponent(() => 
+//     import('./MarkdownManager.vue')
+// );
 const ConfirmationModal = defineAsyncComponent(() =>
     import('./ConfirmationModal.vue')
 );
@@ -127,8 +132,9 @@ const toast = useToast();
 const showPromptButtons = ref(true);
 // 移除 showGenerateMdModal
 // const showGenerateMdModal = ref(false); 
-const showMarkdownManagerDialog = ref(false);
-const isDevMode = import.meta.env.DEV;
+// 移除 MarkdownManager 相关状态
+// const showMarkdownManagerDialog = ref(false);
+const isDevMode = import.meta.env.DEV; // 保留 isDevMode，虽然按钮移除了，但可能其他地方用到
 
 // 新增：确认模态框状态
 const showConfirmationModal = ref(false);
