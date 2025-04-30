@@ -38,9 +38,15 @@
             @close="showMarkdownManagerDialog = false"
         />
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-             <!-- 修改：给整个卡片添加点击事件 -->
-            <div v-for="(topic, index) in topics" :key="topic.id"
+        <!-- +++ 修改：添加加载状态和骨架屏 +++ -->
+        <div v-if="store.isLoadingFiles" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- 重复渲染骨架屏组件 -->
+            <TopicCardSkeleton v-for="n in 6" :key="`skeleton-${n}`" />
+        </div>
+        
+        <!-- +++ 修改：将实际列表包裹在 v-else-if 中 +++ -->
+        <div v-else-if="topics.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+             <div v-for="(topic, index) in topics" :key="topic.id"
                 @click="selectTopic(topic.id)" 
                 class="topic-card relative p-4 bg-white border border-gray-200 rounded-lg cursor-pointer shadow-md hover:shadow-2xl hover:scale-105 transition-all flex flex-col overflow-hidden">
                 <!-- ... (序号和卡片数量显示保持不变) ... -->
@@ -79,6 +85,12 @@
                 </div>
             </div>
         </div>
+
+        <!-- +++ 新增：处理没有选题的情况 +++ -->
+        <div v-else class="text-center py-10 text-gray-500">
+            没有找到任何选题。
+            <!-- 可以在这里添加一个提示或创建按钮 -->
+        </div>
         
         <!-- 新增：添加 ConfirmationModal -->
         <ConfirmationModal
@@ -105,6 +117,8 @@ import { saveAs } from 'file-saver';
 import { getOrdinal } from '../utils/formatters';
 import { generateMarkdownTemplate } from '../utils/templateUtils';
 import ConfirmationModal from './ConfirmationModal.vue'; // 新增导入
+// +++ 新增：导入骨架屏组件 +++
+import TopicCardSkeleton from './TopicCardSkeleton.vue';
 
 const store = useCardStore();
 const emit = defineEmits(['select-topic']);
