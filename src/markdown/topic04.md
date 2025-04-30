@@ -25,4 +25,3 @@ contentDefaultShowFooter: true
 ---
 
 
----

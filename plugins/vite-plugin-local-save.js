@@ -36,13 +36,22 @@ async function parseBody(req) {
             try {
                 resolve(JSON.parse(body));
             } catch (error) {
-                reject(new Error('JSON parsing failed'));
+                // 返回特定错误类型，以便上层区分
+                const parseError = new Error('请求体 JSON 解析失败。');
+                parseError.name = 'JSONParseError';
+                reject(parseError);
             }
         });
         req.on('error', err => {
-            reject(err);
+            reject(err); // 网络等其他错误
         });
     });
+}
+
+// --- 辅助函数：发送 JSON 响应 ---
+function sendJsonResponse(res, statusCode, data) {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
 }
 
 // +++ 新增：解析 Markdown 内容的辅助函数 +++
@@ -164,7 +173,10 @@ async function updateTopicsMetaFile(topicId, newDescription) {
 
         if (!updated) {
             console.warn(`[LocalSavePlugin] Could not find entry for topicId '${topicId}' in ${metaFilePath} to update description.`);
-            return { success: false, message: `未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目。` };
+            // 返回特定错误类型
+            const notFoundError = new Error(`未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目。`);
+            notFoundError.code = 'ENOENT_LOGICAL'; // 自定义代码表示逻辑上未找到
+            throw notFoundError;
         }
 
         // 写回文件
@@ -175,9 +187,9 @@ async function updateTopicsMetaFile(topicId, newDescription) {
     } catch (error) {
         console.error(`[LocalSavePlugin] Error updating ${metaFilePath}:`, error);
         if (error.code === 'ENOENT') {
-            return { success: false, message: `配置文件 ${metaFilePath} 未找到。` };
+            error.message = `配置文件 ${metaFilePath} 未找到。`;
         }
-        return { success: false, message: `更新选题简介时发生错误: ${error.message}` };
+        throw error;
     }
 }
 
@@ -248,14 +260,21 @@ export default function localSavePlugin() {
             });
             if (!updated) {
                 console.warn(`[LocalSavePlugin] Could not find entry for topicId '${topicId}' in ${metaFilePath} to update description.`);
-                return { success: false, message: `未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目。` };
+                // 返回特定错误类型
+                const notFoundError = new Error(`未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目。`);
+                notFoundError.code = 'ENOENT_LOGICAL'; // 自定义代码表示逻辑上未找到
+                throw notFoundError;
             }
             await fs.writeFile(metaFilePath, newContent, 'utf-8');
             console.log(`[LocalSavePlugin] Successfully updated description for ${topicId} in ${metaFilePath}`);
             return { success: true, message: '选题简介已更新。' };
         } catch (error) {
             console.error(`[LocalSavePlugin] Error updating description in ${metaFilePath} for ${topicId}:`, error);
-            return { success: false, message: `更新选题简介时发生错误: ${error.code === 'ENOENT' ? '配置文件未找到' : error.message}` };
+            // 向上抛出错误，让调用者处理 HTTP 响应
+            if (error.code === 'ENOENT') {
+                error.message = `配置文件 ${metaFilePath} 未找到。`;
+            }
+            throw error;
         }
     }
     async function updateTopicsMetaCount(topicId, newCount) {
@@ -269,9 +288,17 @@ export default function localSavePlugin() {
             const newContent = content.replace(entryRegex, (match, preCardCountPart, commaAndKey, oldCount, postCardCountPart) => {
                 updated = true;
                 if (commaAndKey) {
-                    console.log(`[LocalSavePlugin] updateTopicsMetaCount: Found existing cardCount ${oldCount} for ${topicId}. Replacing with ${newCount}.`);
-                    return `${preCardCountPart}${commaAndKey}${newCount}${postCardCountPart}`;
+                    // 存在旧值，替换
+                    if (parseInt(oldCount, 10) !== newCount) {
+                        console.log(`[LocalSavePlugin] updateTopicsMetaCount: Found existing cardCount ${oldCount} for ${topicId}. Replacing with ${newCount}.`);
+                        return `${preCardCountPart}${commaAndKey}${newCount}${postCardCountPart}`;
+                    } else {
+                        // 值相同，无需修改
+                        console.log(`[LocalSavePlugin] updateTopicsMetaCount: Count for ${topicId} is already ${newCount}. Skipping.`);
+                        return match; // 返回原匹配
+                    }
                 } else {
+                    // 不存在旧值，添加
                     console.log(`[LocalSavePlugin] updateTopicsMetaCount: cardCount not found for ${topicId}. Adding cardCount: ${newCount}.`);
                     const trimmedPre = preCardCountPart.trimRight();
                     const needsComma = trimmedPre.endsWith(',') ? '' : ',';
@@ -280,14 +307,19 @@ export default function localSavePlugin() {
             });
             if (!updated) {
                 console.warn(`[LocalSavePlugin] updateTopicsMetaCount: Could not find entry for topicId '${topicId}'.`);
-                return { success: false, message: `未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目来更新卡片计数。` };
+                const notFoundError = new Error(`未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目来更新卡片计数。`);
+                notFoundError.code = 'ENOENT_LOGICAL';
+                throw notFoundError;
             }
             await fs.writeFile(metaFilePath, newContent, 'utf-8');
             console.log(`[LocalSavePlugin] updateTopicsMetaCount: Successfully updated cardCount for ${topicId} to ${newCount}.`);
             return { success: true };
         } catch (error) {
             console.error(`[LocalSavePlugin] updateTopicsMetaCount: Error for ${topicId}:`, error);
-            return { success: false, message: `更新 ${metaFilePath} 中的卡片计数时发生错误: ${error.code === 'ENOENT' ? '配置文件未找到' : error.message}` };
+            if (error.code === 'ENOENT') {
+                error.message = `配置文件 ${metaFilePath} 未找到。`;
+            }
+            throw error;
         }
     }
 
@@ -304,8 +336,7 @@ export default function localSavePlugin() {
             // 安全性检查
             if (!filename || typeof filename !== 'string' || !filename.endsWith('.md') || !targetPath.startsWith(targetDir)) {
                 console.warn('[LocalSavePlugin] /api/save-markdown-template: Invalid request parameters or path.');
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                return res.end(JSON.stringify({ success: false, message: '无效请求参数或路径。' }));
+                return sendJsonResponse(res, 400, { success: false, message: '无效请求参数或路径。' });
             }
 
             let fileExists = false;
@@ -313,8 +344,7 @@ export default function localSavePlugin() {
 
             if (fileExists && !overwrite) {
                 console.log(`[LocalSavePlugin] /api/save-markdown-template: File ${filename} exists, overwrite=false.`);
-                res.writeHead(409, { 'Content-Type': 'application/json' });
-                return res.end(JSON.stringify({ success: false, code: 'FILE_EXISTS', message: `文件 ${filename} 已存在，无法覆盖。` }));
+                return sendJsonResponse(res, 409, { success: false, code: 'FILE_EXISTS', message: `文件 ${filename} 已存在，无法覆盖。` });
             }
             if (fileExists && overwrite) { console.log(`[LocalSavePlugin] /api/save-markdown-template: Overwriting ${filename}.`); }
 
@@ -322,14 +352,17 @@ export default function localSavePlugin() {
             await fs.writeFile(targetPath, content, 'utf-8');
             const successMessage = fileExists && overwrite ? `Markdown 文件 ${filename} 已成功更新（覆盖）。` : `Markdown 文件 ${filename} 已成功保存。`;
             console.log(`[LocalSavePlugin] /api/save-markdown-template: ${successMessage}`);
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, message: successMessage }));
+            sendJsonResponse(res, 200, { success: true, message: successMessage });
 
         } catch (error) {
             console.error('[LocalSavePlugin] /api/save-markdown-template Error:', error);
-            const userMsg = error.message === 'JSON parsing failed' ? '请求体 JSON 解析失败。' : '保存 Markdown 模板时发生服务器内部错误。';
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, message: userMsg }));
+            if (error.name === 'JSONParseError') {
+                sendJsonResponse(res, 400, { success: false, message: error.message });
+            } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+                sendJsonResponse(res, 403, { success: false, message: '保存文件时权限不足。' });
+            } else {
+                sendJsonResponse(res, 500, { success: false, message: '保存 Markdown 模板时发生未知服务器错误。' });
+            }
         }
     }
 
@@ -342,7 +375,8 @@ export default function localSavePlugin() {
             let allMdFileNames = [];
             try { allMdFileNames = await fs.readdir(markdownDir); } catch (err) {
                 if (err.code === 'ENOENT') { console.warn('[LocalSavePlugin] Markdown directory not found.'); }
-                else { throw err; }
+                else if (err.code === 'EACCES') { throw new Error('读取 Markdown 目录权限不足。' + ` (${err.code})`); } // 抛出特定错误
+                else { throw err; } // 其他 FS 错误
             }
 
             mdFiles = allMdFileNames
@@ -363,13 +397,15 @@ export default function localSavePlugin() {
                     mdFileDetails.push({ topicId, cardCount });
                 } catch (e) { console.error(`[LocalSavePlugin] Error processing ${mdFilename} for list-content-files:`, e); }
             }
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, mdFiles, mdFileDetails }));
+            sendJsonResponse(res, 200, { success: true, mdFiles, mdFileDetails });
 
         } catch (error) {
             console.error('[LocalSavePlugin] /api/list-content-files Error:', error);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, message: '列出内容文件时发生服务器内部错误。' }));
+            if (error.message.includes('权限不足')) {
+                sendJsonResponse(res, 403, { success: false, message: error.message });
+            } else {
+                sendJsonResponse(res, 500, { success: false, message: '列出内容文件时发生未知服务器错误。' });
+            }
         }
     }
 
@@ -381,8 +417,7 @@ export default function localSavePlugin() {
 
         if (!topicId) {
             console.warn('[LocalSavePlugin] /api/get-md-content: Missing topicId.');
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ success: false, message: '缺少 topicId 查询参数。' }));
+            return sendJsonResponse(res, 400, { success: false, message: '缺少 topicId 查询参数。' });
         }
         try {
             const mdFilePath = path.resolve(projectRoot, 'src', 'markdown', `${topicId}.md`);
@@ -390,8 +425,7 @@ export default function localSavePlugin() {
             try { mdContent = await fs.readFile(mdFilePath, 'utf-8'); } catch (readError) {
                 if (readError.code === 'ENOENT') {
                     console.log(`[LocalSavePlugin] /api/get-md-content: File not found ${topicId}.md`);
-                    res.writeHead(404, { 'Content-Type': 'application/json' });
-                    return res.end(JSON.stringify({ success: false, message: `Markdown 文件 ${topicId}.md 未找到。` }));
+                    return sendJsonResponse(res, 404, { success: false, message: `Markdown 文件 ${topicId}.md 未找到。` });
                 } else { throw readError; }
             }
             const { data: frontMatter, content: mdBodyContent } = matter(mdContent);
@@ -404,12 +438,18 @@ export default function localSavePlugin() {
                 mainText: parsedBody.mainText,
                 topicDescription: frontMatter.description || ''
             };
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, data: responseData }));
+            sendJsonResponse(res, 200, { success: true, data: responseData });
         } catch (error) {
             console.error(`[LocalSavePlugin] /api/get-md-content Error for ${topicId}:`, error);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, message: `获取 ${topicId} 内容时发生服务器内部错误。` }));
+            if (error.code === 'ENOENT') {
+                sendJsonResponse(res, 404, { success: false, message: `Markdown 文件 ${topicId}.md 未找到。` });
+            } else if (error.code === 'EACCES') {
+                sendJsonResponse(res, 403, { success: false, message: `读取文件 ${topicId}.md 时权限不足。` });
+            } else if (error instanceof matter.MatterError) { // 检查是否是 gray-matter 解析错误
+                sendJsonResponse(res, 500, { success: false, message: `解析文件 ${topicId}.md 时出错：${error.message}` });
+            } else {
+                sendJsonResponse(res, 500, { success: false, message: `获取 ${topicId} 内容时发生未知服务器错误。` });
+            }
         }
     }
 
@@ -428,34 +468,38 @@ export default function localSavePlugin() {
             // 安全性检查
             if (!topicId || typeof content !== 'string' || !targetPath.startsWith(targetDir)) {
                 console.warn('[LocalSavePlugin] /api/save-md-content: Invalid request parameters or path.');
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                return res.end(JSON.stringify({ success: false, message: '无效请求参数或路径。' }));
+                return sendJsonResponse(res, 400, { success: false, message: '无效请求参数或路径。' });
             }
 
             await fs.mkdir(targetDir, { recursive: true });
             await fs.writeFile(targetPath, content, 'utf-8');
             console.log(`[LocalSavePlugin] /api/save-md-content: Saved ${filename}`);
 
-            // 更新 cardCount
+            let metaUpdateSuccess = true;
             try {
                 const { data: frontMatter, content: mdBodyContent } = matter(content);
                 const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);
                 const cardCount = 1 + (parsedBody.contentCards?.length || 0);
-                console.log(`[LocalSavePlugin] /api/save-md-content: Calculated count ${cardCount} for ${topicId}. Attempting update.`);
+                console.log(`[LocalSavePlugin] /api/save-md-content: Calculated count ${cardCount} for ${topicId}. Attempting meta update.`);
                 await updateTopicsMetaCount(topicId, cardCount);
             } catch (e) {
+                metaUpdateSuccess = false;
                 console.error(`[LocalSavePlugin] /api/save-md-content: Error parsing content or updating meta count for ${topicId}:`, e);
-                // 不阻止主流程成功
+                // 不阻止主流程成功，但可以在响应中提示
             }
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true, message: `内容已成功保存到 ${filename}。` }));
+            const message = `内容已成功保存到 ${filename}。` + (metaUpdateSuccess ? '' : ' 但更新元数据中的卡片计数失败，请检查后台日志。');
+            sendJsonResponse(res, metaUpdateSuccess ? 200 : 207, { success: true, message: message, metaUpdateSuccess: metaUpdateSuccess }); // 用 207 表示部分操作失败
 
         } catch (error) {
             console.error(`[LocalSavePlugin] /api/save-md-content Error for ${requestedTopicId}:`, error);
-            const userMsg = error.message === 'JSON parsing failed' ? '请求体 JSON 解析失败。' : '保存 Markdown 内容时发生服务器内部错误。';
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, message: userMsg }));
+            if (error.name === 'JSONParseError') {
+                sendJsonResponse(res, 400, { success: false, message: error.message });
+            } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+                sendJsonResponse(res, 403, { success: false, message: '保存文件时权限不足。' });
+            } else {
+                sendJsonResponse(res, 500, { success: false, message: '保存 Markdown 内容时发生未知服务器错误。' });
+            }
         }
     }
 
@@ -469,19 +513,22 @@ export default function localSavePlugin() {
 
             if (!topicId || typeof description !== 'string') {
                 console.warn('[LocalSavePlugin] /api/update-topic-meta: Invalid parameters.');
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                return res.end(JSON.stringify({ success: false, message: '请求参数无效，需要 topicId 和 description。' }));
+                return sendJsonResponse(res, 400, { success: false, message: '请求参数无效，需要 topicId 和 description。' });
             }
 
             const result = await updateTopicsMetaFile(topicId, description);
-            res.writeHead(result.success ? 200 : 500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(result));
-
+            sendJsonResponse(res, 200, result); // updateTopicsMetaFile 内部已处理 success
         } catch (error) {
             console.error(`[LocalSavePlugin] /api/update-topic-meta Error for ${reqTopicId}:`, error);
-            const userMsg = error.message === 'JSON parsing failed' ? '请求体 JSON 解析失败。' : '处理更新选题简介请求时发生服务器内部错误。';
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, message: userMsg }));
+            if (error.name === 'JSONParseError') {
+                sendJsonResponse(res, 400, { success: false, message: error.message });
+            } else if (error.code === 'ENOENT_LOGICAL' || error.code === 'ENOENT') {
+                sendJsonResponse(res, 404, { success: false, message: error.message });
+            } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+                sendJsonResponse(res, 403, { success: false, message: '更新元数据文件时权限不足。' });
+            } else {
+                sendJsonResponse(res, 500, { success: false, message: '处理更新选题简介请求时发生未知服务器错误。' });
+            }
         }
     }
 
@@ -495,22 +542,23 @@ export default function localSavePlugin() {
 
             if (!topicId || typeof actualCount !== 'number' || !Number.isInteger(actualCount) || actualCount < 0) {
                 console.warn('[LocalSavePlugin] /api/sync-topic-count: Invalid parameters.');
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                return res.end(JSON.stringify({ success: false, message: '请求参数无效，需要 topicId (string) 和 actualCount (non-negative integer)。' }));
+                return sendJsonResponse(res, 400, { success: false, message: '请求参数无效，需要 topicId (string) 和 actualCount (non-negative integer)。' });
             }
 
-            const result = await updateTopicsMetaCount(topicId, actualCount);
-            res.writeHead(result.success ? 200 : 500, { 'Content-Type': 'application/json' });
-            const respJson = result.success
-                ? { success: true, message: `已为 ${topicId} 同步卡片计数到 ${actualCount}。`, updatedCount: actualCount }
-                : { success: false, message: result.message || `同步 ${topicId} 的卡片计数时出错。` };
-            res.end(JSON.stringify(respJson));
+            await updateTopicsMetaCount(topicId, actualCount);
+            sendJsonResponse(res, 200, { success: true, message: `已为 ${topicId} 同步卡片计数到 ${actualCount}。`, updatedCount: actualCount });
 
         } catch (error) {
             console.error(`[LocalSavePlugin] /api/sync-topic-count Error for ${reqTopicId}:`, error);
-            const userMsg = error.message === 'JSON parsing failed' ? '请求体 JSON 解析失败。' : '处理同步卡片计数请求时发生服务器内部错误。';
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, message: userMsg }));
+            if (error.name === 'JSONParseError') {
+                sendJsonResponse(res, 400, { success: false, message: error.message });
+            } else if (error.code === 'ENOENT_LOGICAL' || error.code === 'ENOENT') {
+                sendJsonResponse(res, 404, { success: false, message: error.message });
+            } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+                sendJsonResponse(res, 403, { success: false, message: '更新元数据文件时权限不足。' });
+            } else {
+                sendJsonResponse(res, 500, { success: false, message: `同步 ${reqTopicId} 计数时发生未知服务器错误。` });
+            }
         }
     }
 
@@ -523,16 +571,14 @@ export default function localSavePlugin() {
             // 验证输入是否为数组且非空
             if (!Array.isArray(topicsToSync) || topicsToSync.length === 0) {
                 console.warn('[LocalSavePlugin] /api/batch-sync-topic-counts: Invalid input - expected non-empty array.');
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                return res.end(JSON.stringify({ success: false, message: '请求体必须是一个包含待同步主题信息的非空数组。' }));
+                return sendJsonResponse(res, 400, { success: false, message: '请求体必须是有效的非空数组。' });
             }
 
             // 验证数组中每个元素的结构和类型
             for (const item of topicsToSync) {
                 if (!item || typeof item.topicId !== 'string' || typeof item.actualCount !== 'number' || !Number.isInteger(item.actualCount) || item.actualCount < 0) {
                     console.warn('[LocalSavePlugin] /api/batch-sync-topic-counts: Invalid item structure in array.', item);
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    return res.end(JSON.stringify({ success: false, message: '数组中的每个元素必须包含有效的 topicId (string) 和 actualCount (non-negative integer)。' }));
+                    return sendJsonResponse(res, 400, { success: false, message: '数组中的每个元素必须包含有效的 topicId (string) 和 actualCount (non-negative integer)。' });
                 }
             }
 
@@ -584,24 +630,23 @@ export default function localSavePlugin() {
 
             // 根据结果返回响应
             if (allUpdatesAttempted) {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, message: `成功批量同步 ${successfulUpdates} 个主题的卡片计数。` }));
+                sendJsonResponse(res, 200, { success: true, message: `成功批量同步 ${successfulUpdates} 个主题的卡片计数。` });
             } else {
                 // 部分成功或全部失败（因为找不到条目）
-                res.writeHead(207, { 'Content-Type': 'application/json' }); // 207 Multi-Status
-                res.end(JSON.stringify({
-                    success: false,
-                    message: `批量同步完成，但未能找到 ${failedUpdates.length} 个主题的条目进行更新: ${failedUpdates.join(', ')}`,
-                    successfulUpdates,
-                    failedToFind: failedUpdates
-                }));
+                sendJsonResponse(res, 207, { success: false, message: `批量同步完成，但未能找到 ${failedUpdates.length} 个主题的条目进行更新: ${failedUpdates.join(', ')}`, successfulUpdates, failedToFind: failedUpdates });
             }
 
         } catch (error) {
             console.error('[LocalSavePlugin] /api/batch-sync-topic-counts Error:', error);
-            const userMsg = error.message === 'JSON parsing failed' ? '请求体 JSON 解析失败。' : '处理批量同步卡片计数请求时发生服务器内部错误。';
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: false, message: userMsg }));
+            if (error.name === 'JSONParseError') {
+                sendJsonResponse(res, 400, { success: false, message: error.message });
+            } else if (error.code === 'ENOENT') { // 文件读写错误
+                sendJsonResponse(res, 500, { success: false, message: `读写元数据文件 ${metaFilePath} 时出错。` });
+            } else if (error.code === 'EACCES' || error.code === 'EPERM') {
+                sendJsonResponse(res, 403, { success: false, message: `读写元数据文件时权限不足。` });
+            } else {
+                sendJsonResponse(res, 500, { success: false, message: '处理批量同步卡片计数请求时发生未知服务器错误。' });
+            }
         }
     }
 
