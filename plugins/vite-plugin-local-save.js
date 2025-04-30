@@ -330,8 +330,8 @@ export default function localSavePlugin() {
         console.log('[LocalSavePlugin] Handling /api/save-markdown-template');
         try {
             const { filename, content, overwrite = false } = await parseBody(req);
-                        const targetDir = path.resolve(projectRoot, 'src', 'markdown');
-                        const targetPath = path.join(targetDir, path.basename(filename));
+            const targetDir = path.resolve(projectRoot, 'src', 'markdown');
+            const targetPath = path.join(targetDir, path.basename(filename));
 
             // 安全性检查
             if (!filename || typeof filename !== 'string' || !filename.endsWith('.md') || !targetPath.startsWith(targetDir)) {
@@ -339,10 +339,10 @@ export default function localSavePlugin() {
                 return sendJsonResponse(res, 400, { success: false, message: '无效请求参数或路径。' });
             }
 
-                        let fileExists = false;
+            let fileExists = false;
             try { await fs.access(targetPath); fileExists = true; } catch { /* file doesn't exist */ }
 
-                        if (fileExists && !overwrite) {
+            if (fileExists && !overwrite) {
                 console.log(`[LocalSavePlugin] /api/save-markdown-template: File ${filename} exists, overwrite=false.`);
                 return sendJsonResponse(res, 409, { success: false, code: 'FILE_EXISTS', message: `文件 ${filename} 已存在，无法覆盖。` });
             }
@@ -369,37 +369,49 @@ export default function localSavePlugin() {
     // 处理 /api/list-content-files (GET)
     async function handleListContentFiles(req, res) {
         console.log('[LocalSavePlugin] Handling /api/list-content-files');
-                try {
-                    const markdownDir = path.resolve(projectRoot, 'src', 'markdown');
-                    let mdFiles = [];
-                    let allMdFileNames = [];
+        try {
+            const markdownDir = path.resolve(projectRoot, 'src', 'markdown');
+            // 不再在此处预先定义 mdFiles
+            let allMdFileNames = [];
             try { allMdFileNames = await fs.readdir(markdownDir); } catch (err) {
                 if (err.code === 'ENOENT') { console.warn('[LocalSavePlugin] Markdown directory not found.'); }
                 else if (err.code === 'EACCES') { throw new Error('读取 Markdown 目录权限不足。' + ` (${err.code})`); } // 抛出特定错误
                 else { throw err; } // 其他 FS 错误
             }
 
-                        mdFiles = allMdFileNames
-                .filter(f => f.endsWith('.md') && !f.startsWith('_'))
-                            .map(f => f.replace('.md', ''));
+            // 过滤出有效的 Markdown 文件名
+            const validMdFileNames = allMdFileNames.filter(f => f.endsWith('.md') && !f.startsWith('_'));
 
-                    let mdFileDetails = [];
-                    const validMdFileNames = allMdFileNames.filter(f => f.endsWith('.md') && !f.startsWith('_'));
+            // 1. 创建处理每个文件的 Promise 数组
+            const fileProcessingPromises = validMdFileNames.map(async (mdFilename) => {
+                const topicId = mdFilename.replace('.md', '');
+                const mdFilePath = path.join(markdownDir, mdFilename);
+                try {
+                    // 这些操作现在会为每个文件并发执行
+                    const mdContent = await fs.readFile(mdFilePath, 'utf-8');
+                    const { data: frontMatter, content: mdBodyContent } = matter(mdContent);
+                    const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);
+                    const cardCount = 1 + (parsedBody.contentCards?.length || 0);
+                    return { topicId, cardCount }; // 返回成功结果
+                } catch (e) {
+                    console.error(`[LocalSavePlugin] Error processing ${mdFilename} for list-content-files:`, e);
+                    return null; // 如果处理单个文件出错，返回 null
+                }
+            });
 
-                    for (const mdFilename of validMdFileNames) {
-                        const topicId = mdFilename.replace('.md', '');
-                        const mdFilePath = path.join(markdownDir, mdFilename);
-                        try {
-                            const mdContent = await fs.readFile(mdFilePath, 'utf-8');
-                            const { data: frontMatter, content: mdBodyContent } = matter(mdContent);
-                            const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);
-                            const cardCount = 1 + (parsedBody.contentCards?.length || 0);
-                            mdFileDetails.push({ topicId, cardCount });
-                } catch (e) { console.error(`[LocalSavePlugin] Error processing ${mdFilename} for list-content-files:`, e); }
-            }
+            // 2. 并发执行所有 Promise
+            const results = await Promise.all(fileProcessingPromises);
+
+            // 3. 过滤掉处理失败的结果 (null)
+            const mdFileDetails = results.filter(result => result !== null);
+
+            // 4. 生成 mdFiles 列表 (只包含 topicId)，可以基于 validMdFileNames
+            const mdFiles = validMdFileNames.map(f => f.replace('.md', ''));
+
+
             sendJsonResponse(res, 200, { success: true, mdFiles, mdFileDetails });
 
-                } catch (error) {
+        } catch (error) {
             console.error('[LocalSavePlugin] /api/list-content-files Error:', error);
             if (error.message.includes('权限不足')) {
                 sendJsonResponse(res, 403, { success: false, message: error.message });
@@ -411,33 +423,33 @@ export default function localSavePlugin() {
 
     // 处理 /api/get-md-content (GET)
     async function handleGetMdContent(req, res) {
-                const url = new URL(req.url, `http://${req.headers.host}`);
-                const topicId = url.searchParams.get('topicId');
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        const topicId = url.searchParams.get('topicId');
         console.log(`[LocalSavePlugin] Handling /api/get-md-content for ${topicId}`);
 
-                if (!topicId) {
+        if (!topicId) {
             console.warn('[LocalSavePlugin] /api/get-md-content: Missing topicId.');
             return sendJsonResponse(res, 400, { success: false, message: '缺少 topicId 查询参数。' });
-                }
-                try {
-                    const mdFilePath = path.resolve(projectRoot, 'src', 'markdown', `${topicId}.md`);
-                    let mdContent;
+        }
+        try {
+            const mdFilePath = path.resolve(projectRoot, 'src', 'markdown', `${topicId}.md`);
+            let mdContent;
             try { mdContent = await fs.readFile(mdFilePath, 'utf-8'); } catch (readError) {
-                        if (readError.code === 'ENOENT') {
+                if (readError.code === 'ENOENT') {
                     console.log(`[LocalSavePlugin] /api/get-md-content: File not found ${topicId}.md`);
                     return sendJsonResponse(res, 404, { success: false, message: `Markdown 文件 ${topicId}.md 未找到。` });
                 } else { throw readError; }
             }
-                    const { data: frontMatter, content: mdBodyContent } = matter(mdContent);
-                    const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);
-                    const responseData = {
-                        headerText: frontMatter.headerText || '',
-                        footerText: frontMatter.footerText || '',
-                        coverCard: parsedBody.coverCard,
-                        contentCards: parsedBody.contentCards,
-                        mainText: parsedBody.mainText,
-                        topicDescription: frontMatter.description || ''
-                    };
+            const { data: frontMatter, content: mdBodyContent } = matter(mdContent);
+            const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);
+            const responseData = {
+                headerText: frontMatter.headerText || '',
+                footerText: frontMatter.footerText || '',
+                coverCard: parsedBody.coverCard,
+                contentCards: parsedBody.contentCards,
+                mainText: parsedBody.mainText,
+                topicDescription: frontMatter.description || ''
+            };
             sendJsonResponse(res, 200, { success: true, data: responseData });
         } catch (error) {
             console.error(`[LocalSavePlugin] /api/get-md-content Error for ${topicId}:`, error);
@@ -548,7 +560,7 @@ export default function localSavePlugin() {
             await updateTopicsMetaCount(topicId, actualCount);
             sendJsonResponse(res, 200, { success: true, message: `已为 ${topicId} 同步卡片计数到 ${actualCount}。`, updatedCount: actualCount });
 
-                } catch (error) {
+        } catch (error) {
             console.error(`[LocalSavePlugin] /api/sync-topic-count Error for ${reqTopicId}:`, error);
             if (error.name === 'JSONParseError') {
                 sendJsonResponse(res, 400, { success: false, message: error.message });
