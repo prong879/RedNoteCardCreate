@@ -399,6 +399,11 @@ export const ${topicId}_contentData = ${JSON.stringify(contentData, null, 2)};
                         // 4. 写入 JS 文件
                         await fs.writeFile(jsFilePath, jsContentString, 'utf-8');
 
+                        // --- 新增：通知 Vite 文件已更改 ---
+                        console.log(`[LocalSavePlugin] Triggering Vite watcher for: ${jsFilePath}`);
+                        server.watcher.emit('change', jsFilePath);
+                        // --- 结束新增 ---
+
                         // 5. 更新 topicsMeta.js
                         const currentMeta = readTopicsMeta();
                         if (currentMeta) {
@@ -423,6 +428,11 @@ export const ${topicId}_contentData = ${JSON.stringify(contentData, null, 2)};
                                 const writeSuccess = writeTopicsMeta(currentMeta);
                                 if (!writeSuccess) {
                                     console.error(`[LocalSavePlugin] Convert MD [${topicId}]: Failed to write updated topicsMeta.js`);
+                                } else {
+                                    // --- 新增：如果元数据文件也更新了，同样通知 Vite ---
+                                    console.log(`[LocalSavePlugin] Triggering Vite watcher for: ${metaFilePath}`);
+                                    server.watcher.emit('change', metaFilePath);
+                                    // --- 结束新增 ---
                                 }
                             }
                         } else {

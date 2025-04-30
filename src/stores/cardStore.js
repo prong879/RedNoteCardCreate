@@ -197,6 +197,15 @@ export const useCardStore = defineStore('card', () => {
             console.info(`[Store] Conversion successful: ${successMessage}`);
             localStorage.removeItem(`cardgen_topic_content_${topicId}`);
             await fetchFileLists(); // 重新获取列表
+
+            // --- 新增：强制重新加载当前主题内容 ---
+            // 检查是否需要重新加载（例如，如果用户在转换期间切换了主题）
+            if (currentTopicId.value === topicId) {
+                console.log(`[Store] Reloading content for current topic ${topicId} after conversion.`);
+                await loadTopic(topicId, true); // 使用 forceRefresh=true 强制从模块加载
+            }
+            // --- 结束新增 ---
+
             // 直接返回成功结果给调用者
             return { success: true, message: successMessage };
         } else {
@@ -344,6 +353,15 @@ export const useCardStore = defineStore('card', () => {
         // 更新标题和获取描述 (从 getter 获取)
         currentTopicTitle.value = currentTopic.value?.title || `未命名主题 (${topicId})`;
         const description = currentTopicDescription.value;
+
+        // --- 新增：如果强制刷新，先清空内容，强制 Vue 检测到变化 ---
+        if (forceRefresh) {
+            console.log(`[Store] Force refresh requested for ${topicId}, clearing current content first.`);
+            cardContent.value = {}; // 或者 cardContent.value = null;
+            // 添加一个微小的延迟，确保 DOM 更新
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
+        // --- 结束新增 ---
 
         try {
             // --- 修改：使用 store 中的 detectedContentJsModules --- 
