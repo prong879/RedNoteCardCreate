@@ -244,73 +244,7 @@ export const useCardStore = defineStore('card', () => {
     };
 
     // --- 修改：Action - 导入/更新选题 (如果还使用的话，需要调整逻辑) ---
-    const importTopicFromMarkdown = (file) => {
-        // ！！！此函数逻辑与直接加载 MD 的新流程冲突，需要重构或移除 ！！！
-        // 暂时保留，但标记为需要处理
-        return new Promise(async (resolve, reject) => {
-            console.warn('[Store Deprecated Action] importTopicFromMarkdown is likely deprecated in direct-md-loading mode.');
-            if (!file || !file.name.endsWith('.md')) {
-                return reject(new Error('无效的文件类型，需要 .md 文件。'));
-            }
-
-            try {
-                const mdContent = await file.text();
-                const { data: frontMatter, content } = matter(mdContent);
-
-                if (!frontMatter.topicId || !frontMatter.title) {
-                    return reject(new Error(`文件 "${file.name}" 缺少必需的 Front Matter 字段 (topicId, title)。`));
-                }
-
-                const topicId = frontMatter.topicId;
-
-                // 1. 更新元数据列表
-                addOrUpdateTopicMeta({
-                    id: topicId,
-                    title: frontMatter.title,
-                    description: frontMatter.description || ''
-                });
-
-                // 2. 解析 Markdown 内容
-                const parsedContent = parseMarkdownContent(content);
-
-                // 3. 组合完整内容对象，应用 Front Matter 的默认值
-                const fullContentData = {
-                    headerText: frontMatter.headerText || '',
-                    footerText: frontMatter.footerText || '',
-                    coverCard: {
-                        title: parsedContent.coverCard.title || frontMatter.title, // 优先用 MD 解析的，否则用 FM 的 title
-                        subtitle: parsedContent.coverCard.subtitle,
-                        // 优先用 MD 注释的，否则用 FM 的，最后用默认 true
-                        showHeader: parsedContent.coverCard.showHeader !== null ? parsedContent.coverCard.showHeader : (frontMatter.coverShowHeader !== undefined ? frontMatter.coverShowHeader : true),
-                        showFooter: parsedContent.coverCard.showFooter !== null ? parsedContent.coverCard.showFooter : (frontMatter.coverShowFooter !== undefined ? frontMatter.coverShowFooter : true)
-                    },
-                    contentCards: parsedContent.contentCards.map(card => ({
-                        ...card,
-                        // 优先用 MD 注释的，否则用 FM 的默认值，最后用默认 true
-                        showHeader: card.showHeader !== null ? card.showHeader : (frontMatter.contentDefaultShowHeader !== undefined ? frontMatter.contentDefaultShowHeader : true),
-                        showFooter: card.showFooter !== null ? card.showFooter : (frontMatter.contentDefaultShowFooter !== undefined ? frontMatter.contentDefaultShowFooter : true)
-                    })),
-                    mainText: parsedContent.mainText
-                };
-
-                // 4. 保存到 localStorage (模拟持久化)
-                // 注意：这里直接覆盖，没有版本管理
-                localStorage.setItem(`cardgen_topic_content_${topicId}`, JSON.stringify(fullContentData));
-                console.log(`[Store] Parsed content for ${topicId} saved to localStorage.`);
-
-                // 可选：如果导入的就是当前选中的主题，则重新加载内容
-                if (currentTopicId.value === topicId) {
-                    await loadTopic(topicId, true); // 添加一个标志避免无限循环或重复逻辑
-                }
-
-                resolve({ topicId: topicId, title: frontMatter.title }); // 成功时返回信息
-
-            } catch (error) {
-                console.error(`[Store] Error processing Markdown file "${file.name}":`, error);
-                reject(error); // 失败时传递错误
-            }
-        });
-    };
+    // const importTopicFromMarkdown = (file) => { ... }; [整个函数体已删除]
 
     // --- 修改：loadTopic Action --- 
     const loadTopic = async (topicId, forceRefresh = false) => {
@@ -406,25 +340,7 @@ export const useCardStore = defineStore('card', () => {
         }
     };
 
-    // --- Card Manipulation Actions ---
-
-    // --- 新增：内部辅助函数，用于更新状态并保存到 localStorage ---
-    const _updateStateAndSave = (updateFn, actionName = 'Unknown Action') => {
-        if (!cardContent.value) {
-            console.warn(`[Store Action - ${actionName}] Cannot perform update: cardContent is not loaded.`);
-            return;
-        }
-        try {
-            // 执行实际的状态更新逻辑
-            updateFn();
-            console.log(`[Store Action - ${actionName}] State updated successfully.`);
-            // 调用保存逻辑
-            saveCurrentContentToLocalStorage();
-        } catch (error) {
-            console.error(`[Store Action - ${actionName}] Error updating state:`, error);
-            toast.error(`执行 ${actionName} 时出错: ${error.message}`); // 可以在这里添加 toast
-        }
-    };
+    // --- Card Manipulation Actions (不再使用 _updateStateAndSave 和 localStorage) ---
 
     // 创建一个空卡片对象模板
     const createEmptyCard = () => ({
@@ -434,108 +350,138 @@ export const useCardStore = defineStore('card', () => {
         showFooter: true
     });
 
-    // 在指定索引处添加内容卡片 (使用辅助函数)
+    // 在指定索引处添加内容卡片
     const addContentCard = (index) => {
-        _updateStateAndSave(() => {
-            if (!cardContent.value.contentCards) {
-                // 如果在这里检查，可以抛出错误让 _updateStateAndSave 捕获
-                throw new Error('Cannot add card: contentCards array does not exist.');
-            }
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.error('[Store Action - addContentCard] Cannot add card: cardContent or contentCards is invalid.');
+            toast.error('无法添加卡片：内容未加载或结构错误。');
+            return;
+        }
+        try {
             const newCard = createEmptyCard();
             const safeIndex = Math.max(0, Math.min(index, cardContent.value.contentCards.length));
             cardContent.value.contentCards.splice(safeIndex, 0, newCard);
-            // 日志移到辅助函数内部
-        }, 'addContentCard');
+            console.log(`[Store Action - addContentCard] State updated successfully.`);
+        } catch (error) {
+            console.error(`[Store Action - addContentCard] Error updating state:`, error);
+            toast.error(`添加卡片时出错: ${error.message}`);
+        }
     };
 
-    // 移除指定索引的内容卡片 (使用辅助函数)
+    // 移除指定索引的内容卡片
     const removeContentCard = (index) => {
-        if (cardContent.value?.contentCards?.length <= 1) {
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.error('[Store Action - removeContentCard] Cannot remove card: cardContent or contentCards is invalid.');
+            toast.error('无法移除卡片：内容未加载或结构错误。');
+            return;
+        }
+        if (cardContent.value.contentCards.length <= 1) {
             toast.warning('至少需要保留一张内容卡片。');
             return;
         }
-        _updateStateAndSave(() => {
-            if (!cardContent.value.contentCards) {
-                throw new Error('Cannot remove card: contentCards array does not exist.');
-            }
+        try {
             if (index < 0 || index >= cardContent.value.contentCards.length) {
-                throw new Error(`Cannot remove card: invalid index ${index}.`);
+                throw new Error(`无效的索引 ${index}。`);
             }
             cardContent.value.contentCards.splice(index, 1);
-        }, 'removeContentCard');
+            console.log(`[Store Action - removeContentCard] State updated successfully.`);
+        } catch (error) {
+            console.error(`[Store Action - removeContentCard] Error updating state:`, error);
+            toast.error(`移除卡片时出错: ${error.message}`);
+        }
     };
 
-    // 切换卡片（封面或内容）的可见性字段 (showHeader/showFooter) (使用辅助函数)
+    // 切换卡片（封面或内容）的可见性字段 (showHeader/showFooter)
     const toggleCardVisibility = ({ cardType, field, index = null }) => {
-        _updateStateAndSave(() => {
+        if (!cardContent.value) {
+            console.error(`[Store Action - toggleCardVisibility] Cannot toggle: cardContent is not loaded.`);
+            toast.error('无法切换可见性：内容未加载。');
+            return;
+        }
+        try {
             let target;
             if (cardType === 'coverCard' && cardContent.value.coverCard) {
                 target = cardContent.value.coverCard;
             } else if (cardType === 'contentCard' && index !== null && cardContent.value.contentCards && index >= 0 && index < cardContent.value.contentCards.length) {
                 target = cardContent.value.contentCards[index];
             } else {
-                throw new Error(`Cannot find target for toggleVisibility: { cardType: ${cardType}, field: ${field}, index: ${index} }`);
+                throw new Error(`找不到目标卡片 { cardType: ${cardType}, index: ${index} }`);
             }
 
             if (target && (field === 'showHeader' || field === 'showFooter') && typeof target[field] === 'boolean') {
                 target[field] = !target[field];
-                // 日志移到辅助函数内部: console.log(`Toggled ${field} for ${cardType} ${index !== null ? 'index ' + index : ''} to ${target[field]}`);
+                console.log(`[Store Action - toggleCardVisibility] Toggled ${field} for ${cardType} ${index !== null ? 'index ' + index : ''} to ${target[field]}`);
             } else {
-                throw new Error(`Invalid field or target type for toggleVisibility: { target: ${target}, field: ${field} }`);
+                throw new Error(`无效的字段或目标类型 { field: ${field} }`);
             }
-        }, `toggleCardVisibility (${field})`);
-    };
-
-    // 新增：辅助函数，用于将当前 cardContent 保存到 localStorage (保持不变)
-    const saveCurrentContentToLocalStorage = () => {
-        if (!currentTopicId.value) return;
-        try {
-            const contentToSave = { ...cardContent.value };
-            delete contentToSave.topicDescription;
-            localStorage.setItem(`cardgen_topic_content_${currentTopicId.value}`, JSON.stringify(contentToSave));
-            console.log(`[Store] Saved current content for ${currentTopicId.value} to localStorage.`);
-        } catch (e) {
-            console.error(`[Store] Error saving content to localStorage for ${currentTopicId.value}:`, e);
-            toast.error('内容保存到本地存储失败。');
+        } catch (error) {
+            console.error(`[Store Action - toggleCardVisibility] Error updating state:`, error);
+            toast.error(`切换可见性时出错: ${error.message}`);
         }
     };
 
     // --- Other Actions --- 
 
-    // 更新卡片部分内容 (例如 Header/Footer 文本) (使用辅助函数)
+    // 更新卡片部分内容 (例如 Header/Footer 文本)
     const updateCardContent = (newContent) => {
-        _updateStateAndSave(() => {
+        if (!cardContent.value) {
+            console.error(`[Store Action - updateCardContent] Cannot update: cardContent is not loaded.`);
+            toast.error('无法更新内容：内容未加载。');
+            return;
+        }
+        try {
             cardContent.value = { ...cardContent.value, ...newContent };
-        }, 'updateCardContent');
+            console.log(`[Store Action - updateCardContent] State updated successfully.`);
+        } catch (error) {
+            console.error(`[Store Action - updateCardContent] Error updating state:`, error);
+            toast.error(`更新卡片内容时出错: ${error.message}`);
+        }
     };
 
-    // 更新卡片文本内容 (封面标题/副标题, 内容卡片标题/正文) (使用辅助函数)
+    // 更新卡片文本内容 (封面标题/副标题, 内容卡片标题/正文)
     const updateCardText = ({ index, field, value }) => {
-        _updateStateAndSave(() => {
+        if (!cardContent.value) {
+            console.error(`[Store Action - updateCardText] Cannot update text: cardContent is not loaded.`);
+            toast.error('无法更新文本：内容未加载。');
+            return;
+        }
+        try {
             if (index === -1 && cardContent.value.coverCard) { // 封面
                 if (field === 'title' || field === 'subtitle') {
                     cardContent.value.coverCard[field] = value;
                 } else {
-                    throw new Error(`Invalid field '${field}' for cover card.`);
+                    throw new Error(`封面卡片不支持字段 '${field}'。`);
                 }
             } else if (index >= 0 && cardContent.value.contentCards && index < cardContent.value.contentCards.length) { // 内容卡片
                 if (field === 'title' || field === 'body') {
                     cardContent.value.contentCards[index][field] = value;
                 } else {
-                    throw new Error(`Invalid field '${field}' for content card index ${index}.`);
+                    throw new Error(`内容卡片 ${index} 不支持字段 '${field}'。`);
                 }
             } else {
-                throw new Error(`Invalid index ${index} for updateCardText.`);
+                throw new Error(`无效的卡片索引 ${index}。`);
             }
-        }, `updateCardText (Card ${index}, Field ${field})`);
+            console.log(`[Store Action - updateCardText] State updated successfully (Card ${index}, Field ${field})`);
+        } catch (error) {
+            console.error(`[Store Action - updateCardText] Error updating state:`, error);
+            toast.error(`更新卡片文本时出错: ${error.message}`);
+        }
     };
 
-    // 更新主文案 (使用辅助函数)
+    // 更新主文案
     const updateMainText = (newText) => {
-        _updateStateAndSave(() => {
-            // 之前的检查已包含在 _updateStateAndSave 中
+        if (!cardContent.value) {
+            console.error(`[Store Action - updateMainText] Cannot update main text: cardContent is not loaded.`);
+            toast.error('无法更新主文案：内容未加载。');
+            return;
+        }
+        try {
             cardContent.value.mainText = newText;
-        }, 'updateMainText');
+            console.log(`[Store Action - updateMainText] State updated successfully.`);
+        } catch (error) {
+            console.error(`[Store Action - updateMainText] Error updating state:`, error);
+            toast.error(`更新主文案时出错: ${error.message}`);
+        }
     };
 
     // 更新主题描述 (这个不保存到 localStorage，保持原样)
@@ -546,12 +492,20 @@ export const useCardStore = defineStore('card', () => {
         }
     };
 
-    // 拖拽内容卡片排序 (使用辅助函数)
+    // 拖拽内容卡片排序
     const updateContentCardsOrder = (newOrder) => {
-        _updateStateAndSave(() => {
-            // 之前的检查已包含在 _updateStateAndSave 中
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.error(`[Store Action - updateContentCardsOrder] Cannot reorder: cardContent or contentCards is invalid.`);
+            toast.error('无法排序卡片：内容未加载或结构错误。');
+            return;
+        }
+        try {
             cardContent.value.contentCards = newOrder;
-        }, 'updateContentCardsOrder');
+            console.log(`[Store Action - updateContentCardsOrder] State updated successfully.`);
+        } catch (error) {
+            console.error(`[Store Action - updateContentCardsOrder] Error updating state:`, error);
+            toast.error(`更新卡片顺序时出错: ${error.message}`);
+        }
     };
 
     // --- 新增：构建 Markdown 字符串的辅助函数 +++
@@ -739,7 +693,6 @@ export const useCardStore = defineStore('card', () => {
 
         // Actions
         addOrUpdateTopicMeta,
-        importTopicFromMarkdown,
         fetchFileLists,
         addDetectedMarkdownFile,
         loadTopic,
@@ -747,7 +700,6 @@ export const useCardStore = defineStore('card', () => {
         addContentCard,
         removeContentCard,
         toggleCardVisibility,
-        saveCurrentContentToLocalStorage,
         updateCardContent,
         updateCardText,
         updateMainText,
