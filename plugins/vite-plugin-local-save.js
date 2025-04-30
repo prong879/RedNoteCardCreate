@@ -99,7 +99,6 @@ function parseMdBodyToCards(mdBodyContent, frontMatter) {
 
     parts.forEach((part, index) => {
         part = part.trim();
-        if (!part) return;
         if (part.startsWith('## Main Text') || part.startsWith('## 主文案')) {
             mainTextReached = true;
             parsedCards.mainText = part.substring(part.indexOf('\n') + 1).trim();
@@ -539,7 +538,6 @@ export default function localSavePlugin() {
                         let mainTextReached = false;
                         parts.forEach((part, index) => {
                             part = part.trim();
-                            if (!part) return;
                             if (part.startsWith('## Main Text') || part.startsWith('## 主文案')) {
                                 mainTextReached = true;
                                 parsedCards.mainText = part.substring(part.indexOf('\n') + 1).trim();

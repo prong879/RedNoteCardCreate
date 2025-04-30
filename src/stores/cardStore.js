@@ -577,19 +577,18 @@ export const useCardStore = defineStore('card', () => {
             footerText: content.footerText || '',
             coverShowHeader: content.coverCard.showHeader !== undefined ? content.coverCard.showHeader : true,
             coverShowFooter: content.coverCard.showFooter !== undefined ? content.coverCard.showFooter : true,
-            // 注意：目前没有地方编辑 contentDefaultShowHeader/Footer，如果需要，要添加相应UI和状态
             contentDefaultShowHeader: true, // 暂时写死
             contentDefaultShowFooter: true  // 暂时写死
         };
-        // 过滤掉值为空字符串的字段，保持 front matter 简洁
-        const fmEntries = Object.entries(frontMatter).filter(([_, v]) => v !== '');
+        // 过滤掉值为空字符串的字段，但保留 'footerText'
+        const fmEntries = Object.entries(frontMatter).filter(([key, v]) => key === 'footerText' || v !== '');
         let fmString = '---\n';
         fmEntries.forEach(([key, value]) => {
-            // 对字符串值加引号，特别是包含特殊字符或换行符时
-            const formattedValue = typeof value === 'string' && (value.includes(':') || value.includes('\n'))
+            // 始终对字符串值使用 JSON.stringify() 以确保正确的引号和转义
+            const formattedValue = typeof value === 'string'
                 ? JSON.stringify(value)
                 : value;
-            fmString += `${key}: ${formattedValue}\n`;
+            fmString += `${key}: ${formattedValue}\n`; // 使用正确的换行符
         });
         fmString += '---\n';
 
@@ -633,7 +632,7 @@ export const useCardStore = defineStore('card', () => {
             // 确保 Main Text 前有分隔符（如果前面有内容卡片）
             if (content.contentCards && content.contentCards.length > 0) {
                 bodyString += '\n---\n\n';
-        } else {
+            } else {
                 bodyString += '\n'; // 如果没有内容卡片，也确保和封面卡有分隔
             }
             bodyString += `## Main Text\n${content.mainText}\n`; // 使用 ## Main Text 标题
