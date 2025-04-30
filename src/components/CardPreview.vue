@@ -61,7 +61,9 @@
                              :headerText="store.cardContent.headerText || ''"
                              :footerText="store.cardContent.footerText || ''"
                              :isHeaderVisible="card.showHeader !== false"
-                             :isFooterVisible="card.showFooter !== false"/>
+                             :isFooterVisible="card.showFooter !== false"
+                             :style="{ fontSize: (card.fontSize ?? 16) + 'px', lineHeight: card.lineHeight ?? 1.5 }"
+                        />
                     </div>
                     <div class="mt-2 text-center text-sm text-xhs-gray">
                         内容卡片 {{ index + 1 }}

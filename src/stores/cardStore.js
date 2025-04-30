@@ -347,7 +347,9 @@ export const useCardStore = defineStore('card', () => {
         title: "",
         body: "",
         showHeader: true,
-        showFooter: true
+        showFooter: true,
+        fontSize: 16, // 新增：默认字体大小
+        lineHeight: 1.5 // 新增：默认行高
     });
 
     // 在指定索引处添加内容卡片
@@ -561,20 +563,37 @@ export const useCardStore = defineStore('card', () => {
         bodyString += '\n---\n\n';
 
         // Content Cards
+        const DEFAULT_FONT_SIZE = 16;
+        const DEFAULT_LINE_HEIGHT = 1.5;
         content.contentCards?.forEach((card, index) => {
+            let cardMetaString = ''; // 用于收集卡片的元数据注释
             if (card.title) {
                 bodyString += `## ${card.title}\n`; // 使用二级标题表示内容卡片
             }
             if (card.body) {
                 bodyString += `${card.body}\n`;
             }
-            // 可选：添加 content card 的显隐注释
+            
+            // 添加元数据注释 (仅在非默认值时添加)
             if (card.showHeader !== frontMatter.contentDefaultShowHeader) {
-                bodyString += `<!-- cardShowHeader: ${card.showHeader} -->\n`;
+                cardMetaString += `<!-- cardShowHeader: ${card.showHeader} -->\n`;
             }
             if (card.showFooter !== frontMatter.contentDefaultShowFooter) {
-                bodyString += `<!-- cardShowFooter: ${card.showFooter} -->\n`;
+                cardMetaString += `<!-- cardShowFooter: ${card.showFooter} -->\n`;
             }
+            if (typeof card.fontSize === 'number' && card.fontSize !== DEFAULT_FONT_SIZE) {
+                cardMetaString += `<!-- cardFontSize: ${card.fontSize} -->\n`;
+            }
+            if (typeof card.lineHeight === 'number' && card.lineHeight !== DEFAULT_LINE_HEIGHT) {
+                 // 保证行高输出一位小数
+                cardMetaString += `<!-- cardLineHeight: ${card.lineHeight.toFixed(1)} -->\n`;
+            }
+
+            // 如果有元数据注释，则在卡片内容后添加一个换行再加注释
+            if (cardMetaString) {
+                bodyString += '\n' + cardMetaString;
+            }
+
             // 在最后一张卡片后不加分隔符
             if (index < content.contentCards.length - 1) {
                 bodyString += '\n---\n\n';
@@ -670,6 +689,93 @@ export const useCardStore = defineStore('card', () => {
         console.log('[Store] Returned to topic selection');
     };
 
+    // +++ 新增：调整内容卡片字体大小 Action +++
+    const adjustCardFontSize = (index, delta) => {
+        const MIN_FONT_SIZE = 10;
+        const MAX_FONT_SIZE = 30;
+        const DEFAULT_FONT_SIZE = 16;
+
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.error(`[Store Action - adjustCardFontSize] Cannot adjust font size: cardContent or contentCards is invalid.`);
+            toast.error('无法调整字号：内容未加载或结构错误。');
+            return;
+        }
+        if (index < 0 || index >= cardContent.value.contentCards.length) {
+            console.error(`[Store Action - adjustCardFontSize] Invalid index: ${index}`);
+            toast.error(`无法调整字号：无效的卡片索引 ${index}。`);
+            return;
+        }
+
+        try {
+            const card = cardContent.value.contentCards[index];
+            // 处理可能不存在 fontSize 的情况 (例如旧数据或意外情况)
+            const currentSize = typeof card.fontSize === 'number' ? card.fontSize : DEFAULT_FONT_SIZE;
+            let newSize = currentSize + delta;
+
+            // 限制字号范围
+            newSize = Math.max(MIN_FONT_SIZE, Math.min(newSize, MAX_FONT_SIZE));
+
+            if (newSize !== currentSize) {
+                card.fontSize = newSize;
+                console.log(`[Store Action - adjustCardFontSize] Font size for card ${index} updated to ${newSize}px.`);
+            } else {
+                // 如果字号未改变 (已达边界)，可以给个提示
+                if (delta > 0) {
+                    toast.info(`字号已达到最大值 (${MAX_FONT_SIZE}px)`);
+                } else if (delta < 0) {
+                    toast.info(`字号已达到最小值 (${MIN_FONT_SIZE}px)`);
+                }
+            }
+        } catch (error) {
+            console.error(`[Store Action - adjustCardFontSize] Error updating font size for card ${index}:`, error);
+            toast.error(`调整卡片 ${index} 字号时出错: ${error.message}`);
+        }
+    };
+
+    // +++ 新增：调整内容卡片行高 Action +++
+    const adjustCardLineHeight = (index, delta) => {
+        const MIN_LINE_HEIGHT = 1.0;
+        const MAX_LINE_HEIGHT = 2.5;
+        const DEFAULT_LINE_HEIGHT = 1.5;
+
+        if (!cardContent.value || !cardContent.value.contentCards) {
+            console.error(`[Store Action - adjustCardLineHeight] Cannot adjust line height: cardContent or contentCards is invalid.`);
+            toast.error('无法调整行高：内容未加载或结构错误。');
+            return;
+        }
+        if (index < 0 || index >= cardContent.value.contentCards.length) {
+            console.error(`[Store Action - adjustCardLineHeight] Invalid index: ${index}`);
+            toast.error(`无法调整行高：无效的卡片索引 ${index}。`);
+            return;
+        }
+
+        try {
+            const card = cardContent.value.contentCards[index];
+            // 处理可能不存在 lineHeight 的情况
+            const currentHeight = typeof card.lineHeight === 'number' ? card.lineHeight : DEFAULT_LINE_HEIGHT;
+            // 使用 toFixed(1) 处理 JS 浮点数精度问题，并转回数字
+            let newHeight = parseFloat((currentHeight + delta).toFixed(1));
+
+            // 限制行高范围
+            newHeight = Math.max(MIN_LINE_HEIGHT, Math.min(newHeight, MAX_LINE_HEIGHT));
+
+            if (newHeight !== currentHeight) {
+                card.lineHeight = newHeight;
+                console.log(`[Store Action - adjustCardLineHeight] Line height for card ${index} updated to ${newHeight}.`);
+            } else {
+                // 如果行高未改变 (已达边界)，可以给个提示
+                if (delta > 0) {
+                    toast.info(`行高已达到最大值 (${MAX_LINE_HEIGHT.toFixed(1)})`);
+                } else if (delta < 0) {
+                    toast.info(`行高已达到最小值 (${MIN_LINE_HEIGHT.toFixed(1)})`);
+                }
+            }
+        } catch (error) {
+            console.error(`[Store Action - adjustCardLineHeight] Error updating line height for card ${index}:`, error);
+            toast.error(`调整卡片 ${index} 行高时出错: ${error.message}`);
+        }
+    };
+
     // --- 暴露 state, getters, actions ---
     return {
         // State
@@ -711,7 +817,9 @@ export const useCardStore = defineStore('card', () => {
         setFocusedEditor,
         resetFocus,
         returnToTopicSelection,
-        saveMarkdownTemplate
+        saveMarkdownTemplate,
+        adjustCardFontSize,
+        adjustCardLineHeight
     };
 }, {
     // 可以在这里配置持久化等插件选项

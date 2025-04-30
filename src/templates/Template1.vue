@@ -26,7 +26,11 @@
                     <!-- 内容卡片内容 -->
                     <template v-else>
                         <h3 v-if="renderedContentTitle" class="text-xl font-bold mb-2 whitespace-pre-line pt-2 rendered-title" v-html="renderedContentTitle"></h3>
-                        <div v-if="renderedMarkdownBody" class="markdown-body text-base flex-grow overflow-y-hidden pr-1" v-html="renderedMarkdownBody"></div>
+                        <div v-if="renderedMarkdownBody"
+                             class="markdown-body text-base flex-grow overflow-y-hidden pr-1"
+                             :style="bodyStyle"
+                             v-html="renderedMarkdownBody">
+                        </div>
                     </template>
                 </div>
 
@@ -43,6 +47,7 @@
 
 <script>
 import { useTemplateRendering } from '../composables/useTemplateRendering';
+import { computed, useAttrs } from 'vue';
 
 export default {
     name: 'Template1',
@@ -78,6 +83,8 @@ export default {
         }
     },
     setup(props) {
+        const attrs = useAttrs();
+
         // 使用 Composable 获取渲染后的文本
         const { 
             renderedCoverTitle, 
@@ -86,11 +93,27 @@ export default {
             renderedMarkdownBody 
         } = useTemplateRendering(props);
 
+        // +++ 新增：计算应用于正文的样式 +++
+        const bodyStyle = computed(() => {
+            const style = {};
+            // 检查 attrs.style 是否存在及其属性
+            if (attrs.style && typeof attrs.style === 'object') {
+                 if ('fontSize' in attrs.style) { // 从 $attrs.style 获取 fontSize
+                     style.fontSize = attrs.style.fontSize;
+                 }
+                 if ('lineHeight' in attrs.style) { // 从 $attrs.style 获取 lineHeight
+                     style.lineHeight = attrs.style.lineHeight;
+                 }
+            }
+            return style;
+        });
+
         return {
             renderedCoverTitle,
             renderedCoverSubtitle,
             renderedContentTitle,
-            renderedMarkdownBody
+            renderedMarkdownBody,
+            bodyStyle
         };
     }
 }

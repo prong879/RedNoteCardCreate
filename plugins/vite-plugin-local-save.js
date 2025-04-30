@@ -51,20 +51,40 @@ function parseMdBodyToCards(mdBodyContent, frontMatter) {
         }
         const showHeaderMatch = bodyContent.match(/<!--\s*cardShowHeader:\s*(true|false)\s*-->/);
         const showFooterMatch = bodyContent.match(/<!--\s*cardShowFooter:\s*(true|false)\s*-->/);
+        const fontSizeMatch = bodyContent.match(/<!--\s*cardFontSize:\s*(\d+)\s*-->/);
+        const lineHeightMatch = bodyContent.match(/<!--\s*cardLineHeight:\s*(\d+(\.\d+)?)\s*-->/);
+
         let showHeader = frontMatter.contentDefaultShowHeader !== undefined ? frontMatter.contentDefaultShowHeader : true;
         let showFooter = frontMatter.contentDefaultShowFooter !== undefined ? frontMatter.contentDefaultShowFooter : true;
+        let fontSize = null;
+        let lineHeight = null;
+
         if (showHeaderMatch) showHeader = showHeaderMatch[1] === 'true';
         if (showFooterMatch) showFooter = showFooterMatch[1] === 'true';
-        bodyContent = bodyContent.replace(/<!--.*?-->/gs, '').trim();
+        if (fontSizeMatch) fontSize = parseInt(fontSizeMatch[1], 10);
+        if (lineHeightMatch) lineHeight = parseFloat(lineHeightMatch[1]);
+
+        bodyContent = bodyContent.replace(/<!--\s*(cardShowHeader|cardShowFooter|cardFontSize|cardLineHeight):\s*.*?\s*-->/gs, '').trim();
 
         if (index === 0) {
             parsedCards.coverCard.title = title || frontMatter.title || ''; // Use heading, fallback to FM title
             parsedCards.coverCard.subtitle = bodyContent;
-            // Update cover visibility based on comments if present
             if (showHeaderMatch) parsedCards.coverCard.showHeader = showHeader;
             if (showFooterMatch) parsedCards.coverCard.showFooter = showFooter;
         } else {
-            parsedCards.contentCards.push({ title, body: bodyContent, showHeader, showFooter });
+            const cardData = {
+                title,
+                body: bodyContent,
+                showHeader,
+                showFooter
+            };
+            if (fontSize !== null) {
+                cardData.fontSize = fontSize;
+            }
+            if (lineHeight !== null) {
+                cardData.lineHeight = lineHeight;
+            }
+            parsedCards.contentCards.push(cardData);
         }
     });
 
