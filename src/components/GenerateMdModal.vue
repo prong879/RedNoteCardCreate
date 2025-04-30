@@ -23,7 +23,7 @@
                 class="text-xs font-semibold px-2 py-1 rounded-full ml-4 shrink-0"
                 :class="topic.status === 'exists' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'"
               >
-                {{ topic.status === 'exists' ? '已有本地存档' : '可生成模板' }}
+                {{ topic.status === 'exists' ? '存在本地MD' : '可生成模板' }}
               </span>
             </button>
           </li>

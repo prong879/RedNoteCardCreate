@@ -1,8 +1,8 @@
 ---
 topicId: topic03
-title: 时间序列 VS 截面数据 VS 面板数据：三者的区别？
-description: 核心：用形象比喻和例子区分三种常见数据类型
-headerText: @园丁小区詹姆斯
+title: "时间序列 VS 截面数据 VS 面板数据：三者的区别？"
+description: "核心：用形象比喻和例子区分三种常见数据类型"
+headerText: "@园丁小区詹姆斯"
 footerText: "持续更新\n你一定能学会时间序列分析"
 coverShowHeader: true
 coverShowFooter: true
