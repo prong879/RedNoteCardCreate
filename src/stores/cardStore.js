@@ -164,6 +164,8 @@ export const useCardStore = defineStore('card', () => {
                     }
                 });
             }
+            // --- 新增日志：检查赋值前的值 ---
+            console.log('[Store fetchFileLists] countsMap before assignment:', countsMap);
             topicCardCounts.value = countsMap;
             console.log('[Store] Updated topicCardCounts:', topicCardCounts.value);
             // --- 结束恢复 ---
@@ -631,7 +633,7 @@ export const useCardStore = defineStore('card', () => {
             // 确保 Main Text 前有分隔符（如果前面有内容卡片）
             if (content.contentCards && content.contentCards.length > 0) {
                 bodyString += '\n---\n\n';
-            } else {
+        } else {
                 bodyString += '\n'; // 如果没有内容卡片，也确保和封面卡有分隔
             }
             bodyString += `## Main Text\n${content.mainText}\n`; // 使用 ## Main Text 标题

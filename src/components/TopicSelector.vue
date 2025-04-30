@@ -4,20 +4,14 @@
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-semibold">选择内容选题</h2>
             
-            <!-- 新增按钮 -->
+            <!-- 修改：移除生成 MD 模板按钮，保留其他 -->
             <div class="flex items-center space-x-2">
-                <!-- 修改按钮文字和点击事件 -->
-                <button
-                    @click="showGenerateMdModal = true"
-                    class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
-                    <i class="fas fa-file-alt mr-1"></i> 生成 MD 模板
-                </button>
-                <!-- 新增: 检查/转换按钮 (仅开发) -->
+                <!-- 新增: 检查/转换按钮 (仅开发) - 这个按钮的功能在新流程下也需要重新审视或移除 -->
                 <button
                     v-if="isDevMode"
-                    @click="showMarkdownManagerDialog = true"
+                    @click="showMarkdownManagerDialog = true" 
                     class="bg-teal-500 hover:bg-teal-700 text-white font-bold py-1 px-3 rounded text-sm">
-                    <i class="fas fa-sync-alt mr-1"></i> 检查/转换 MD 文件
+                    <i class="fas fa-sync-alt mr-1"></i> 检查 MD 文件状态
                 </button>
                 <label for="prompt-toggle" class="ml-4 mr-2 text-sm font-medium text-gray-700">显示 "生成Prompt":</label>
                 <button
@@ -34,14 +28,10 @@
             </div>
         </div>
         
-        <!-- 修改：使用新的模态框 -->
-        <GenerateMdModal
-            v-if="showGenerateMdModal"
-            @close="showGenerateMdModal = false"
-            @generate="handleGenerateMdForTopic"
-        />
+        <!-- 移除 GenerateMdModal -->
+        <!-- <GenerateMdModal ... /> -->
 
-        <!-- 新增: 渲染 MarkdownManager 组件 -->
+        <!-- 渲染 MarkdownManager 组件 (保留，但其内部逻辑可能需要更新) -->
         <MarkdownManager
             v-if="isDevMode"
             :is-visible="showMarkdownManagerDialog"
@@ -49,121 +39,146 @@
         />
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+             <!-- 修改：给整个卡片添加点击事件 -->
             <div v-for="(topic, index) in topics" :key="topic.id"
+                @click="selectTopic(topic.id)" 
                 class="topic-card relative p-4 bg-white border border-gray-200 rounded-lg cursor-pointer shadow-md hover:shadow-2xl hover:scale-105 transition-all flex flex-col overflow-hidden">
+                <!-- ... (序号和卡片数量显示保持不变) ... -->
                 <div class="absolute top-0 right-1 font-serif italic text-gray-200 opacity-80 z-0 select-none">
                     <span class="text-5xl">{{ getOrdinal(index + 1).number }}</span>
                     <span class="text-xl align-bottom ml-[-0.1em]">{{ getOrdinal(index + 1).suffix }}</span>
                 </div>
-                <div v-if="savedTopicInfo[topic.id]?.cardCount > 0"
-                     class="absolute bottom-4 right-4 bg-xhs-pink text-white text-xs font-bold px-1.5 py-0.5 rounded-full z-10">
+                 <div v-show="savedTopicInfo[topic.id]?.cardCount > 0"
+                     class="absolute bottom-4 right-4 bg-xhs-pink text-white text-xs font-bold px-2 py-1 rounded-full z-20">
                     {{ savedTopicInfo[topic.id]?.cardCount }} 张
                 </div>
                 <div class="flex-grow z-10 relative">
                     <h3 class="font-medium mb-2 text-gray-800 pr-16">{{ topic.title }}</h3>
                     <p class="text-sm text-gray-500 mb-4">{{ topic.description }}</p>
                 </div>
-                <div class="z-10 relative">
+                <div class="z-10 relative flex items-center space-x-2">
+                    <!-- 修改：替换旧的选择按钮为新的创建/覆盖按钮 -->
                     <button
-                        @click="selectTopic(topic.id)"
-                        class="bg-xhs-pink hover:bg-xhs-pink-dark text-white font-bold py-1 px-6 rounded text-sm mr-2">
-                        选择话题
+                        @click.stop="triggerGenerateOrConfirm(topic)" 
+                        :class="[
+                            savedTopicInfo[topic.id]?.hasMd 
+                                ? 'bg-yellow-500 hover:bg-yellow-600' 
+                                : 'bg-xhs-pink hover:bg-xhs-pink-dark',
+                            'text-white font-bold py-1 px-4 rounded text-sm transition-colors'
+                        ]"
+                    >
+                        {{ savedTopicInfo[topic.id]?.hasMd ? '覆盖 MD' : '创建 MD' }}
                     </button>
-                    <!-- 修改：添加 v-show 指令 -->
+                    <!-- 生成 Prompt 按钮保持不变 -->
                     <button
                         v-show="showPromptButtons"
-                        @click="generatePrompt(topic)"
+                        @click.stop="generatePrompt(topic)" 
                         class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm">
                         生成Prompt
                     </button>
                 </div>
             </div>
         </div>
+        
+        <!-- 新增：添加 ConfirmationModal -->
+        <ConfirmationModal
+            v-if="showConfirmationModal"
+            title="确认覆盖"
+            :message="confirmationMessage"
+            confirmText="确认覆盖"
+            cancelText="取消"
+            @confirm="handleConfirmGeneration"
+            @cancel="handleCancelGeneration"
+        />
     </div>
 </template>
 
 <script setup>
-import { ref, onMounted, reactive, watch, computed } from 'vue';
-// import { topicsMeta as initialTopicsMeta } from '../content/topicsMeta'; // 不再需要直接导入
+import { ref, onMounted, computed, watch } from 'vue';
 import { useToast } from "vue-toastification";
 import promptTemplate from '../prompts/knowledge_card_prompt.md?raw';
-import { useCardStore } from '../stores/cardStore'; // 引入 store
-// import CreateTopicModal from './CreateTopicModal.vue'; // 移除旧模态框
-import GenerateMdModal from './GenerateMdModal.vue'; // 引入新模态框
-import MarkdownManager from './MarkdownManager.vue'; // <--- 新增：导入 Markdown 管理器
-import { saveAs } from 'file-saver'; // 引入 file-saver
-import { getOrdinal } from '../utils/formatters'; // <--- 新增：导入 getOrdinal 工具函数
-import { generateMarkdownTemplate } from '../utils/templateUtils'; // <--- 新增：导入模板生成函数
-// import matter from 'gray-matter'; // handleFileImport 中已引入 store action，这里不再需要
+import { useCardStore } from '../stores/cardStore';
+// 移除 GenerateMdModal 导入
+// import GenerateMdModal from './GenerateMdModal.vue'; 
+import MarkdownManager from './MarkdownManager.vue';
+import { saveAs } from 'file-saver';
+import { getOrdinal } from '../utils/formatters';
+import { generateMarkdownTemplate } from '../utils/templateUtils';
+import ConfirmationModal from './ConfirmationModal.vue'; // 新增导入
 
-const store = useCardStore(); // 获取 store 实例
+const store = useCardStore();
 const emit = defineEmits(['select-topic']);
 const toast = useToast();
 
-// --- 修改：移除旧的 reactive savedTopicInfo ---
-// const savedTopicInfo = reactive({}); 
 const showPromptButtons = ref(true);
-const showGenerateMdModal = ref(false);
-const showMarkdownManagerDialog = ref(false); // <--- 新增：控制管理器对话框状态
-
-// --- New state for Markdown Manager ---
+// 移除 showGenerateMdModal
+// const showGenerateMdModal = ref(false); 
+const showMarkdownManagerDialog = ref(false);
 const isDevMode = import.meta.env.DEV;
+
+// 新增：确认模态框状态
+const showConfirmationModal = ref(false);
+const topicToConfirm = ref(null);
 
 const topics = computed(() => store.topics);
 
-// --- 修改：savedTopicInfo 直接从 store.topicCardCounts 获取 --- 
+// 修改：savedTopicInfo 计算属性，确保包含 hasMd
 const savedTopicInfo = computed(() => {
     const infoMap = {};
-    const counts = store.topicCardCounts || {}; // 从 store 获取卡片数量映射
-    
+    const counts = store.topicCardCounts || {};
+    const mdFilesSet = store.detectedMarkdownFiles instanceof Set ? store.detectedMarkdownFiles : new Set();
+
     topics.value.forEach(topic => {
+        const hasMd = mdFilesSet.has(topic.id);
         const count = counts[topic.id];
-        if (typeof count === 'number' && count >= 0) {
-            // 卡片数量信息存在于 Store 中
-            infoMap[topic.id] = {
-                exists: true, // 假设如果 count 存在，则文件存在
-                cardCount: count 
-            };
-        } else {
-            // 卡片数量信息不存在
-            infoMap[topic.id] = { exists: false, cardCount: 0 };
-        }
+        infoMap[topic.id] = {
+            hasMd: hasMd,
+            cardCount: (typeof count === 'number' && count >= 0) ? count : 0
+        };
     });
+    // --- 新增日志：检查计算结果 ---
+    console.log('[TopicSelector savedTopicInfo] Calculated infoMap:', infoMap);
     return infoMap;
 });
 
-// --- 修改：在 onMounted 中显式调用 fetchFileLists --- 
+// 计算属性：生成确认消息 (保持与 GenerateMdModal 类似的逻辑)
+const confirmationMessage = computed(() => {
+  if (!topicToConfirm.value) return '';
+  const { title } = topicToConfirm.value;
+  // 简化消息，因为我们只在 hasMd 为 true 时触发
+  return `本地已存在 "${title}" 的 Markdown 文件 (.md)。\n\n确定要覆盖它吗？`;
+});
+
+// --- 新增：监视 Store 中的 topicCardCounts --- 
+watch(() => store.topicCardCounts, (newCounts) => {
+    console.log('[TopicSelector Watcher] store.topicCardCounts changed:', newCounts);
+}, { deep: true, immediate: true }); // immediate 可以在初始时也触发一次
+
 onMounted(async () => {
     console.log("[TopicSelector] Mounted. Explicitly fetching file lists...");
-    // 主动触发一次 Store 的文件列表获取
     await store.fetchFileLists(); 
     console.log("[TopicSelector] File lists fetch initiated from onMounted.");
 });
 
+// 修改：这个方法现在由卡片点击触发
 const selectTopic = (topicId) => {
+    console.log(`[TopicSelector] Card clicked, emitting select-topic for: ${topicId}`);
     emit('select-topic', { key: topicId });
 };
 
+// 生成 Prompt 的方法 (添加 .stop 阻止冒泡)
 const generatePrompt = (topic) => {
     if (!topic || !topic.id || !topic.title) {
         console.error('Invalid topic object passed to generatePrompt:', topic);
         toast.error('无法生成 Prompt：无效的选题信息。');
         return;
     }
-    
-    // 替换模板中的占位符
     let generatedPrompt = promptTemplate.replace('[在此处插入你想生成的选题标题或编号]', topic.title);
     generatedPrompt = generatedPrompt.replace('[建议的 topicId，例如 topic01]', topic.id);
-    
-    // 尝试复制到剪贴板
     try {
-        if (!navigator.clipboard) {
-            throw new Error('Clipboard API not available');
-        }
         navigator.clipboard.writeText(generatedPrompt).then(() => {
-            // 修改成功提示信息，包含换行和主题标题
             const successMessage = `Prompt已成功复制到剪切板！\n主题：${topic.title}`;
-            toast.success(successMessage); // 使用新的成功提示
+            toast.success(successMessage);
         }, (err) => {
             console.error('无法复制 Prompt 到剪贴板:', err);
             toast.error('自动复制失败，请手动复制 Prompt (已打印到控制台)。');
@@ -176,84 +191,69 @@ const generatePrompt = (topic) => {
     }
 };
 
-// 生成 Markdown 模板并处理保存/下载 (修改：使用 store action)
-const handleGenerateMdForTopic = async (options) => {
-  // const { topicId, title, description, numCards, includeMainText, overwrite = false } = options;
+// 移除 handleGenerateMdForTopic (因为现在直接调用 store action)
 
-  // --- 修改：使用导入的函数生成 Markdown 内容 ---
-  // 注意：generateMarkdownTemplate 现在期望一个包含所有选项的对象
-  // 我们需要确保从 modal 传递过来的 options 包含 numCards 和 includeMainText
-  // 如果 modal 不传递这些，我们需要在这里提供默认值或修改 modal
-  // 假设 GenerateMdModal 会传递 numCards 和 includeMainText (如果需要)
-  const mdContent = generateMarkdownTemplate(options); 
-  // -------------------------------------------
-
-  const filename = `${options.topicId}.md`;
-  const isDevMode = import.meta.env.DEV;
-  let shouldDownload = !isDevMode; // 生产模式默认下载
-  let apiErrorOccurred = false; // 跟踪 API 相关问题
-
-  if (isDevMode) {
-    try {
-        // --- 修改：调用 Store Action 并传递 overwrite 参数 ---
-        console.log(`[TopicSelector] Calling store.saveMarkdownTemplate for ${filename}, overwrite=${options.overwrite}`);
-        const result = await store.saveMarkdownTemplate({ 
-          filename, 
-          content: mdContent, 
-          topicId: options.topicId, // 确保使用 options 中的 topicId
-          overwrite: options.overwrite // 使用 options 中的 overwrite
-        });
-        console.log(`[TopicSelector] Store action result for saving ${filename}:`, result);
-
-        if (result.success) {
-            // --- Store Action 成功 ---
-            toast.success(result.message || `模板 ${filename} 已成功保存！`);
-            console.log(`[TopicSelector] Successfully saved MD template via store action: ${filename}`);
-            shouldDownload = false; // 本地保存成功，无需下载
-            showGenerateMdModal.value = false;
-            return; // 操作完成
-        } else {
-            // --- Store Action 失败或部分失败 (如文件存在) ---
-            apiErrorOccurred = true; // 标记 API 相关问题
-            if (result.code === 'FILE_EXISTS' && !options.overwrite) {
-                // 特定错误：文件已存在，且未指定覆盖
-                toast.error(result.message || `文件 ${filename} 已存在，无法覆盖。`);
-                shouldDownload = false; // 文件存在，不下载
-            } else {
-                // 其他 Store Action 业务错误
-                console.error('[TopicSelector] Store action failed:', result.message);
-                toast.warning(`尝试本地保存失败 (${result.message || '未知错误'})，将启动文件下载。`);
-                shouldDownload = true; // 其他错误，回退到下载
-            }
-        }
-    } catch (error) {
-        // --- 处理调用 Store Action 本身时发生的意外错误 ---
-        // (例如网络问题导致 fetch 失败，或者 Store Action 内部抛出未捕获的异常)
-        apiErrorOccurred = true;
-        shouldDownload = true; // 意外错误，回退到下载
-        console.error('[TopicSelector] Error calling store.saveMarkdownTemplate:', error);
-        toast.warning(`调用本地保存操作时出错 (${error.message || '未知错误'})，将启动文件下载。`);
+// 新增：触发生成或确认的方法
+const triggerGenerateOrConfirm = (topic) => {
+    const info = savedTopicInfo.value[topic.id];
+    if (info?.hasMd) {
+        topicToConfirm.value = topic;
+        showConfirmationModal.value = true;
+        console.log(`[TopicSelector] MD exists for ${topic.id}. Opening confirmation.`);
+    } else {
+        // 直接生成，不覆盖
+        console.log(`[TopicSelector] MD does not exist for ${topic.id}. Generating directly.`);
+        handleGenerateMd(topic, false);
     }
-  }
+};
 
-  // --- 根据标志位决定是否执行下载 ---
-  if (shouldDownload) {
-    try {
-      console.log(`[TopicSelector] Proceeding with download for ${filename}. DevMode: ${isDevMode}, API Error Occurred: ${apiErrorOccurred}`);
-      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
-      saveAs(blob, filename);
-      if (apiErrorOccurred) {
-          toast.info(`已启动 ${filename} 的下载。`); // 如果是因为保存失败才下载，给个 info
-      } else {
-          toast.success(`已生成 ${filename} 供下载。`); // 非开发模式下的正常下载
-      }
-    } catch (saveError) {
-      console.error('[TopicSelector] Error saving file with file-saver:', saveError);
-      toast.error(`生成文件 ${filename} 失败: ${saveError.message}`);
+// 新增：处理 MD 生成的核心逻辑
+const handleGenerateMd = async (topic, overwrite) => {
+     console.log(`[TopicSelector] Generating MD for ${topic.id}. Overwrite: ${overwrite}`);
+     const options = {
+         topicId: topic.id,
+         title: topic.title,
+         description: topic.description,
+         overwrite: overwrite, // 传递 overwrite 状态
+         // 可以添加其他 generateMarkdownTemplate 需要的默认选项
+         numCards: 3, // 例如，默认生成3个内容卡片
+         includeMainText: true
+     };
+     const mdContent = generateMarkdownTemplate(options);
+     const filename = `${options.topicId}.md`;
+
+     // 调用 store action
+     const result = await store.saveMarkdownTemplate({
+         filename,
+         content: mdContent,
+         topicId: options.topicId,
+         overwrite: options.overwrite
+     });
+
+     if (result.success) {
+         toast.success(result.message || `模板 ${filename} 已成功${overwrite ? '覆盖' : '创建'}！`);
+         // Store action 内部应该已经调用了 fetchFileLists，理论上无需再次调用
+         // await store.fetchFileLists(); 
+     } else {
+         // Store action 会处理 FILE_EXISTS 错误，这里只显示通用错误
+         toast.error(result.message || `操作失败`);
+     }
+     // 关闭确认模态框（如果它是打开的）
+     showConfirmationModal.value = false;
+     topicToConfirm.value = null;
+};
+
+// 新增：处理确认模态框的确认事件
+const handleConfirmGeneration = () => {
+    if (topicToConfirm.value) {
+        handleGenerateMd(topicToConfirm.value, true); // 确认时强制覆盖
     }
-  }
+};
 
-  showGenerateMdModal.value = false; // 无论结果如何，最后都关闭模态框
+// 新增：处理确认模态框的取消事件
+const handleCancelGeneration = () => {
+    showConfirmationModal.value = false;
+    topicToConfirm.value = null;
 };
 
 // 切换 Prompt 按钮可见性的方法 (保持不变)
@@ -261,19 +261,4 @@ const togglePromptButtons = () => {
     showPromptButtons.value = !showPromptButtons.value;
 };
 
-// 使用 import.meta.glob (移除，不再需要)
-// const contentModules = import.meta.glob('../content/*_content.js');
-
-// --- NEW: Computed property for modal dropdown --- 
-const topicsForModalDropdown = computed(() => {
-    // Use topics.value which mirrors store.topics
-    return topics.value.map((topic, index) => {
-        const ordinal = getOrdinal(index + 1);
-        return {
-            id: topic.id,
-            // Combine ordinal number, suffix, and title for display
-            displayTitle: `${ordinal.number}${ordinal.suffix} - ${topic.title}`
-        };
-    });
-});
 </script>
