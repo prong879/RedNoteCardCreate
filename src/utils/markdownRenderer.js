@@ -1,5 +1,6 @@
 import { marked } from 'marked';
 import katex from 'katex';
+import 'katex/dist/katex.min.css';
 
 // 创建自定义渲染器
 const renderer = new marked.Renderer();

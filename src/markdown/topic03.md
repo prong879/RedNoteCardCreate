@@ -74,11 +74,6 @@ contentDefaultShowFooter: true
 
 ---
 
-
-<!-- cardFontSize: 19 -->
-
----
-
 ## Main Text
 数据类型傻傻分不清？🤯 一分钟带你搞懂时间序列、截面数据、面板数据的区别！别再用错分析方法啦~
 

@@ -16,7 +16,7 @@ export const topicsMeta = [
         cardCount: 7
     },
     {
-        id: 'topic03',
+        id: 'topic03', cardCount: 5,
         title: '时间序列 VS 截面数据 VS 面板数据：三者的区别？',
         description: '核心：用形象比喻和例子区分三种常见数据类型',
         cardCount: 6

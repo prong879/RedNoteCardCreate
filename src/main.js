@@ -2,11 +2,8 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 
-// 引入 KaTeX 样式
-import 'katex/dist/katex.min.css';
-
 // 引入 vue-toastification
-import Toast, { POSITION } from "vue-toastification";
+import Toast from "vue-toastification";
 // 引入 vue-toastification 样式
 import "vue-toastification/dist/index.css";
 
@@ -23,8 +20,8 @@ const pinia = createPinia();
 
 // 配置 vue-toastification
 const options = {
-    position: POSITION.TOP_RIGHT, // 通知位置，右上角
-    timeout: 3000, // 默认超时时间 3 秒
+    position: "top-right",
+    timeout: 3000,
     closeOnClick: true,
     pauseOnFocusLoss: true,
     pauseOnHover: true,
