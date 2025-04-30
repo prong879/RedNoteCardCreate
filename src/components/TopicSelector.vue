@@ -38,14 +38,8 @@
             @close="showMarkdownManagerDialog = false"
         />
 
-        <!-- +++ 修改：添加加载状态和骨架屏 +++ -->
-        <div v-if="store.isLoadingFiles" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- 重复渲染骨架屏组件 -->
-            <TopicCardSkeleton v-for="n in 6" :key="`skeleton-${n}`" />
-        </div>
-        
         <!-- +++ 修改：将实际列表包裹在 v-else-if 中 +++ -->
-        <div v-else-if="topics.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div v-if="topics.length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
              <div v-for="(topic, index) in topics" :key="topic.id"
                 @click="selectTopic(topic.id)" 
                 class="topic-card relative p-4 bg-white border border-gray-200 rounded-lg cursor-pointer shadow-md hover:shadow-2xl hover:scale-105 transition-all flex flex-col overflow-hidden">
@@ -54,9 +48,9 @@
                     <span class="text-5xl">{{ getOrdinal(index + 1).number }}</span>
                     <span class="text-xl align-bottom ml-[-0.1em]">{{ getOrdinal(index + 1).suffix }}</span>
                 </div>
-                 <div v-show="savedTopicInfo[topic.id]?.cardCount > 0"
+                 <div v-show="topic.cardCount > 0"
                      class="absolute bottom-4 right-4 bg-xhs-pink text-white text-xs font-bold px-2 py-1 rounded-full z-20">
-                    {{ savedTopicInfo[topic.id]?.cardCount }} 张
+                    {{ topic.cardCount }} 张
                 </div>
                 <div class="flex-grow z-10 relative">
                     <h3 class="font-medium mb-2 text-gray-800 pr-16">{{ topic.title }}</h3>
@@ -67,13 +61,13 @@
                     <button
                         @click.stop="triggerGenerateOrConfirm(topic)" 
                         :class="[
-                            savedTopicInfo[topic.id]?.hasMd 
+                            store.detectedMarkdownFiles.has(topic.id)
                                 ? 'bg-yellow-500 hover:bg-yellow-600' 
                                 : 'bg-xhs-pink hover:bg-xhs-pink-dark',
                             'text-white font-bold py-1 px-4 rounded text-sm transition-colors'
                         ]"
                     >
-                        {{ savedTopicInfo[topic.id]?.hasMd ? '覆盖 MD' : '创建 MD' }}
+                        {{ store.detectedMarkdownFiles.has(topic.id) ? '覆盖 MD' : '创建 MD' }}
                     </button>
                     <!-- 生成 Prompt 按钮保持不变 -->
                     <button
@@ -118,7 +112,7 @@ import { getOrdinal } from '../utils/formatters';
 import { generateMarkdownTemplate } from '../utils/templateUtils';
 import ConfirmationModal from './ConfirmationModal.vue'; // 新增导入
 // +++ 新增：导入骨架屏组件 +++
-import TopicCardSkeleton from './TopicCardSkeleton.vue';
+// import TopicCardSkeleton from './TopicCardSkeleton.vue';
 
 const store = useCardStore();
 const emit = defineEmits(['select-topic']);
@@ -136,25 +130,6 @@ const topicToConfirm = ref(null);
 
 const topics = computed(() => store.topics);
 
-// 修改：savedTopicInfo 计算属性，确保包含 hasMd
-const savedTopicInfo = computed(() => {
-    const infoMap = {};
-    const counts = store.topicCardCounts || {};
-    const mdFilesSet = store.detectedMarkdownFiles instanceof Set ? store.detectedMarkdownFiles : new Set();
-
-    topics.value.forEach(topic => {
-        const hasMd = mdFilesSet.has(topic.id);
-        const count = counts[topic.id];
-        infoMap[topic.id] = {
-            hasMd: hasMd,
-            cardCount: (typeof count === 'number' && count >= 0) ? count : 0
-        };
-    });
-    // --- 新增日志：检查计算结果 ---
-    console.log('[TopicSelector savedTopicInfo] Calculated infoMap:', infoMap);
-    return infoMap;
-});
-
 // 计算属性：生成确认消息 (保持与 GenerateMdModal 类似的逻辑)
 const confirmationMessage = computed(() => {
   if (!topicToConfirm.value) return '';
@@ -163,15 +138,11 @@ const confirmationMessage = computed(() => {
   return `本地已存在 "${title}" 的 Markdown 文件 (.md)。\n\n确定要覆盖它吗？`;
 });
 
-// --- 新增：监视 Store 中的 topicCardCounts --- 
-watch(() => store.topicCardCounts, (newCounts) => {
-    console.log('[TopicSelector Watcher] store.topicCardCounts changed:', newCounts);
-}, { deep: true, immediate: true }); // immediate 可以在初始时也触发一次
-
 onMounted(async () => {
-    console.log("[TopicSelector] Mounted. Explicitly fetching file lists...");
+    console.log("[TopicSelector] Mounted. Explicitly fetching file lists for sync check...");
+    // fetchFileLists is now primarily for checking/syncing counts
     await store.fetchFileLists(); 
-    console.log("[TopicSelector] File lists fetch initiated from onMounted.");
+    console.log("[TopicSelector] File lists sync check initiated from onMounted.");
 });
 
 // 修改：这个方法现在由卡片点击触发
@@ -209,8 +180,8 @@ const generatePrompt = (topic) => {
 
 // 新增：触发生成或确认的方法
 const triggerGenerateOrConfirm = (topic) => {
-    const info = savedTopicInfo.value[topic.id];
-    if (info?.hasMd) {
+    // 使用 store.detectedMarkdownFiles 检查文件是否存在
+    if (store.detectedMarkdownFiles.has(topic.id)) {
         topicToConfirm.value = topic;
         showConfirmationModal.value = true;
         console.log(`[TopicSelector] MD exists for ${topic.id}. Opening confirmation.`);

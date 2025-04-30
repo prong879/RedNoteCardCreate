@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useToast } from 'vue-toastification';
-import { topicsMeta } from '../config/topicsMeta.js';
+import { topicsMeta as initialTopicsMeta } from '../config/topicsMeta.js'; // Rename to avoid conflict
 import matter from 'gray-matter'; // 引入 gray-matter
 import { handleAsyncTask } from '../utils/asyncHandler'; // 导入新的处理器
 import {
@@ -110,13 +110,14 @@ export const useCardStore = defineStore('card', () => {
     // 编辑区聚焦卡片索引: null (无焦点), -1 (封面), 0+ (内容卡片索引)
     const focusedEditorIndex = ref(null);
 
-    // 新增：存储所有话题元数据
-    const topics = ref([...topicsMeta]); // 从原始文件初始化
+    // +++ Initialize topics state from imported meta +++
+    const topics = ref([...initialTopicsMeta]); // Initialize with cached data
 
-    // --- 新增：用于存储检测到的文件列表状态 --- 
-    const detectedMarkdownFiles = ref(new Set()); // Set<string> topicId
-    const topicCardCounts = ref({}); // { [topicId: string]: number }
-    const isLoadingFiles = ref(false); // 新增：文件列表加载状态
+    // --- Keep detectedMarkdownFiles for knowing which files exist --- 
+    const detectedMarkdownFiles = ref(new Set()); // Still useful to know *which* files exist
+    // const topicCardCounts = ref({}); // No longer needed, count is part of topics state
+    // --- Remove isLoadingFiles --- 
+    // const isLoadingFiles = ref(false);
     const fileLoadingError = ref(null); // 新增：文件列表加载错误信息
 
     // +++ 新增：用于指示卡片内容是否正在加载 +++
@@ -150,12 +151,13 @@ export const useCardStore = defineStore('card', () => {
         }
     };
 
-    // --- 修改：Action - 获取文件列表 --- 
+    // --- Modify fetchFileLists Action --- 
     const fetchFileLists = async () => {
-        if (isLoadingFiles.value) return;
-        isLoadingFiles.value = true;
+        // --- Remove isLoadingFiles check and setting ---
+        // if (isLoadingFiles.value) return;
+        // isLoadingFiles.value = true;
         fileLoadingError.value = null;
-        console.log('[Store] Fetching file lists from API...');
+        console.log('[Store] Fetching file lists and checking counts...');
 
         // 使用 handleAsyncTask 包装 fetch 调用
         const result = await handleAsyncTask(async () => {
@@ -175,32 +177,90 @@ export const useCardStore = defineStore('card', () => {
         });
 
         if (result.success && result.data) {
-            // 更新状态
-            detectedMarkdownFiles.value = new Set(result.data.mdFiles || []);
+            const { mdFiles, mdFileDetails } = result.data;
+            detectedMarkdownFiles.value = new Set(mdFiles || []);
 
-            // --- 恢复：处理卡片数量信息 --- 
-            const countsMap = {};
-            // --- 修改：从 mdFileDetails 获取卡片数量 ---
-            if (Array.isArray(result.data.mdFileDetails)) {
-                result.data.mdFileDetails.forEach(detail => {
-                    if (detail.topicId && typeof detail.cardCount === 'number' && detail.cardCount >= 0) { // 确保 cardCount 有效
-                        countsMap[detail.topicId] = detail.cardCount;
+            // Create maps for efficient lookup
+            const topicsMetaMap = new Map(initialTopicsMeta.map(t => [t.id, t.cardCount]));
+            const actualCountsMap = new Map((mdFileDetails || []).map(d => [d.topicId, d.cardCount]));
+
+            console.log('[Store] Cached Counts (from topicsMeta.js):', topicsMetaMap);
+            console.log('[Store] Actual Counts (from API):', actualCountsMap);
+
+            // --- Synchronize counts --- 
+            for (const topic of topics.value) {
+                const topicId = topic.id;
+                const cachedCount = topicsMetaMap.get(topicId); // Count from the initial file
+                const actualCount = actualCountsMap.get(topicId); // Count from API calculation
+
+                // Check if .md file actually exists for this topic
+                const fileExists = detectedMarkdownFiles.value.has(topicId);
+
+                if (fileExists && actualCount !== undefined) {
+                    // File exists and backend provided a count
+                    if (cachedCount === undefined || cachedCount !== actualCount) {
+                        console.warn(`[Store] Count mismatch for ${topicId}: Cached=${cachedCount}, Actual=${actualCount}. Syncing...`);
+                        // Update state immediately
+                        topic.cardCount = actualCount;
+
+                        // Call API to update topicsMeta.js (fire and forget, errors handled by API/helper)
+                        fetch('/api/sync-topic-count', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ topicId: topicId, actualCount: actualCount })
+                        }).then(async response => {
+                            if (!response.ok) {
+                                const errorData = await response.json().catch(() => ({}));
+                                console.error(`[Store] Failed to sync count for ${topicId} via API: ${errorData.message || response.statusText}`);
+                                toast.error(`自动同步 ${topicId} 卡片数量失败: ${errorData.message || '服务器错误'}`);
+                            } else {
+                                console.log(`[Store] Successfully synced count for ${topicId} via API.`);
+                            }
+                        }).catch(error => {
+                            console.error(`[Store] Network error syncing count for ${topicId}:`, error);
+                            toast.error(`自动同步 ${topicId} 卡片数量时发生网络错误。`);
+                        });
+                    } else {
+                        // Counts match, ensure state reflects the correct count if it was missing initially
+                        if (topic.cardCount === undefined || topic.cardCount === null) {
+                            topic.cardCount = actualCount; // Update state if it was missing
+                        }
+                        // console.log(`[Store] Count for ${topicId} is up-to-date (${actualCount}).`);
                     }
-                });
+                } else if (!fileExists && (topic.cardCount !== undefined && topic.cardCount !== 0)) {
+                    // Topic exists in state/meta, but .md file is gone. Reset count in state.
+                    console.warn(`[Store] File ${topicId}.md not found, but exists in meta. Resetting count in state to 0.`);
+                    topic.cardCount = 0;
+                    // Optionally, trigger API to sync count to 0 in topicsMeta.js as well
+                    fetch('/api/sync-topic-count', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ topicId: topicId, actualCount: 0 })
+                    }).catch(error => console.error(`[Store] Network error resetting count for missing file ${topicId}:`, error));
+                } else if (!fileExists) {
+                    // File doesn't exist, ensure count is 0 or undefined
+                    if (topic.cardCount !== 0) topic.cardCount = 0;
+                }
             }
-            // --- 新增日志：检查赋值前的值 ---
-            console.log('[Store fetchFileLists] countsMap before assignment:', countsMap);
-            topicCardCounts.value = countsMap;
-            console.log('[Store] Updated topicCardCounts:', topicCardCounts.value);
-            // --- 结束恢复 ---
+
+            // Optional: Add topics found in mdFiles but not in topics.value state (less likely)
+            for (const existingFileId of detectedMarkdownFiles.value) {
+                if (!topics.value.some(t => t.id === existingFileId)) {
+                    console.warn(`[Store] Markdown file ${existingFileId}.md exists but is not listed in topicsMeta.js. Consider adding it.`);
+                    // Could potentially add a placeholder topic to the state here
+                    // topics.value.push({ id: existingFileId, title: `未知选题 (${existingFileId})`, description: '', cardCount: actualCountsMap.get(existingFileId) ?? 0 });
+                }
+            }
 
         } else if (!result.success) {
             // 更新错误状态
             fileLoadingError.value = result.error?.message || '未知错误';
+            toast.error(`加载文件列表失败: ${fileLoadingError.value}`); // Show toast on error
         }
 
-        isLoadingFiles.value = false;
-        // 不再需要在 Store 中抛出错误，调用者如果需要可以检查 isLoadingFiles 和 fileLoadingError
+        // --- Remove isLoadingFiles setting ---
+        // isLoadingFiles.value = false;
+        console.log('[Store] File list fetch and count sync complete.');
     };
 
     // --- 修改：Action - 保存 Markdown 模板到本地 (保持，但可能需要后续调整) ---
@@ -408,7 +468,7 @@ export const useCardStore = defineStore('card', () => {
         // 使用辅助函数处理
         handleSyncAction(() => {
             if (index < 0 || index >= cardContent.value.contentCards.length) {
-                throw new Error(`无效的索引 ${index}。`);
+                throw new Error(`无效的索引 ${index}`);
             }
             cardContent.value.contentCards.splice(index, 1);
             console.log(`[Store Action - removeContentCard] State updated successfully.`);
@@ -819,8 +879,6 @@ export const useCardStore = defineStore('card', () => {
         focusedEditorIndex,
         topics,
         detectedMarkdownFiles,
-        topicCardCounts,
-        isLoadingFiles,
         fileLoadingError,
         isLoadingContent,
 

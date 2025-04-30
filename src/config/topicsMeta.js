@@ -6,22 +6,26 @@ export const topicsMeta = [
     {
         id: 'topic01',
         title: '【期末速成】这，可能是最"说人话"的计量速成',
-        description: '系列课程介绍与导论'
+        description: '系列课程介绍与导论',
+        cardCount: 11
     },
     {
         id: 'topic02',
         title: '【小白入门】什么是时间序列数据？',
-        description: '核心：用生活实例解释定义，如图股价、气温变化'
+        description: '核心：用生活实例解释定义，如图股价、气温变化',
+        cardCount: 7
     },
     {
         id: 'topic03',
         title: '时间序列 VS 截面数据 VS 面板数据：三者的区别？',
-        description: '核心：用形象比喻和例子区分三种常见数据类型'
+        description: '核心：用形象比喻和例子区分三种常见数据类型',
+        cardCount: 6
     },
     {
         id: 'topic04',
         title: '为什么金融分析离不开时间序列？',
-        description: '核心：强调预测、风险管理等实际应用价值，引发共鸣'
+        description: '核心：强调预测、风险管理等实际应用价值，引发共鸣',
+        cardCount: 4
     },
     {
         id: 'topic05',
@@ -221,6 +225,7 @@ export const topicsMeta = [
     {
         id: 'test01',
         title: '测试选题 (请忽略)',
-        description: '这是一个用于测试新功能的临时选题数据。测试编辑话题简介'
+        description: '这是一个用于测试新功能的临时选题数据。测试编辑话题简介',
+        cardCount: 4
     }
 ];

@@ -163,9 +163,7 @@ async function updateTopicsMetaFile(topicId, newDescription) {
     }
 }
 
-/**
- * Vite 插件，用于在开发模式下处理来自前端的本地文件保存请求。
- */
+// +++ 新增：帮助函数，用于安全地读取和更新 topicsMeta.js 中的 cardCount +++\nasync function updateTopicsMetaCount(topicId, newCount) {\n    const metaFilePath = path.resolve(projectRoot, 'src', 'config', 'topicsMeta.js');\n    console.log(`[LocalSavePlugin] Attempting to update cardCount for ${topicId} to ${newCount} in ${metaFilePath}`);\n    try {\n        let content = await fs.readFile(metaFilePath, 'utf-8');\n\n        // 移除可能的 BOM 字符 (以防万一)\n        content = content.replace(/^\uFEFF/, '');\n\n        // 正则表达式查找对应的条目并捕获 cardCount 部分\n        // 匹配: { ... id: 'topicId', ..., cardCount: NUMBER, ... } 或 { ... id: 'topicId', ... } (无 cardCount)\n        // 捕获组 1: 条目开始到 cardCount 之前的部分 (或整个条目，如果没有 cardCount)\n        // 捕获组 2: (可选) cardCount 属性名\n        // 捕获组 3: (可选) cardCount 的旧值\n        // 捕获组 4: 条目 cardCount 之后的部分 (或空，如果没有 cardCount 或在末尾)\n        // 改进正则以处理可能没有 cardCount 的情况，以及属性顺序问题\n        const entryRegex = new RegExp(\n            `({(?:\\s*\\r?\\n*)[^}]*?id:\\s*['"\`]${topicId}['"\`][^}]*?)` + // (1) Start of object up to id: 'topicId', non-greedily\n            `(?:(,\\s*\\r?\\n*cardCount:\\s*)(\\d+))?` +             // (2, 3) Optional: comma, 'cardCount:', number\n            `([^}]*})`,                                              // (4) Rest of the object\n            's' // 's' flag allows . to match newline characters\n        );\n\n        let updated = false;\n        const newContent = content.replace(entryRegex, (match, preCardCountPart, commaAndKey, oldCount, postCardCountPart) => {\n            updated = true;\n            let updatedEntry;\n            if (commaAndKey) {\n                // cardCount 存在，替换旧值\n                console.log(`[LocalSavePlugin] Found existing cardCount for ${topicId}: ${oldCount}. Replacing with ${newCount}.`);\n                updatedEntry = `${preCardCountPart}${commaAndKey}${newCount}${postCardCountPart}`;\n            } else {\n                // cardCount 不存在，在 } 前添加\n                console.log(`[LocalSavePlugin] cardCount not found for ${topicId}. Adding cardCount: ${newCount}.`);\n                 // postCardCountPart 在这种情况下是 } 之前的最后一个非 } 字符开始的部分\n                 // 我们需要在 preCardCountPart 和 postCardCountPart 之间插入 , cardCount: newCount\n                const trimmedPre = preCardCountPart.trimRight(); // 移除末尾空白\n                const needsComma = trimmedPre.endsWith(',') ? '' : ','; // 检查是否需要加逗号\n                updatedEntry = `${preCardCountPart}${needsComma} cardCount: ${newCount}${postCardCountPart}`;\n\n            }\n            console.log(`[LocalSavePlugin] Updated entry for ${topicId}: ${updatedEntry}`);\n            return updatedEntry;\n        });\n\n\n        if (!updated) {\n            console.warn(`[LocalSavePlugin] Could not find entry for topicId '${topicId}' in ${metaFilePath} to update cardCount.`);\n            // 注意：这里不应该返回错误，因为保存文件本身是成功的\n            // 可能是 topicsMeta.js 尚未包含该 topicId 的条目 (例如新建文件时)\n            // 这种情况可以忽略，或者在 list-content-files 时再同步\n            return { success: false, message: `未能在 topicsMeta.js 中找到 ID 为 ${topicId} 的条目来更新卡片计数。` }; // 返回内部状态\n        }\n\n        // 写回文件\n        await fs.writeFile(metaFilePath, newContent, 'utf-8');\n        console.log(`[LocalSavePlugin] Successfully updated cardCount for ${topicId} to ${newCount} in ${metaFilePath}`);\n        return { success: true }; // 返回内部状态\n\n    } catch (error) {\n        console.error(`[LocalSavePlugin] Error updating cardCount in ${metaFilePath} for ${topicId}:`, error);\n        // 同样，保存文件本身是成功的，这里只记录日志\n        return { success: false, message: `更新 ${metaFilePath} 中的卡片计数时发生错误: ${error.message}` }; // 返回内部状态\n    }\n}\n\n/**\n * Vite 插件，用于在开发模式下处理来自前端的本地文件保存请求。\n */
 export default function localSavePlugin() {
     return {
         name: 'local-save-handler', // 插件名称
@@ -386,109 +384,7 @@ export default function localSavePlugin() {
             });
             console.log('[LocalSavePlugin] API endpoint /api/get-md-content configured.');
 
-            // --- 新增中间件 6: 保存 Markdown 内容到文件 ---
-            server.middlewares.use('/api/save-md-content', async (req, res, next) => {
-                if (req.method !== 'POST') {
-                    return next();
-                }
-
-                let body = '';
-                req.on('data', chunk => { body += chunk.toString(); });
-                req.on('end', async () => {
-                    let requestedTopicId = 'unknown';
-                    try {
-                        const { topicId, content } = JSON.parse(body);
-                        requestedTopicId = topicId;
-
-                        // --- 安全性检查 ---
-                        if (!topicId || typeof topicId !== 'string') {
-                            res.writeHead(400, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ success: false, message: '无效或缺失的 topicId。' }));
-                            return;
-                        }
-                        if (content === undefined || content === null || typeof content !== 'string') {
-                            res.writeHead(400, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ success: false, message: '无效或缺失的文件内容。' }));
-                            return;
-                        }
-
-                        const filename = `${topicId}.md`; // 构建文件名
-                        const targetDir = path.resolve(projectRoot, 'src', 'markdown');
-                        const targetPath = path.join(targetDir, path.basename(filename)); // 使用 basename 防御路径遍历
-
-                        // 再次验证路径是否仍在预期目录内
-                        if (!targetPath.startsWith(targetDir)) {
-                            res.writeHead(400, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ success: false, message: '无效的文件路径，禁止访问项目外或非 src/markdown 目录。' }));
-                            return;
-                        }
-                        // --- 安全性检查结束 ---
-
-                        // 确保目标目录存在 (虽然通常已存在)
-                        await fs.mkdir(targetDir, { recursive: true });
-
-                        // 写入/覆盖 Markdown 文件
-                        await fs.writeFile(targetPath, content, 'utf-8');
-                        console.log(`[LocalSavePlugin] Successfully wrote content to ${targetPath}`);
-
-                        // --- 可选：通知 Vite .md 文件已更改？---
-                        // server.watcher.emit('change', targetPath); 
-                        // 注意：如果前端直接通过 API 重新加载，可能不需要 HMR 通知
-                        // 如果其他地方（如 MarkdownManager）依赖文件系统变化，则可能需要
-                        // 暂时不加
-
-                        // 返回成功响应
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: true, message: `内容已成功保存到 ${filename}。` }));
-
-                    } catch (error) {
-                        console.error(`[LocalSavePlugin] Save MD Content [${requestedTopicId}]: Error processing request:`, error);
-                        res.writeHead(500, { 'Content-Type': 'application/json' });
-                        // 避免在错误消息中暴露完整路径或其他敏感信息
-                        const userFriendlyMessage = error instanceof SyntaxError ? '请求体 JSON 解析失败。' : '保存 Markdown 内容时发生服务器内部错误。';
-                        res.end(JSON.stringify({ success: false, message: userFriendlyMessage }));
-                    }
-                });
-            });
-            console.log('[LocalSavePlugin] API endpoint /api/save-md-content configured.');
-
-            // +++ 新增：中间件 6: 更新 topicsMeta.js 中的简介 +++
-            server.middlewares.use('/api/update-topic-meta', async (req, res, next) => {
-                if (req.method !== 'POST') {
-                    return next();
-                }
-                console.log('[LocalSavePlugin] /api/update-topic-meta requested');
-
-                let body = '';
-                req.on('data', chunk => { body += chunk.toString(); });
-                req.on('end', async () => {
-                    try {
-                        const { topicId, description } = JSON.parse(body);
-                        if (!topicId || typeof description !== 'string') {
-                            res.writeHead(400, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify({ success: false, message: '请求参数无效，需要 topicId 和 description。' }));
-                            return;
-                        }
-
-                        const result = await updateTopicsMetaFile(topicId, description);
-
-                        if (result.success) {
-                            res.writeHead(200, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify(result));
-                        } else {
-                            // 根据错误类型返回不同的状态码可能更好，这里简化处理
-                            res.writeHead(500, { 'Content-Type': 'application/json' });
-                            res.end(JSON.stringify(result));
-                        }
-
-                    } catch (error) {
-                        console.error('[LocalSavePlugin] /api/update-topic-meta Error:', error);
-                        res.writeHead(500, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: false, message: '处理更新选题简介请求时发生服务器内部错误。', error: error.message }));
-                    }
-                });
-            });
-            console.log('[LocalSavePlugin] API endpoint /api/update-topic-meta configured.');
+            // --- 修改中间件: 保存 Markdown 内容到文件 ---\n            server.middlewares.use('/api/save-md-content', async (req, res, next) => {\n                if (req.method !== 'POST') {\n                    return next();\n                }\n\n                let body = '';\n                req.on('data', chunk => { body += chunk.toString(); });\n                req.on('end', async () => {\n                    let requestedTopicId = 'unknown';\n                    let savedContent = ''; // 保存内容以供后续解析\n                    try {\n                        const parsedBody = JSON.parse(body);\n                        const { topicId, content } = parsedBody;\n                        requestedTopicId = topicId;\n                        savedContent = content; // 赋值\n\n                        // --- 安全性检查 ---\n                        if (!topicId || typeof topicId !== 'string') {\n                            res.writeHead(400, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify({ success: false, message: '无效或缺失的 topicId。' }));\n                            return;\n                        }\n                        if (content === undefined || content === null || typeof content !== 'string') {\n                            res.writeHead(400, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify({ success: false, message: '无效或缺失的文件内容。' }));\n                            return;\n                        }\n\n                        const filename = `${topicId}.md`; // 构建文件名\n                        const targetDir = path.resolve(projectRoot, 'src', 'markdown');\n                        const targetPath = path.join(targetDir, path.basename(filename)); // 使用 basename 防御路径遍历\n\n                        // 再次验证路径是否仍在预期目录内\n                        if (!targetPath.startsWith(targetDir)) {\n                            res.writeHead(400, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify({ success: false, message: '无效的文件路径，禁止访问项目外或非 src/markdown 目录。' }));\n                            return;\n                        }\n                        // --- 安全性检查结束 ---\n\n                        // 确保目标目录存在 (虽然通常已存在)\n                        await fs.mkdir(targetDir, { recursive: true });\n\n                        // 写入/覆盖 Markdown 文件\n                        await fs.writeFile(targetPath, savedContent, 'utf-8');\n                        console.log(`[LocalSavePlugin] Successfully wrote content to ${targetPath}`);\n\n                        // +++ 新增：解析刚保存的内容并更新 topicsMeta.js +++\n                        try {\n                            const { data: frontMatter, content: mdBodyContent } = matter(savedContent);\n                            const parsedBody = parseMdBodyToCards(mdBodyContent, frontMatter);\n                            // 计算卡片数量 (仅内容卡)\n                            const cardCount = parsedBody.contentCards?.length || 0;\n                            console.log(`[LocalSavePlugin] Calculated cardCount for ${topicId} after save: ${cardCount}`);\n                            // 调用辅助函数更新 topicsMeta.js\n                            const updateResult = await updateTopicsMetaCount(topicId, cardCount);\n                            if (!updateResult.success) {\n                                // 记录日志，但不影响主流程的成功响应\n                                console.warn(`[LocalSavePlugin] Failed to update cardCount in topicsMeta.js for ${topicId}: ${updateResult.message}`);\n                            }\n                        } catch (parseOrUpdateError) {\n                            // 记录解析或更新元数据时的错误，但不影响主流程的成功响应\n                             console.error(`[LocalSavePlugin] Error parsing saved content or updating meta for ${topicId}:`, parseOrUpdateError);\n                         }\n                        // +++ 更新结束 +++\n\n                        // 返回成功响应\n                        res.writeHead(200, { 'Content-Type': 'application/json' });\n                        res.end(JSON.stringify({ success: true, message: `内容已成功保存到 ${filename}。` }));\n\n                    } catch (error) {\n                        console.error(`[LocalSavePlugin] Save MD Content [${requestedTopicId}]: Error processing request:`, error);\n                        res.writeHead(500, { 'Content-Type': 'application/json' });\n                        // 避免在错误消息中暴露完整路径或其他敏感信息\n                        const userFriendlyMessage = error instanceof SyntaxError ? '请求体 JSON 解析失败。' : '保存 Markdown 内容时发生服务器内部错误。';\n                        res.end(JSON.stringify({ success: false, message: userFriendlyMessage }));\n                    }\n                });\n            });\n            console.log('[LocalSavePlugin] API endpoint /api/save-md-content configured (with meta count update).'); // 更新日志\n\n            // +++ 新增：中间件 6: 更新 topicsMeta.js 中的简介 +++\n            server.middlewares.use('/api/update-topic-meta', async (req, res, next) => {\n                if (req.method !== 'POST') {\n                    return next();\n                }\n                console.log('[LocalSavePlugin] /api/update-topic-meta requested');\n\n                let body = '';\n                req.on('data', chunk => { body += chunk.toString(); });\n                req.on('end', async () => {\n                    try {\n                        const { topicId, description } = JSON.parse(body);\n                        if (!topicId || typeof description !== 'string') {\n                            res.writeHead(400, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify({ success: false, message: '请求参数无效，需要 topicId 和 description。' }));\n                            return;\n                        }\n\n                        const result = await updateTopicsMetaFile(topicId, description);\n\n                        if (result.success) {\n                            res.writeHead(200, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify(result));\n                        } else {\n                            // 根据错误类型返回不同的状态码可能更好，这里简化处理\n                            res.writeHead(500, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify(result));\n                        }\n\n                    } catch (error) {\n                        console.error('[LocalSavePlugin] /api/update-topic-meta Error:', error);\n                        res.writeHead(500, { 'Content-Type': 'application/json' });\n                        res.end(JSON.stringify({ success: false, message: '处理更新选题简介请求时发生服务器内部错误。', error: error.message }));\n                    }\n                });\n            });\n            console.log('[LocalSavePlugin] API endpoint /api/update-topic-meta configured.');\n\n            // +++ 新增：中间件 7: 同步 topicsMeta.js 中的 cardCount +++\n            server.middlewares.use('/api/sync-topic-count', async (req, res, next) => {\n                if (req.method !== 'POST') {\n                    return next();\n                }\n                console.log('[LocalSavePlugin] /api/sync-topic-count requested');\n\n                let body = '';\n                req.on('data', chunk => { body += chunk.toString(); });\n                req.on('end', async () => {\n                    try {\n                        const { topicId, actualCount } = JSON.parse(body);\n\n                        if (!topicId || typeof actualCount !== 'number' || !Number.isInteger(actualCount) || actualCount < 0) {\n                            res.writeHead(400, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify({ success: false, message: '请求参数无效，需要 topicId (string) 和 actualCount (non-negative integer)。' }));\n                            return;\n                        }\n\n                        // 调用现有的辅助函数来更新文件\n                        const result = await updateTopicsMetaCount(topicId, actualCount);\n\n                        if (result.success) {\n                            res.writeHead(200, { 'Content-Type': 'application/json' });\n                            // 返回成功，可以附带更新后的计数值（虽然调用者已经知道了）\n                            res.end(JSON.stringify({ success: true, message: `已为 ${topicId} 同步卡片计数到 ${actualCount}。`, updatedCount: actualCount }));\n                        } else {\n                            // 如果更新失败（例如找不到 topicId），返回错误\n                            console.error(`[LocalSavePlugin] /api/sync-topic-count Error updating meta for ${topicId}: ${result.message}`);\n                            res.writeHead(500, { 'Content-Type': 'application/json' });\n                            res.end(JSON.stringify({ success: false, message: result.message || `同步 ${topicId} 的卡片计数时出错。` }));\n                        }\n\n                    } catch (error) {\n                        console.error('[LocalSavePlugin] /api/sync-topic-count Error:', error);\n                        const userFriendlyMessage = error instanceof SyntaxError ? '请求体 JSON 解析失败。' : '处理同步卡片计数请求时发生服务器内部错误。';\n                        res.writeHead(500, { 'Content-Type': 'application/json' });\n                        res.end(JSON.stringify({ success: false, message: userFriendlyMessage }));\n                    }\n                });\n            });\n            console.log('[LocalSavePlugin] API endpoint /api/sync-topic-count configured.');\n\n        } // configureServer 结束\n    };
         }
     };
 } 
