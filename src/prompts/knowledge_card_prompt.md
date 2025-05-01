@@ -73,7 +73,6 @@
         *   **命名规则**: `[topicId]_[content_description]_[optional_remarks].<extension>` (例如: `topic01_sine_vs_noise.png`, `topic02_stationarity_check_concept.mp4`)。`[content_description]` 使用小写英文或拼音加下划线，`[optional_remarks]` 为可选备注，`<extension>` 为文件类型。
         *   **存储路径**: 最终资源应保存到根目录的 `media/` 目录下
     *   将生成的建议放在对应卡片 Markdown 内容的**下方**，**统一使用 HTML 注释格式包裹**，并包含命名、存储和建议的尺寸比例信息，例如：
-
 ```md
 <!-- 插图建议：绘制一个时间序列基本组成成分的示意图。
 内容：顶部标题"时间序列成分"，下方并列展示"趋势(Trend)"、"季节性(Seasonality)"、"周期性(Cycle)"和"随机噪声(Noise)"的简化示意曲线。
@@ -81,4 +80,4 @@
 建议尺寸比例：8:9 (宽比高，因内容较多)。
 提示：可在 Manim/ 目录下创建或修改对应 Python 脚本实现。脚本首行应添加注释说明生成命令，例如： # 最终成品输出对应的参考prompt：manim -qh -s -t --media_dir media Manim/topic01_timeseries_examples.py TimeSeriesExamples8x9
 -->
-```
+```  

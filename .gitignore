@@ -27,5 +27,6 @@ dist-ssr
 \.venv
 \成品卡片
 media_final/*
+Manim/media
 
 docs/时间序列数据讲义.md
