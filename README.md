@@ -39,6 +39,7 @@
     *   将所有图片打包为 **ZIP 文件**下载。
     *   一键**复制主文案**。
     *   **"保存到本地"**: 直接将当前编辑内容**写回**对应的 `src/markdown/topicXX.md` 文件 (覆盖保存)。
+*   **性能优化**: 实施了代码分割和懒加载策略 (如导出功能、非首屏组件、KaTeX 样式)，显著提升了应用的初始加载速度。
 
 
 ### 技术栈
@@ -179,7 +180,9 @@ npm run build
 ├── plugins/                # 自定义 Vite 插件
 │   └── vite-plugin-local-save.js # 提供本地 MD 文件操作 API
 ├── src/
-│   ├── assets/             # Vue 应用静态资源
+│   ├── assets/             # Vue 应用静态资源 (包括修正后的 styles 目录)
+│   │   └── styles/
+│   │       └── index.css   # Tailwind 主入口
 │   ├── components/         # Vue 组件
 │   ├── composables/        # Vue 组合式函数
 │   ├── config/             # 应用配置
@@ -207,6 +210,7 @@ npm run build
 ## 开发阶段
 
 *   [x] **阶段1**：基础架构与核心功能
+*   [x] **阶段1.5**: 重构数据流 (Markdown 为核心) & 性能优化 (懒加载)
 *   [ ] **阶段2**：功能完善 (代码高亮, 本地存储等)
 *   [ ] **阶段3**：高级功能与体验优化 (Emoji, 自定义背景, 预览优化等)
 

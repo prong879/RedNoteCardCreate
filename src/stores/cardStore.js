@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { useToast } from 'vue-toastification';
-import { topicsMeta as initialTopicsMeta } from '../config/topicsMeta.js'; // Rename to avoid conflict
+// import { topicsMeta as initialTopicsMeta } from '../config/topicsMeta.js'; // 修改：移除旧的 JS 导入
+import initialTopicsMeta from '../config/topicsMeta.json'; // 修改：导入新的 JSON 文件
 import matter from 'gray-matter'; // 引入 gray-matter
 import { handleAsyncTask } from '../utils/asyncHandler'; // 导入新的处理器
 import {
@@ -79,13 +80,16 @@ export const useCardStore = defineStore('card', () => {
     };
 
     // --- Modify fetchFileLists Action --- 
-    const fetchFileLists = async () => {
-        console.log('[Store] Fetching file lists and checking counts...');
+    const fetchFileLists = async (quickLoad = false) => {
+        // 修改：接受 quickLoad 参数
+        console.log(`[Store] Fetching file lists... Quick load: ${quickLoad}`);
         fileLoadingError.value = null;
+
+        const apiUrl = quickLoad ? '/api/list-content-files?quick=true' : '/api/list-content-files';
 
         // 使用 handleAsyncTask 包装 API 调用
         const result = await handleAsyncTask(async () => {
-            const response = await fetch('/api/list-content-files'); // 假设 API 端点不变
+            const response = await fetch(apiUrl); // 使用带参数的 URL
             if (!response.ok) {
                 let errorMsg = `HTTP error ${response.status}`;
                 try {
@@ -99,96 +103,65 @@ export const useCardStore = defineStore('card', () => {
             errorMessagePrefix: '加载文件列表失败'
         });
 
-        let countsToSync = []; // +++ 初始化用于批量同步的数组 +++
-
         if (result.success && result.data) {
             const { mdFiles, mdFileDetails } = result.data;
+            console.log('[Store] Received file details:', mdFileDetails);
+
+            // 更新 detectedMarkdownFiles Set
             detectedMarkdownFiles.value = new Set(mdFiles || []);
 
-            const topicsMetaMap = new Map(initialTopicsMeta.map(t => [t.id, t.cardCount]));
-            const actualCountsMap = new Map((mdFileDetails || []).map(d => [d.topicId, d.cardCount]));
+            // --- 使用 API 返回的 mdFileDetails 更新 topics --- 
+            // 创建一个 map 方便查找
+            const detailsMap = new Map(mdFileDetails.map(item => [item.topicId, item]));
 
-            console.log('[Store] Cached Counts (from topicsMeta.js):', topicsMetaMap);
-            console.log('[Store] Actual Counts (from API):', actualCountsMap);
-
-            // --- 同步计数 --- 
-            for (const topic of topics.value) {
-                const topicId = topic.id;
-                const cachedCount = topicsMetaMap.get(topicId);
-                const actualCount = actualCountsMap.get(topicId);
-                const fileExists = detectedMarkdownFiles.value.has(topicId);
-
-                if (fileExists && actualCount !== undefined) {
-                    if (cachedCount === undefined || cachedCount !== actualCount) {
-                        console.warn(`[Store] Count mismatch for ${topicId}: Cached=${cachedCount}, Actual=${actualCount}. Queuing for sync.`);
-                        // 立即更新状态以反映 UI
-                        topic.cardCount = actualCount;
-                        // +++ 将需要同步的数据添加到数组 +++
-                        countsToSync.push({ topicId: topicId, actualCount: actualCount });
-
-                        // --- 移除单个 fetch 调用 ---
-                        /*
-                        fetch('/api/sync-topic-count', { ... })
-                        .then(...) 
-                        .catch(...);
-                        */
-                    } else {
-                        if (topic.cardCount === undefined || topic.cardCount === null) {
-                            topic.cardCount = actualCount;
-                        }
-                    }
-                } else if (!fileExists && (topic.cardCount !== undefined && topic.cardCount !== 0)) {
-                    console.warn(`[Store] File ${topicId}.md not found, but exists in meta. Resetting count in state to 0 and queuing sync.`);
-                    topic.cardCount = 0;
-                    // +++ 文件不存在时，也加入批量同步（同步为 0） +++
-                    countsToSync.push({ topicId: topicId, actualCount: 0 });
-                    // --- 移除单个 fetch 调用 ---
-                    /*
-                    fetch('/api/sync-topic-count', { ... }).catch(...);
-                    */
-                } else if (!fileExists) {
-                    if (topic.cardCount !== 0) topic.cardCount = 0;
+            // 保留原有 topics 中的顺序，更新或添加数据
+            const updatedTopics = initialTopicsMeta.map(metaTopic => {
+                const detail = detailsMap.get(metaTopic.id);
+                if (detail) {
+                    // 如果 API 返回了详情，合并更新（API 的 cardCount 优先）
+                    detailsMap.delete(metaTopic.id); // 从 map 中移除已处理的
+                    return { ...metaTopic, ...detail };
+                } else {
+                    // API 没有返回详情，可能文件不存在，保留原 meta
+                    return metaTopic;
                 }
-            }
-            // ... (可选的添加缺失 topic 逻辑保持不变) ...
-            for (const existingFileId of detectedMarkdownFiles.value) {
-                if (!topics.value.some(t => t.id === existingFileId)) {
-                    console.warn(`[Store] Markdown file ${existingFileId}.md exists but is not listed in topicsMeta.js. Consider adding it.`);
-                }
-            }
+            });
+
+            // 添加 API 返回但不在 initialTopicsMeta 中的新主题
+            detailsMap.forEach(detail => {
+                console.warn(`[Store] Found topic ${detail.topicId} from API but not in initialTopicsMeta. Adding.`);
+                updatedTopics.push(detail); // 添加新发现的主题
+            });
+
+            // 更新 store 的 topics state
+            topics.value = updatedTopics;
+            console.log('[Store] Topics state updated with data from API.');
+
+            // --- 移除旧的同步逻辑 --- 
+            // (现在同步逻辑移到后端 /api/list-content-files 的非 quick 模式)
 
         } else if (!result.success) {
             fileLoadingError.value = result.error?.message || '未知错误';
             toast.error(`加载文件列表失败: ${fileLoadingError.value}`);
         }
+    };
 
-        // +++ 在循环外执行批量同步 API 调用 +++
-        if (countsToSync.length > 0) {
-            console.log(`[Store] Sending batch sync request for ${countsToSync.length} topics.`);
-            fetch('/api/batch-sync-topic-counts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(countsToSync)
-            }).then(async response => {
-                const responseData = await response.json().catch(() => ({})); // 尝试解析 JSON
-                if (!response.ok) {
-                    console.error(`[Store] Failed to batch sync counts via API: ${responseData.message || response.statusText}`);
-                    toast.error(`批量同步卡片数量失败: ${responseData.message || '服务器错误'}`);
-                } else {
-                    console.log(`[Store] Successfully batch synced counts via API. Message: ${responseData.message || 'OK'}`);
-                    // 可选：如果后端返回了部分失败信息 (如 207)，可以在这里处理或提示
-                    if (response.status === 207 && responseData.failedToFind && responseData.failedToFind.length > 0) {
-                        toast.warn(`批量同步部分完成：未能找到 ${responseData.failedToFind.length} 个主题进行更新。详情请查看控制台。`);
-                        console.warn('[Store] Batch sync partially failed. Could not find entries for:', responseData.failedToFind);
-                    }
-                }
-            }).catch(error => {
-                console.error(`[Store] Network error during batch sync counts:`, error);
-                toast.error('批量同步卡片数量时发生网络错误。');
-            });
-        }
+    // --- 修改：初始加载流程 --- 
+    const initializeStore = async () => {
+        console.log("[Store] Initializing...");
+        // 1. 快速加载元数据，快速更新 UI
+        await fetchFileLists(true);
+        console.log("[Store] Quick load finished. UI should display initial list.");
 
-        console.log('[Store] File list fetch and count sync complete.');
+        // 2. 后台触发完整同步检查 (不需要等待)
+        fetchFileLists(false).then(() => {
+            console.log("[Store] Background sync fetch completed.");
+            // 后端在非 quick 模式下会返回同步后的最新列表
+            // fetchFileLists(false) 内部的 result.success 分支会再次更新 topics.value
+        }).catch(err => {
+            console.error("[Store] Background sync fetch failed:", err);
+            // 可以考虑在这里添加一个 toast 提示同步失败
+        });
     };
 
     // --- 修改：Action - 保存 Markdown 模板到本地 (保持，但可能需要后续调整) ---
@@ -836,7 +809,8 @@ export const useCardStore = defineStore('card', () => {
         returnToTopicSelection,
         saveMarkdownTemplate,
         adjustCardFontSize,
-        adjustCardLineHeight
+        adjustCardLineHeight,
+        initializeStore
     };
 }, {
     // 可以在这里配置持久化等插件选项
