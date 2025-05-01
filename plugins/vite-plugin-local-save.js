@@ -293,11 +293,10 @@ export default function localSavePlugin() {
                 if (topicsData[topicIndex].cardCount !== newCount) {
                     console.log(`[LocalSavePlugin] updateTopicsMetaCount: Updating cardCount for ${topicId} from ${topicsData[topicIndex].cardCount} to ${newCount}.`);
                     topicsData[topicIndex].cardCount = newCount;
-                    updated = true;
+                    updated = true; // <--- 只有在值不同时才设置为 true
                 } else {
-                    console.log(`[LocalSavePlugin] updateTopicsMetaCount: Count for ${topicId} is already ${newCount}. Skipping.`);
-                    // 即使值相同，也认为逻辑上更新成功
-                    updated = true;
+                    console.log(`[LocalSavePlugin] updateTopicsMetaCount: Count for ${topicId} is already ${newCount}. Skipping write.`);
+                    // 值相同时，updated 保持 false，不再设置为 true
                 }
             } else {
                 // 未找到条目，需要考虑是否在此处添加。根据当前设计，保存时会调用，list 时如果发现不一致也会调用。
@@ -313,10 +312,10 @@ export default function localSavePlugin() {
                 throw notFoundError;
             }
 
-            // 如果数据有更新，则写回文件
-            if (updated && topicsData[topicIndex].cardCount === newCount) { // 再次确认更新成功
+            // 如果数据有更新 (即 updated 为 true)，则写回文件
+            if (updated) {
                 await fs.writeFile(metaFilePath, JSON.stringify(topicsData, null, 4), 'utf-8'); // 使用格式化写入
-                console.log(`[LocalSavePlugin] updateTopicsMetaCount: Successfully updated cardCount for ${topicId} to ${newCount}.`);
+                console.log(`[LocalSavePlugin] updateTopicsMetaCount: Successfully wrote updated cardCount for ${topicId} to ${metaFilePath}.`);
             }
             return { success: true };
 
