@@ -513,7 +513,7 @@ export default function localSavePlugin() {
             }
 
             // 返回最终同步后的数据
-            const finalMdFiles = updatedMetaTopics.map(t => t.id);
+            const finalMdFiles = Array.from(mdFilesSet);
             const finalMdFileDetails = updatedMetaTopics.map(t => ({
                 topicId: t.id,
                 title: t.title,

@@ -1,7 +1,7 @@
 ---
 topicId: topic01
 title: "这，可能是\n最\"说人话\"的\n期末计量速成"
-description: "Generated from JS"
+description: "博主介绍 & 开篇预告"
 headerText: "@园丁小区詹姆斯"
 footerText: |
   ✨ 你一定能学会计量！ ✨

@@ -2,13 +2,13 @@
     {
         "id": "topic01",
         "title": "这，可能是\n最\"说人话\"的\n期末计量速成",
-        "description": "Generated from JS",
+        "description": "博主介绍 & 开篇预告",
         "cardCount": 11
     },
     {
         "id": "topic02",
         "title": "30秒搞懂\n什么是⏱️\n时间序列数据",
-        "description": "Generated from JS",
+        "description": "核心：用生活实例解释定义，如图股价、气温变化",
         "cardCount": 7
     },
     {

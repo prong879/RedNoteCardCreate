@@ -1,6 +1,6 @@
-import { defineAsyncComponent } from 'vue';
-// 导入模板元数据
-import { templateMetadata } from '../config/templateMetadata';
+import { ref, shallowRef, computed, defineAsyncComponent } from 'vue';
+// 修改：从 .json 文件导入，并作为默认导入
+import templateMetadata from '../config/templateMetadata.json';
 
 /**
  * 组合式函数，用于动态加载卡片模板组件，并生成模板信息列表。

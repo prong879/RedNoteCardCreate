@@ -1,0 +1,14 @@
+{
+    "template1": {
+        "name": "模板1",
+        "aspectRatio": "3/4"
+    },
+    "template2": {
+        "name": "模板2",
+        "aspectRatio": "3/4"
+    },
+    "template5": {
+        "name": "模板5",
+        "aspectRatio": "16/9"
+    }
+}

@@ -1,7 +1,7 @@
 ---
 topicId: topic02
 title: "30秒搞懂\n什么是⏱️\n时间序列数据"
-description: "Generated from JS"
+description: "核心：用生活实例解释定义，如图股价、气温变化"
 headerText: "@园丁小区詹姆斯"
 footerText: |
   持续更新
