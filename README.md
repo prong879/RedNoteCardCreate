@@ -10,35 +10,36 @@
 
 *   **选题管理与内容编辑**: 
     *   **选题界面**: 
-        *   加载 `src/config/topicsMeta.js` 中的选题元信息（ID, 标题, 简介）来构建基础选题列表。
-        *   启动时或按需调用后端 API (`/api/list-content-files`)，扫描 `src/markdown/` 目录，实时获取每个 `.md` 文件的卡片数量和存在状态，并更新到列表中。
-        *   提供 "创建 MD" / "覆盖 MD" 按钮，方便地创建新的空白 `.md` 选题文件或覆盖现有文件。
-    *   **内容来源**: 
-        *   选题列表显示时，标题和描述来自 `topicsMeta.js`。
-        *   当选择一个主题加载后，所有编辑和预览的内容（包括标题、描述、页眉/页脚、卡片正文、主文案、样式设置等）均来自对应的 `.md` 文件。
+        *   **两阶段加载**: 
+            *   **快速初始加载**: 应用启动时，仅从 `src/config/topicsMeta.json` 读取基础元数据 (ID, 标题, 简介, 上次记录的卡片数)，快速渲染选题列表框架，提供即时响应。
+            *   **后台同步**: 页面加载后，自动在后台调用 API (`/api/list-content-files`)，完整扫描 `src/markdown/` 目录，获取每个 `.md` 文件的实际信息（标题、描述、卡片数等），并与 `topicsMeta.json` 内容进行对比。如果发现差异（如卡片数变化、标题/描述被修改、文件被删除或新增），则会自动更新 `topicsMeta.json` 文件，并将最新状态同步到前端界面（例如更新卡片数、改变"创建/覆盖"按钮状态）。
+        *   提供 "创建 MD" / "覆盖 MD" 按钮，按钮状态根据后台同步的实际文件存在情况动态显示，方便地创建新的空白 `.md` 选题文件或确认后覆盖现有文件。
+    *   **内容来源**: 所有编辑和预览的内容（包括标题、描述、页眉/页脚、卡片正文、主文案、样式设置等）均来自对应的 `.md` 文件。
     *   **编辑方式**: 
         *   可以直接编辑 `src/markdown/` 下的 `.md` 文件。
         *   也可以在应用的可视化界面中编辑内容。
-    *   **Prompt 生成**: 提供按钮，可根据当前 `.md` 文件内容生成用于辅助AI 在已有 md 文件基础上生成详细文案，并以注释形式提供可视化示例资源演示建
-    议。
-    *   **(可选)** 可利用 ManimCE 制作可视化演示素材，写了一个快速导出Manim的gui应用，支持导出为视频/图片，支持调节质量、背景透明与否等。。
+    *   **Prompt 生成**: 提供按钮，可根据当前 `.md` 文件内容生成用于辅助AI 在已有 md 文件基础上生成详细文案，并以注释形式提供可视化示例资源演示建议。
+    *   **(可选)** 可利用 ManimCE 制作可视化演示素材，写了一个快速导出Manim的gui应用，支持导出为视频/图片，支持调节质量、背景透明与否等。
 *   **卡片模板**: 
     *   提供多种样式模板，支持不同宽高比，实时预览。
     *   模板组件动态加载。
 *   **可视化编辑**: 
-    *   支持实时编辑页眉/页脚、封面/内容卡片的标题/正文及主文案。
-    *   支持 **Markdown** 和 **LaTeX** 数学公式。
-    *   内容卡片支持拖拽排序、添加、删除。
-    *   可单独控制卡片的页眉/页脚显隐。
-    *   可单独调整每个**内容卡片**的**字体大小**和**行高**。
-    *   编辑内容实时反映在预览区。
-    *   编辑区与预览区滚动联动。
-    *   (Pinia 状态管理, 焦点索引约定: `null` 无焦点, `-1` 封面, `0+` 内容卡片索引【这个不要删除】)。
-*   **导出与保存**: 
-    *   导出单张或所有卡片为 **JPG / PNG 图片** (高分辨率, scale:4)。
-    *   将所有图片打包为 **ZIP 文件**下载。
-    *   一键**复制主文案**。
-    *   **"保存到本地"**: 直接将当前编辑内容**写回**对应的 `src/markdown/topicXX.md` 文件 (覆盖保存)。
+    *   支持实时编辑页眉/页脚、封面/内容卡片的标题/正文等。
+    *   通过 Markdown 语法支持丰富的文本格式和数学公式 (KaTeX)。
+    *   支持卡片级别和全局级别的字体大小、行高调整。
+    *   支持配置封面卡片是否显示页眉/页脚。
+*   **数据持久化**: 
+    *   所有内容和配置自动保存到 `src/markdown/` 目录下的对应 `.md` 文件中 (通过自定义 Vite 插件实现)。
+*   **导出功能**: 
+    *   支持将单个卡片或整个选题的所有卡片导出为 PNG 图片。
+    *   支持将整个选题的所有卡片打包导出为 ZIP 文件。
+    *   支持自定义导出图片的文件名。
+    *   导出功能及其依赖库 (html2canvas, jszip) 按需懒加载。
+*   **性能优化**: 
+    *   实现了组件 (MarkdownManager, ConfirmationModal) 和功能库 (导出、KaTeX CSS) 的懒加载/异步加载，优化初始加载速度。
+    *   后端 API (`/api/list-content-files`) 采用并行文件读取，提高响应速度。
+    *   实现了选题列表的两阶段加载（先快速加载基础信息，再后台同步详细状态及元数据），优化用户体验和数据一致性。
+    *   优化了后端 API 在同步检查时的日志输出，减少冗余信息。
 
 
 ### 技术栈
@@ -52,8 +53,8 @@
 *   **拖拽**: vuedraggable
 *   **数据**: Markdown 文件 (`src/markdown/`), 通过自定义 Vite 插件提供 API
 *   **配置**: 
-    *   `src/config/topicsMeta.js`: 存储选题列表的基础元数据 (ID, title, description)。
-    *   `src/config/templateMetadata.js`: 存储卡片模板的元数据 (name, aspectRatio)。
+    *   `src/config/topicsMeta.json`: 存储选题列表的基础元数据 (ID, title, description)。
+    *   `src/config/templateMetadata.json`: 存储卡片模板的元数据 (name, aspectRatio)。
     *   `src/config/cardConstants.js`: 存储卡片样式默认值、范围、Markdown 注释键等常量。
 
 ## 使用方法
@@ -94,7 +95,7 @@ npm run build
 2.  **编辑 Markdown 源文件 (可选)**: 
     *   可以直接使用文本编辑器打开 `.md` 文件进行内容创作。
     *   在 YAML Front Matter 部分填写或修改 `title` 和 `description`。
-    *   **注意**: 如果修改了 `.md` 文件中的 `title` 或 `description`，建议手动同步更新 `src/config/topicsMeta.js` 中对应的条目，以保持选题列表显示的一致性。
+    *   **注意**: 如果修改了 `.md` 文件中的 `title` 或 `description`，建议手动同步更新 `src/config/topicsMeta.json` 中对应的条目，以保持选题列表显示的一致性。
     *   参考 **"通过 Markdown 管理内容"** 部分的格式规范，编写封面卡片、内容卡片以及主文案。
 3.  **AI 辅助生成详细文案**: 
     *   选题页面提供了"生成 Prompt"按钮，一键生成针对该选题的文案撰写 Prompt。
@@ -179,12 +180,14 @@ npm run build
 ├── plugins/                # 自定义 Vite 插件
 │   └── vite-plugin-local-save.js # 提供本地 MD 文件操作 API
 ├── src/
-│   ├── assets/             # Vue 应用静态资源
+│   ├── assets/             # Vue 应用静态资源 (包括修正后的 styles 目录)
+│   │   └── styles/
+│   │       └── index.css   # Tailwind 主入口
 │   ├── components/         # Vue 组件
 │   ├── composables/        # Vue 组合式函数
 │   ├── config/             # 应用配置
-│   │   ├── topicsMeta.js       # 选题列表元数据
-│   │   ├── templateMetadata.js # 模板元数据
+│   │   ├── topicsMeta.json       # 选题列表元数据
+│   │   ├── templateMetadata.json # 模板元数据
 │   │   └── cardConstants.js    # 卡片相关常量
 │   ├── markdown/           # Markdown 源文件 (核心内容)
 │   │   └── topicXX.md
@@ -207,6 +210,8 @@ npm run build
 ## 开发阶段
 
 *   [x] **阶段1**：基础架构与核心功能
+*   [x] **阶段1.5**: 重构数据流 (Markdown 为核心) & 性能优化 (懒加载, 并行 API)
+*   [x] **阶段1.8**: 功能改进与健壮性 (异步选题加载, 后台同步, 配置 JSON 化, API 修复, 日志优化)
 *   [ ] **阶段2**：功能完善 (代码高亮, 本地存储等)
 *   [ ] **阶段3**：高级功能与体验优化 (Emoji, 自定义背景, 预览优化等)
 
@@ -220,20 +225,19 @@ npm run build
     *   **重要**: 文件名（去除 `.vue` 后缀并转为小写）将作为模板的**唯一 ID** (例如 `TemplateNewStyle.vue` -> `id: 'templatenewstyle'`)，此 ID 用于在元数据文件中查找配置。
 
 2.  **元数据注册 (必需!)**: 
-    *   在 `src/config/templateMetadata.js` 文件中，**必须**为新模板添加一个条目。
+    *   在 `src/config/templateMetadata.json` 文件中，**必须**为新模板添加一个条目。
     *   该条目的**键 (key)** 必须是根据上述规则生成的模板 ID (小写)。
     *   该条目的**值 (value)** 必须是一个包含以下属性的对象：
         *   `name`: (必需) `string` - 用户友好的模板名称，用于在 UI 选择列表中显示。
         *   `aspectRatio`: (必需) `string` - 模板的宽高比，格式为 `'宽/高'` (例如 `'3/4'`, `'16/9'`)，用于计算预览缩放。
     ```javascript
-    // src/config/templateMetadata.js 示例
-    export const templateMetadata = {
-      // ... 其他模板
-      templatenewstyle: { // key 必须是小写的模板 ID
-        name: '新样式模板', // 用于显示的名称
-        aspectRatio: '1/1' // 模板的宽高比
+    // src/config/templateMetadata.json 示例
+    {
+      "templatenewstyle": {
+        "name": "新样式模板",
+        "aspectRatio": "1/1"
       }
-    };
+    }
     ```
 
 3.  **基础结构**: 
@@ -338,17 +342,16 @@ npm run build
 
 1.  **创建模板组件**: 在 `src/templates/` 目录下创建一个新的 `.vue` 文件，例如 `TemplateAwesome.vue`。确保遵循上述"模板开发规定"中的**基础结构**、**Props 规范**、**内容处理**和**样式规范**。
 
-2.  **注册元数据**: 打开 `src/config/templateMetadata.js` 文件。
+2.  **注册元数据**: 打开 `src/config/templateMetadata.json` 文件。
     *   根据你的文件名 `TemplateAwesome.vue`，确定模板 ID 为 `templateawesome` (全小写)。
     *   在 `templateMetadata` 对象中添加一个新的键值对：
-        ```javascript
-        export const templateMetadata = {
-          // ... 其他模板
-          templateawesome: {       // 使用小写的 ID 作为 key
-            name: '超棒模板',       // 定义在 UI 中显示的名称
-            aspectRatio: '4/3'    // 定义正确的宽高比
+        ```json
+        {
+          "templateawesome": {
+            "name": "超棒模板",
+            "aspectRatio": "4/3"
           }
-        };
+        }
         ```
 
 3.  **重启开发服务器 (或等待热更新)**: 保存所有更改。Vite 的 `import.meta.glob` 应该能够自动检测到新文件，而 `useTemplateLoader` 会读取更新后的元数据。
