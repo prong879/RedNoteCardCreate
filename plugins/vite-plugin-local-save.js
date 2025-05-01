@@ -498,13 +498,19 @@ export default function localSavePlugin() {
                 if (mdFilesSet.has(metaTopic.id)) {
                     return true; // 保留
                 } else {
-                    console.warn(`[LocalSavePlugin] Sync: Topic ${metaTopic.id} exists in meta but not in markdown. Marking as orphaned.`);
+                    // 注释掉每个孤立项的警告
+                    // console.warn(`[LocalSavePlugin] Sync: Topic ${metaTopic.id} exists in meta but not in markdown. Marking as orphaned.`);
                     orphanedTopics.push(metaTopic.id);
                     // 决定：暂时保留孤立条目，但可以在前端标记出来，或提供清理功能。不在此处自动删除。
                     // 如果需要删除： return false; needsMetaUpdate = true;
                     return true; // 暂时保留
                 }
             });
+
+            // +++ 新增：打印孤立数据的汇总信息 +++
+            if (orphanedTopics.length > 0) {
+                console.warn(`[LocalSavePlugin] Sync: Found ${orphanedTopics.length} orphaned topic(s) in meta but not in markdown: ${orphanedTopics.join(', ')}`);
+            }
 
             // 如果元数据有变化，则写回文件
             if (needsMetaUpdate) {
