@@ -26,7 +26,12 @@ dist-ssr
 
 \.venv
 \成品卡片
+media/*
 media_final/*
-Manim/media
+ManimCE/media/*
+# ManimCE/\__pycache\__/*
+ManimCE/manim_export_gui/*
+manim/*
+manim_media/*
 
 docs/时间序列数据讲义.md

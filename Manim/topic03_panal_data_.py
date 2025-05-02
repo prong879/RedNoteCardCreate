@@ -2,11 +2,7 @@ from manim import *
 import numpy as np
 
 # --- 全局配置 ---
-# 设置 Manim 渲染的帧宽高比接近 8:9，适合竖屏视频
-config.frame_height = 9.0  # 设置帧的高度为 9 个单位
-config.frame_width = 8.0   # 设置帧的宽度为 8 个单位
-config.pixel_height = 1080 # 设置渲染的像素高度
-config.pixel_width = 960   # 设置渲染的像素宽度 (1080 * 8/9)
+# 配置已移至 manim.cfg 文件
 
 class PanelData3D(ThreeDScene):
     """
@@ -50,6 +46,18 @@ class PanelData3D(ThreeDScene):
             }
         )
 
+        # 旋转 X 轴箭头，使其与标题保持相同的朝向
+        # 注意：这里我们只旋转箭头部分，不影响整个坐标轴的方向
+        x_axis_tip = axes.x_axis.tip
+        if x_axis_tip:
+            x_axis_tip.rotate(PI/2, axis=RIGHT)
+
+        # 添加 X 轴标签 "t"
+        x_label = MathTex("t").scale(1.2)  # 创建标签，稍微放大一点
+        x_label.next_to(axes.x_axis.get_end(), RIGHT)  # 将标签放在 X 轴末端的右侧
+        x_label.rotate(PI/2, axis=RIGHT)  # 将标签也旋转到相同方向
+        axes.add(x_label)  # 将标签添加到坐标系中
+
         # --- 2. 隐藏 Y 轴 --- 
         # 由于我们是在 XZ 平面上绘制每个图表，Y 轴仅用于空间分隔
         # 因此需要隐藏 Y 轴的轴线和刻度数字，避免视觉干扰
@@ -65,25 +73,38 @@ class PanelData3D(ThreeDScene):
                 number.set_opacity(0)
 
         # --- 3. 生成数据点并创建折线 --- 
-        num_points = 20 # 定义每个折线图的数据点数量
+        num_points = 50  # 数据点数量
         # 生成 X 轴 (时间 t) 的数据点，从 0 到 5 均匀分布
         x_values = np.linspace(0, 5, num_points)
         
-        # --- 通过变化频率和振幅来生成差异化的 Z 轴数据 ---
+        # --- 使用随机波动生成 Z 轴数据 ---
         # 将 y_shift_val 从 [-4.5, 4.5] 映射到 [0, 1] 的归一化因子
         norm_factor = (y_shift_val - (-4.5)) / (4.5 - (-4.5))
         
-        # 根据 norm_factor 计算变化的频率 (例如，从 1.0 到 2.5)
-        frequency = 1.0 + norm_factor * 1.5 
-        # 根据 norm_factor 计算变化的振幅 (例如，从 0.4 到 1.0)
-        amplitude = 0.4 + norm_factor * 0.6
-        # 计算相位偏移，仍然基于 y_shift_val
-        phase_shift = y_shift_val * 0.5
-        # 计算最终的 z_values，基线为 1
-        z_values = 1 + np.sin(x_values * frequency + phase_shift) * amplitude
+        # 生成随机波动
+        np.random.seed(int((norm_factor + 1) * 1000))  # 不同的种子产生不同的随机序列
+        
+        # 生成白噪声序列，增加标准差使波动更大
+        noise = np.random.normal(0, 0.4, num_points)  # 增加标准差从0.15到0.4
+        
+        # 应用简单的指数平滑来减少过于剧烈的波动
+        alpha = 0.4  # 平滑因子，从0.3增加到0.4，使变化更快
+        z_values = np.zeros(num_points)
+        z_values[0] = noise[0]
+        
+        # 控制波动幅度，显著增加范围
+        amplitude = 1.0 + norm_factor * 1.0  # 波动幅度从 1.0 到 2.0
+        
+        # 生成平滑的随机序列
+        for i in range(1, num_points):
+            z_values[i] = alpha * noise[i] * amplitude + (1 - alpha) * z_values[i-1]
+        
+        # 归一化并调整到目标范围 [-0.5, 2.5]
+        z_min, z_max = -0.5, 2.5
+        z_range = z_max - z_min
+        z_values = z_min + ((z_values - np.min(z_values)) / (np.max(z_values) - np.min(z_values))) * z_range
         
         # 将 (x, z) 数据点转换为 Manim 坐标系中的点
-        # 注意：我们指定 Y 坐标为 0，因为每个图表绘制在其自身的 XZ 平面 (Y=0)
         points = [axes.coords_to_point(x, 0, z) for x, z in zip(x_values, z_values)]
 
         # 使用生成的点创建一条平滑的折线 (VMobject)
@@ -150,30 +171,62 @@ class PanelData3D(ThreeDScene):
             all_lines.add(line_instance)
             
         # --- 6. 准备第一个图表的特殊效果 ---
-        first_axes = all_axes[0] 
-        x_start, x_end = 0, 5
-        z_min, z_max = -0.5, 2.5
-        bl = first_axes.coords_to_point(x_start, 0, z_min) 
-        tl = first_axes.coords_to_point(x_start, 0, z_max) 
-        tr = first_axes.coords_to_point(x_end, 0, z_max)   
-        br = first_axes.coords_to_point(x_end, 0, z_min)   
+        first_axes = all_axes[0]  # 获取第一个坐标系实例
+        x_start, x_end = 0, 5     # 定义 X 轴的起始和结束位置
+        z_min, z_max = -0.5, 2.5  # 定义 Z 轴的最小和最大值范围
+
+        # --- 定义高亮矩形的最终状态 ---
+        # 使用坐标系的 coords_to_point 方法将数学坐标转换为场景中的实际位置
+        bl = first_axes.coords_to_point(x_start, 0, z_min)  # 左下角点 (bottom-left)
+        tl = first_axes.coords_to_point(x_start, 0, z_max)  # 左上角点 (top-left)
+        tr = first_axes.coords_to_point(x_end, 0, z_max)    # 右上角点 (top-right)
+        br = first_axes.coords_to_point(x_end, 0, z_min)    # 右下角点 (bottom-right)
+        # 创建高亮矩形，设置为黄色半透明，无边框
         highlight_rect = Polygon(bl, tl, tr, br, color=YELLOW, fill_opacity=0.3, stroke_width=0)
 
-        # --- 7. 动画流程 --- 
+        # --- 定义高亮矩形的起始状态 (零宽度) ---
+        # 创建一个退化的矩形（实际上是一条线），用于后续的变形动画
+        start_rect = Polygon(bl, tl, tl, bl, color=YELLOW, fill_opacity=0.3, stroke_width=0)
+
+        # --- 创建标题文本 ---
+        # 创建白色标题文本，字体大小为 36
+        title = Text("Time Series", font_size=36, color=WHITE)
+
+        # 计算高亮矩形的中心点（四个顶点的平均位置）
+        rect_center = (bl + br + tl + tr) / 4
+
+        # 将标题放在矩形下方，保持在同一个 XZ 平面上
+        # 通过在 Z 轴方向上偏移 -2.5 个单位来定位标题
+        # 注意：这里的坐标系是三维的，[x, y, z] 分别对应 [左右, 前后, 上下]
+        title_pos = rect_center + np.array([0, 0, -2.5])  
+        title.move_to(title_pos)  # 将标题移动到计算出的位置
+
+        # 将标题旋转到与矩形相同的方向
+        # 因为在 3D 空间中默认的文本是平行于 XY 平面的
+        # 需要绕右方向(X轴)旋转 90 度，使其可以从正面看到
+        title.rotate(PI/2, axis=RIGHT)
+
+        # 设置标题的初始不透明度为 1（完全可见）
+        title.set_opacity(1)
+
+        # --- 7. 动画流程 ---
         # --- 7.1 动画第一个图表 (初始视角下) ---
-        first_graph_run_time = 3
+        first_graph_run_time = 3  # 设置第一个图表动画的持续时间为 3 秒
+        self.add(start_rect)      # 首先将起始状态的矩形添加到场景
+
+        # 同时播放多个动画：创建坐标轴和折线，矩形变形，标题淡入
         self.play(
-            Create(all_axes[0]),      
-            Create(all_lines[0]),     
-            Create(highlight_rect),   
-            run_time=first_graph_run_time 
+            Create(all_axes[0]),                    # 创建第一个坐标系
+            Create(all_lines[0]),                   # 创建第一条折线
+            Transform(start_rect, highlight_rect),   # 将起始矩形变形为最终的高亮矩形
+            FadeIn(title),                          # 标题淡入效果
+            run_time=first_graph_run_time           # 设置动画持续时间
         )
-        
-        # --- 7.2 (不再需要准备起始状态) ---
-        # axes_start_list = [] # 删除
-        # if num_graphs > 1:   # 删除
-        #     ... (删除内部循环和 self.add) ...
-        
+
+        # 确保标题始终可见，不受摄像机视角变化的影响
+        # 这是通过将标题添加到固定帧元素列表中实现的
+        # self.add_fixed_in_frame_mobjects(title)
+
         # --- 7.3 同时播放摄像机 ValueTracker 动画和后续图表动画 ---
         # 增加后续动画的运行时长，给渲染更多时间
         subsequent_graphs_run_time = 5 # 从 3 增加到 5
@@ -210,9 +263,6 @@ class PanelData3D(ThreeDScene):
                 subsequent_graph_animations,
                 run_time=subsequent_graphs_run_time
             )
-        # 可选：如果只有一个图表，是否仍要移动摄像机？
-        # elif num_graphs == 1 and camera_animations:
-        #     self.play(*camera_animations, run_time=subsequent_graphs_run_time)
 
         # --- 8. 结束画面 --- 
         self.wait(3)
