@@ -48,7 +48,7 @@ class PanelData3D(ThreeDScene):
     
     # 动画时长
     FIRST_GRAPH_RUNTIME = 3         # 第一个图表动画时长
-    SUBSEQUENT_GRAPHS_RUNTIME = 7   # 后续图表和相机动画时长
+    SUBSEQUENT_GRAPHS_RUNTIME = 3   # 后续图表和相机动画时长
     CONNECTING_RECT_RUNTIME = 2     # 连接矩形动画时长
     MOVEMENT_RUNTIME = 3            # 平移动画时长
     

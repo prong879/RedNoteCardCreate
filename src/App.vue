@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-screen bg-gray-100 flex flex-col">
     <div class="relative py-3 sm:max-w-6xl sm:mx-auto w-full">
-      <div class="relative px-4 py-4 sm:pt-8 sm:px-20 sm:pb-20">
+      <div class="relative px-2 py-4 sm:pt-8 sm:px-10 sm:pb-20">
         <div class="mx-auto">
           <div class="text-center mb-10">
             <h1 class="text-3xl font-bold text-xhs-pink">小红书知识卡片生成器</h1>
